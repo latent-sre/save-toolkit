@@ -14,7 +14,7 @@ a recorded decision from an authorized human and must be permitted by the applic
 | Scoped | Split only when size or mixed concerns prevent reliable review. |
 | Docs and ops | Changed behaviour updates docs: `scribe` for runbooks/postmortems, `observability-engineer` for dashboards/alerts/SLOs, or a recorded reason neither is needed. |
 
-P2 blocks only if introduced or worsened; P3 never blocks. Read active repository rules
+P2 and P3 never block. Read active repository rules
 (`gh api repos/{owner}/{repo}/rules/branches/{branch}`) and classic protection
 (`gh api repos/{owner}/{repo}/branches/{branch}/protection`). A 404 without admin rights means unknown,
 not unprotected. The rules endpoint omits `evaluate` and `disabled` rules and bypass actors; classic

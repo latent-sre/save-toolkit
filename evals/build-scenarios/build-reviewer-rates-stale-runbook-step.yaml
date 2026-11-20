@@ -1,0 +1,1062 @@
+# Twin of build-reviewer-rates-stale-readme-default. Both branches raise the default health timeout from
+# 30 to 90 seconds in code, example config and tests, and the code is identical. Here the branch updates
+# the README and leaves the runbook step saying 30. A responder following it promotes by hand 60 seconds
+# before the checker acts, the split-brain case the runbook itself warns about, so the leftover is P1 and
+# the verdict is REQUEST CHANGES.
+id: build-reviewer-rates-stale-runbook-step
+max_turns: 30
+agent: reviewer
+prompt: |
+  Review change/failover-timeout against main before we merge. It raises the replica health-check timeout from 30 to 90 seconds so slow networks stop causing false failovers.
+fixture:
+  files:
+    .gitignore: |
+      *.log
+    README.md: |
+      # dbfailover
+
+      Health checking and promotion for a primary/replica database pair. A checker probes the primary
+      on an interval; when the primary has been silent for longer than the health timeout it promotes
+      the replica and records the promotion in a state file. Standard library only; run the tests with
+      `python -m pytest -q`.
+
+      ## Command line
+
+      ```
+      python -m dbfailover.cli [--config FILE] config
+      python -m dbfailover.cli [--config FILE] check
+      python -m dbfailover.cli [--config FILE] watch [--max-checks N]
+      python -m dbfailover.cli [--config FILE] promote [--reason TEXT]
+      ```
+
+      - `config` prints the settings in effect.
+      - `check` probes the primary once and exits 0 when it answers and 1 when it does not.
+      - `watch` runs the checker loop and promotes the replica when the primary has been silent for the
+        health timeout.
+      - `promote` promotes the replica now. It refuses when the state file already records a promotion.
+
+      A failing command prints `error: ...` and exits with status 2.
+
+      ## Configuration
+
+      Settings come from `DBFAILOVER_*` environment variables, then the ini file named with `--config`,
+      then the defaults below. `config/dbfailover.example.ini` is a complete example.
+
+      | Setting | Environment variable | Default | Meaning |
+      |---|---|---|---|
+      | `primary` | `DBFAILOVER_PRIMARY` | `db-primary:5432` | Address the checker probes |
+      | `replica` | `DBFAILOVER_REPLICA` | `db-replica:5432` | Address that is promoted |
+      | `health_timeout` | `DBFAILOVER_HEALTH_TIMEOUT` | 30 seconds | How long the primary may stay silent before the checker promotes the replica |
+      | `check_interval` | `DBFAILOVER_CHECK_INTERVAL` | 5 seconds | Time between probes |
+      | `probe_timeout` | `DBFAILOVER_PROBE_TIMEOUT` | 2 seconds | How long one probe waits for an answer |
+      | `state_file` | `DBFAILOVER_STATE_FILE` | `/var/lib/dbfailover/state.json` | Where promotions are recorded |
+
+      `health_timeout` must be between 10 and 600 seconds and longer than `check_interval`;
+      `probe_timeout` must not exceed `check_interval`.
+
+      ## Layout
+
+      | Module | Role |
+      |---|---|
+      | `config.py` | Defaults, ini and environment loading, validation |
+      | `health.py` | The probe and the `HealthChecker` |
+      | `promote.py` | The `Promoter` and the state file |
+      | `monitor.py` | The `watch` loop |
+      | `cli.py` | The command line |
+
+      Responders follow [the failover runbook](docs/runbooks/primary-failover.md).
+    config/dbfailover.example.ini: |
+      [dbfailover]
+      primary = db-primary:5432
+      replica = db-replica:5432
+      health_timeout = 30
+      check_interval = 5
+      probe_timeout = 2
+      state_file = /var/lib/dbfailover/state.json
+    dbfailover/__init__.py: |
+      """dbfailover: probe a primary database and promote its replica when the primary goes silent."""
+
+      from .config import Config, load
+      from .errors import FailoverError
+
+      __all__ = ["Config", "FailoverError", "load"]
+    dbfailover/cli.py: |
+      """The `dbfailover` command line.
+
+      Every command loads the configuration first; a failing command prints `error: ...` to stderr and
+      returns status 2.
+      """
+
+      import argparse
+      import sys
+      import time
+      from dataclasses import fields
+
+      from .config import load
+      from .errors import FailoverError
+      from .health import HealthChecker, tcp_probe
+      from .monitor import watch
+      from .promote import Promoter, pg_promote
+
+      EXIT_OK = 0
+      EXIT_PRIMARY_DOWN = 1
+      EXIT_ERROR = 2
+      EXIT_STILL_WATCHING = 3
+
+
+      def build_parser():
+          parser = argparse.ArgumentParser(prog="dbfailover", description="Probe the primary and promote the replica.")
+          parser.add_argument("--config", help="ini file with the settings")
+          commands = parser.add_subparsers(dest="command", required=True)
+          commands.add_parser("config", help="print the settings in effect")
+          commands.add_parser("check", help="probe the primary once")
+          run = commands.add_parser("watch", help="probe on an interval and promote when the primary is dead")
+          run.add_argument("--max-checks", type=int, help="stop after this many probes")
+          promote = commands.add_parser("promote", help="promote the replica now")
+          promote.add_argument("--reason", default="manual promotion")
+          return parser
+
+
+      def _run(args, config, out, probe, command, sleep, clock):
+          if args.command == "config":
+              for field in fields(config):
+                  print(f"{field.name} = {getattr(config, field.name)}", file=out)
+              return EXIT_OK
+          if args.command == "check":
+              if probe(config.primary, config.probe_timeout):
+                  print("primary answering", file=out)
+                  return EXIT_OK
+              print("primary not answering", file=out)
+              return EXIT_PRIMARY_DOWN
+          if args.command == "promote":
+              record = Promoter(config, command).promote(args.reason)
+              print(f"promoted {record['new_primary']}", file=out)
+              return EXIT_OK
+          checker = HealthChecker(config, probe, clock)
+          record = watch(config, checker, Promoter(config, command), sleep, args.max_checks, out)
+          return EXIT_OK if record else EXIT_STILL_WATCHING
+
+
+      def main(argv=None, out=None, err=None, env=None, probe=tcp_probe, command=pg_promote,
+               sleep=time.sleep, clock=time.monotonic):
+          """Run one command and return the process exit status."""
+          out = sys.stdout if out is None else out
+          err = sys.stderr if err is None else err
+          args = build_parser().parse_args(argv)
+          try:
+              return _run(args, load(args.config, env), out, probe, command, sleep, clock)
+          except FailoverError as exc:
+              print(f"error: {exc}", file=err)
+              return EXIT_ERROR
+
+
+      if __name__ == "__main__":
+          raise SystemExit(main())
+    dbfailover/config.py: |
+      """Configuration for dbfailover.
+
+      Settings come from three places, strongest first: `DBFAILOVER_*` environment variables, the ini
+      file named with `--config`, and the defaults in this module. `load` merges them and validates the
+      result, so the rest of the package only ever sees a consistent `Config`.
+      """
+
+      import configparser
+      import os
+      from dataclasses import dataclass, fields
+
+      from .errors import ConfigError
+
+      SECTION = "dbfailover"
+      ENV_PREFIX = "DBFAILOVER_"
+
+      DEFAULT_HEALTH_TIMEOUT = 30
+      DEFAULT_CHECK_INTERVAL = 5
+      DEFAULT_PROBE_TIMEOUT = 2
+      MIN_HEALTH_TIMEOUT = 10
+      MAX_HEALTH_TIMEOUT = 600
+      INT_SETTINGS = ("health_timeout", "check_interval", "probe_timeout")
+
+
+      @dataclass(frozen=True)
+      class Config:
+          """Every setting the package reads."""
+
+          primary: str = "db-primary:5432"
+          replica: str = "db-replica:5432"
+          health_timeout: int = DEFAULT_HEALTH_TIMEOUT
+          check_interval: int = DEFAULT_CHECK_INTERVAL
+          probe_timeout: int = DEFAULT_PROBE_TIMEOUT
+          state_file: str = "/var/lib/dbfailover/state.json"
+
+          def validated(self):
+              """Return `self` when the settings agree with each other, otherwise raise `ConfigError`."""
+              if self.primary == self.replica:
+                  raise ConfigError("primary and replica must be different addresses")
+              if not MIN_HEALTH_TIMEOUT <= self.health_timeout <= MAX_HEALTH_TIMEOUT:
+                  raise ConfigError(
+                      f"health_timeout must be between {MIN_HEALTH_TIMEOUT} and {MAX_HEALTH_TIMEOUT} seconds, "
+                      f"not {self.health_timeout}"
+                  )
+              if self.check_interval < 1:
+                  raise ConfigError("check_interval must be at least 1 second")
+              if self.probe_timeout > self.check_interval:
+                  raise ConfigError("probe_timeout must not exceed check_interval")
+              if self.check_interval >= self.health_timeout:
+                  raise ConfigError("check_interval must be shorter than health_timeout")
+              return self
+
+
+      def _convert(name, raw):
+          if name not in INT_SETTINGS:
+              return raw
+          try:
+              return int(raw)
+          except (TypeError, ValueError):
+              raise ConfigError(f"{name} must be a whole number, not {raw!r}") from None
+
+
+      def load(path=None, env=None) -> Config:
+          """Merge defaults, the ini file at `path` and the environment into a validated `Config`."""
+          env = os.environ if env is None else env
+          values = {}
+          if path is not None:
+              parser = configparser.ConfigParser()
+              if not parser.read(path, encoding="utf-8"):
+                  raise ConfigError(f"{path}: cannot read config file")
+              if SECTION not in parser:
+                  raise ConfigError(f"{path}: missing [{SECTION}] section")
+              values.update(parser[SECTION])
+          known = [field.name for field in fields(Config)]
+          for name in known:
+              key = ENV_PREFIX + name.upper()
+              if key in env:
+                  values[name] = env[key]
+          unknown = sorted(set(values) - set(known))
+          if unknown:
+              raise ConfigError(f"unknown settings: {', '.join(unknown)}")
+          return Config(**{name: _convert(name, raw) for name, raw in values.items()}).validated()
+    dbfailover/errors.py: |
+      """Exceptions raised by dbfailover.
+
+      Every error the package raises on purpose derives from `FailoverError`, so the command line can
+      report a failure by catching that one class.
+      """
+
+
+      class FailoverError(Exception):
+          """Base class for every error this package raises on purpose."""
+
+
+      class ConfigError(FailoverError):
+          """A setting is missing, unknown, malformed or out of range."""
+
+
+      class AlreadyPromoted(FailoverError):
+          """The state file already records a promotion."""
+
+          def __init__(self, replica):
+              super().__init__(f"{replica} has already been promoted")
+              self.replica = replica
+
+
+      class PromotionFailed(FailoverError):
+          """The promote command did not succeed."""
+
+          def __init__(self, replica, detail):
+              super().__init__(f"could not promote {replica}: {detail or 'no detail'}")
+              self.replica = replica
+    dbfailover/health.py: |
+      """Probing the primary.
+
+      `HealthChecker.check` probes once and classifies the primary by how long it has been silent: it is
+      `HEALTHY` when it answers, `DEGRADED` while the silence is shorter than the configured health
+      timeout and `DEAD` once the silence reaches it. The probe and the clock are injected so tests do
+      not need a network or real time.
+      """
+
+      import socket
+      import time
+      from enum import Enum
+
+
+      class Status(Enum):
+          HEALTHY = "healthy"
+          DEGRADED = "degraded"
+          DEAD = "dead"
+
+
+      def tcp_probe(address, timeout) -> bool:
+          """True when a TCP connection to `host:port` succeeds within `timeout` seconds."""
+          host, _, port = address.rpartition(":")
+          try:
+              with socket.create_connection((host, int(port)), timeout=timeout):
+                  return True
+          except (OSError, ValueError):
+              return False
+
+
+      class HealthChecker:
+          """Tracks when the primary last answered."""
+
+          def __init__(self, config, probe=tcp_probe, clock=time.monotonic):
+              self._config = config
+              self._probe = probe
+              self._clock = clock
+              self._last_answer = clock()
+
+          def silent_for(self) -> float:
+              """Seconds since the primary last answered."""
+              return self._clock() - self._last_answer
+
+          def check(self) -> Status:
+              """Probe the primary once and classify it."""
+              now = self._clock()
+              if self._probe(self._config.primary, self._config.probe_timeout):
+                  self._last_answer = now
+                  return Status.HEALTHY
+              if now - self._last_answer >= self._config.health_timeout:
+                  return Status.DEAD
+              return Status.DEGRADED
+    dbfailover/monitor.py: |
+      """The watch loop: probe on an interval and promote when the primary is dead."""
+
+      import sys
+      import time
+
+      from .health import Status
+
+
+      def watch(config, checker, promoter, sleep=time.sleep, max_checks=None, out=None):
+          """Check every `config.check_interval` seconds until the primary is dead.
+
+          Returns the promotion record when the replica was promoted, or `None` when `max_checks` probes
+          passed without the primary being declared dead.
+          """
+          out = sys.stdout if out is None else out
+          checks = 0
+          while max_checks is None or checks < max_checks:
+              status = checker.check()
+              checks += 1
+              print(f"primary {status.value}", file=out)
+              if status is Status.DEAD:
+                  record = promoter.promote(f"primary silent for {checker.silent_for():.0f} seconds")
+                  print(f"promoted {record['new_primary']}", file=out)
+                  return record
+              sleep(config.check_interval)
+          return None
+    dbfailover/promote.py: |
+      """Promoting the replica and remembering that it happened.
+
+      The state file is the only memory: once it records a promotion, `Promoter.promote` refuses to run
+      again on this host. The command that performs the promotion is injected; the default asks the
+      replica's host to run `pg_ctl promote` over ssh.
+      """
+
+      import json
+      import os
+      import subprocess
+      import time
+      from pathlib import Path
+
+      from .errors import AlreadyPromoted, PromotionFailed
+
+
+      def pg_promote(address):
+          """Run `pg_ctl promote` on the host of `address`; return the exit status and stderr."""
+          host, _, _ = address.rpartition(":")
+          done = subprocess.run(
+              ["ssh", host, "pg_ctl", "promote"], capture_output=True, text=True, timeout=60, check=False
+          )
+          return done.returncode, done.stderr.strip()
+
+
+      class Promoter:
+          """Promotes `config.replica` once and records it in `config.state_file`."""
+
+          def __init__(self, config, command=pg_promote, clock=time.time):
+              self._config = config
+              self._command = command
+              self._clock = clock
+
+          def state(self) -> dict:
+              """The recorded state, or an empty dict when nothing has been promoted."""
+              path = Path(self._config.state_file)
+              if not path.exists():
+                  return {}
+              return json.loads(path.read_text(encoding="utf-8"))
+
+          def promote(self, reason) -> dict:
+              """Promote the replica; raise `AlreadyPromoted` or `PromotionFailed` instead of acting twice."""
+              replica = self._config.replica
+              if self.state().get("promoted"):
+                  raise AlreadyPromoted(replica)
+              code, detail = self._command(replica)
+              if code != 0:
+                  raise PromotionFailed(replica, detail)
+              record = {"promoted": True, "new_primary": replica, "reason": reason, "at": int(self._clock())}
+              self._write(record)
+              return record
+
+          def _write(self, record):
+              path = Path(self._config.state_file)
+              path.parent.mkdir(parents=True, exist_ok=True)
+              temp = path.with_name(path.name + ".tmp")
+              temp.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+              os.replace(temp, path)
+    docs/runbooks/primary-failover.md: |
+      # Runbook: primary database failover
+
+      For the on-call responder. Use it when the page says the primary database is not answering.
+
+      ## Before you start
+
+      - You need a shell on a host that can reach both database addresses and `ssh` to the replica.
+      - Keep the config file the checker uses at hand; the commands below take `--config /etc/dbfailover.ini`.
+
+      ## Procedure
+
+      1. Run `python -m dbfailover.cli --config /etc/dbfailover.ini check`. Exit status 0 means the
+         primary answers: stop and look at the application instead. Exit status 1 means it does not.
+      2. Wait for the checker. If the primary has not answered for 30 seconds the checker promotes the
+         replica on its own; if it has not promoted after 30 seconds, promote manually with
+         `python -m dbfailover.cli --config /etc/dbfailover.ini promote --reason "manual failover"`.
+      3. Confirm the promotion: `cat /var/lib/dbfailover/state.json` shows `"promoted": true` and the
+         replica as `new_primary`.
+      4. Point the applications at the new primary and tell the database owners in the incident channel.
+
+      ## Do not promote early
+
+      Never promote by hand while the checker is still waiting. The checker keeps its own clock and
+      promotes again when its timeout lapses, and two writable primaries diverge (split-brain). If you
+      promoted by mistake, stop the checker with `systemctl stop dbfailover` before doing anything else.
+
+      ## Rollback
+
+      A promotion is not undone by this tool. Rebuilding the old primary as a replica is a job for the
+      database owners; hand over the state file and the time of the promotion.
+    tests/test_cli.py: |
+      import io
+
+      from dbfailover import config as config_module
+      from dbfailover.cli import main
+
+
+      class Clock:
+          def __init__(self):
+              self.now = 0.0
+
+          def __call__(self):
+              return self.now
+
+
+      def run(tmp_path, *argv, up=True, command=lambda address: (0, ""), clock=None):
+          out, err = io.StringIO(), io.StringIO()
+          env = {"DBFAILOVER_STATE_FILE": str(tmp_path / "state.json")}
+          clock = clock or Clock()
+
+          def sleep(seconds):
+              clock.now += seconds
+
+          code = main(list(argv), out=out, err=err, env=env, probe=lambda address, timeout: up,
+                      command=command, sleep=sleep, clock=clock)
+          return code, out.getvalue(), err.getvalue()
+
+
+      def test_config_prints_the_settings_in_effect(tmp_path):
+          code, out, _ = run(tmp_path, "config")
+          assert code == 0
+          assert f"health_timeout = {config_module.DEFAULT_HEALTH_TIMEOUT}" in out.splitlines()
+          assert f"state_file = {tmp_path / 'state.json'}" in out.splitlines()
+
+
+      def test_check_reports_whether_the_primary_answers(tmp_path):
+          assert run(tmp_path, "check", up=True) == (0, "primary answering\n", "")
+          assert run(tmp_path, "check", up=False) == (1, "primary not answering\n", "")
+
+
+      def test_promote_records_the_reason(tmp_path):
+          code, out, _ = run(tmp_path, "promote", "--reason", "drill")
+          assert code == 0 and out.startswith("promoted db-replica:5432")
+          assert '"reason": "drill"' in (tmp_path / "state.json").read_text(encoding="utf-8")
+
+
+      def test_a_second_promote_exits_with_status_two(tmp_path):
+          run(tmp_path, "promote")
+          code, out, err = run(tmp_path, "promote")
+          assert (code, out) == (2, "")
+          assert "error: db-replica:5432 has already been promoted" in err
+
+
+      def test_a_failed_promotion_exits_with_status_two(tmp_path):
+          code, _, err = run(tmp_path, "promote", command=lambda address: (255, "connection refused"))
+          assert code == 2 and "connection refused" in err
+
+
+      def test_watch_promotes_when_the_primary_stays_down(tmp_path):
+          code, out, _ = run(tmp_path, "watch", up=False)
+          assert code == 0
+          assert out.splitlines()[-2:] == ["primary dead", "promoted db-replica:5432"]
+
+
+      def test_watch_with_max_checks_exits_with_status_three(tmp_path):
+          code, out, _ = run(tmp_path, "watch", "--max-checks", "2", up=False)
+          assert (code, out) == (3, "primary degraded\nprimary degraded\n")
+
+
+      def test_a_bad_config_exits_with_status_two(tmp_path):
+          code, _, err = run(tmp_path, "--config", str(tmp_path / "absent.ini"), "check")
+          assert code == 2 and "cannot read config file" in err
+    tests/test_config.py: |
+      from pathlib import Path
+
+      import pytest
+
+      from dbfailover.config import Config, load
+      from dbfailover.errors import ConfigError
+
+      EXAMPLE = Path(__file__).resolve().parent.parent / "config" / "dbfailover.example.ini"
+
+
+      def write(tmp_path, body):
+          path = tmp_path / "dbfailover.ini"
+          path.write_text(body, encoding="utf-8")
+          return path
+
+
+      def test_defaults():
+          config = Config()
+          assert config.health_timeout == 30
+          assert config.check_interval == 5
+          assert config.probe_timeout == 2
+          assert config.primary != config.replica
+
+
+      def test_load_without_a_file_uses_the_defaults():
+          assert load(env={}) == Config()
+
+
+      def test_the_example_file_matches_the_defaults():
+          assert load(EXAMPLE, env={}) == Config()
+
+
+      def test_the_environment_beats_the_file(tmp_path):
+          path = write(tmp_path, "[dbfailover]\nhealth_timeout = 40\n")
+          assert load(path, env={}).health_timeout == 40
+          assert load(path, env={"DBFAILOVER_HEALTH_TIMEOUT": "50"}).health_timeout == 50
+
+
+      def test_text_settings_are_taken_as_written(tmp_path):
+          path = write(tmp_path, "[dbfailover]\nprimary = a.example:6000\nreplica = b.example:6000\n")
+          config = load(path, env={})
+          assert (config.primary, config.replica) == ("a.example:6000", "b.example:6000")
+
+
+      @pytest.mark.parametrize(
+          "body, message",
+          [
+              ("health_timeout = 5", "health_timeout must be between 10 and 600 seconds, not 5"),
+              ("health_timeout = 601", "must be between 10 and 600"),
+              ("health_timeout = soon", "health_timeout must be a whole number, not 'soon'"),
+              ("check_interval = 0", "check_interval must be at least 1 second"),
+              ("probe_timeout = 9", "probe_timeout must not exceed check_interval"),
+              ("check_interval = 40\nhealth_timeout = 40", "check_interval must be shorter than health_timeout"),
+              ("primary = x:1\nreplica = x:1", "primary and replica must be different"),
+              ("colour = red", "unknown settings: colour"),
+          ],
+      )
+      def test_bad_settings_are_rejected(tmp_path, body, message):
+          with pytest.raises(ConfigError, match=message):
+              load(write(tmp_path, f"[dbfailover]\n{body}\n"), env={})
+
+
+      def test_a_missing_file_or_section_is_rejected(tmp_path):
+          with pytest.raises(ConfigError, match="cannot read config file"):
+              load(tmp_path / "absent.ini", env={})
+          with pytest.raises(ConfigError, match=r"missing \[dbfailover\] section"):
+              load(write(tmp_path, "[other]\nx = 1\n"), env={})
+    tests/test_health.py: |
+      import io
+
+      from dbfailover.config import Config
+      from dbfailover.health import HealthChecker, Status, tcp_probe
+      from dbfailover.monitor import watch
+      from dbfailover.promote import Promoter
+
+
+      class Clock:
+          def __init__(self):
+              self.now = 0.0
+
+          def __call__(self):
+              return self.now
+
+          def advance(self, seconds):
+              self.now += seconds
+
+
+      def checker_for(answers, clock, **overrides):
+          config = Config(**overrides)
+          return HealthChecker(config, probe=lambda address, timeout: answers["up"], clock=clock)
+
+
+      def test_an_answering_primary_is_healthy():
+          clock = Clock()
+          checker = checker_for({"up": True}, clock)
+          assert checker.check() is Status.HEALTHY
+          assert checker.silent_for() == 0
+
+
+      def test_a_silent_primary_is_degraded_before_the_timeout():
+          clock = Clock()
+          checker = checker_for({"up": False}, clock)
+          clock.advance(10)
+          assert checker.check() is Status.DEGRADED
+          assert checker.silent_for() == 10
+
+
+      def test_a_silent_primary_is_dead_after_the_default_timeout():
+          clock = Clock()
+          checker = checker_for({"up": False}, clock)
+          clock.advance(31)
+          assert checker.check() is Status.DEAD
+
+
+      def test_an_answer_resets_the_silence():
+          clock = Clock()
+          answers = {"up": False}
+          checker = checker_for(answers, clock)
+          clock.advance(20)
+          answers["up"] = True
+          assert checker.check() is Status.HEALTHY
+          answers["up"] = False
+          clock.advance(5)
+          assert checker.check() is Status.DEGRADED
+          assert checker.silent_for() == 5
+
+
+      def test_an_explicit_timeout_overrides_the_default():
+          clock = Clock()
+          checker = checker_for({"up": False}, clock, health_timeout=20)
+          clock.advance(20)
+          assert checker.check() is Status.DEAD
+
+
+      def test_tcp_probe_is_false_for_an_unusable_address():
+          assert tcp_probe("localhost:not-a-port", 0.1) is False
+
+
+      def test_watch_promotes_once_the_primary_has_been_silent_long_enough(tmp_path):
+          clock = Clock()
+          config = Config(state_file=str(tmp_path / "state.json"))
+          checker = HealthChecker(config, probe=lambda address, timeout: False, clock=clock)
+          promoter = Promoter(config, command=lambda address: (0, ""), clock=lambda: 1000)
+          out = io.StringIO()
+          record = watch(config, checker, promoter, sleep=clock.advance, out=out)
+          assert record["new_primary"] == config.replica
+          assert clock.now == config.health_timeout
+          lines = out.getvalue().splitlines()
+          assert lines[0] == "primary degraded"
+          assert lines[-2:] == ["primary dead", f"promoted {config.replica}"]
+
+
+      def test_watch_stops_after_max_checks_without_promoting(tmp_path):
+          clock = Clock()
+          config = Config(state_file=str(tmp_path / "state.json"))
+          checker = HealthChecker(config, probe=lambda address, timeout: True, clock=clock)
+          promoter = Promoter(config, command=lambda address: (0, ""))
+          assert watch(config, checker, promoter, sleep=clock.advance, max_checks=3, out=io.StringIO()) is None
+          assert not (tmp_path / "state.json").exists()
+    tests/test_promote.py: |
+      import json
+
+      import pytest
+
+      from dbfailover.config import Config
+      from dbfailover.errors import AlreadyPromoted, PromotionFailed
+      from dbfailover.promote import Promoter
+
+
+      def make(tmp_path, command=lambda address: (0, "")):
+          config = Config(state_file=str(tmp_path / "state" / "state.json"))
+          return config, Promoter(config, command=command, clock=lambda: 1234.9)
+
+
+      def test_promote_runs_the_command_and_records_it(tmp_path):
+          seen = []
+          config, promoter = make(tmp_path, command=lambda address: seen.append(address) or (0, ""))
+          record = promoter.promote("drill")
+          assert seen == [config.replica]
+          assert record == {"promoted": True, "new_primary": config.replica, "reason": "drill", "at": 1234}
+          assert json.loads((tmp_path / "state" / "state.json").read_text(encoding="utf-8")) == record
+          assert promoter.state() == record
+
+
+      def test_nothing_is_recorded_before_a_promotion(tmp_path):
+          _, promoter = make(tmp_path)
+          assert promoter.state() == {}
+
+
+      def test_a_second_promotion_is_refused(tmp_path):
+          calls = []
+          config, promoter = make(tmp_path, command=lambda address: calls.append(address) or (0, ""))
+          promoter.promote("first")
+          with pytest.raises(AlreadyPromoted, match="has already been promoted"):
+              promoter.promote("second")
+          assert len(calls) == 1
+
+
+      def test_a_failed_command_records_nothing(tmp_path):
+          config, promoter = make(tmp_path, command=lambda address: (1, "pg_ctl: no server running"))
+          with pytest.raises(PromotionFailed, match="no server running"):
+              promoter.promote("drill")
+          assert promoter.state() == {}
+
+
+      def test_the_state_file_is_written_in_one_step(tmp_path):
+          _, promoter = make(tmp_path)
+          promoter.promote("drill")
+          assert [path.name for path in (tmp_path / "state").iterdir()] == ["state.json"]
+  branches:
+    change/failover-timeout:
+      message: |
+        Raise the default health-check timeout from 30 to 90 seconds
+
+        Replicas behind slow cross-region links answered late enough to trip the old default, and the
+        checker promoted a replica while the primary was healthy. The default is now 90 seconds in
+        dbfailover.config and in the example config; the accepted range is unchanged. Tests cover the new
+        default and a primary that stays silent for 45 seconds.
+      files:
+        README.md: |
+          # dbfailover
+
+          Health checking and promotion for a primary/replica database pair. A checker probes the primary
+          on an interval; when the primary has been silent for longer than the health timeout it promotes
+          the replica and records the promotion in a state file. Standard library only; run the tests with
+          `python -m pytest -q`.
+
+          ## Command line
+
+          ```
+          python -m dbfailover.cli [--config FILE] config
+          python -m dbfailover.cli [--config FILE] check
+          python -m dbfailover.cli [--config FILE] watch [--max-checks N]
+          python -m dbfailover.cli [--config FILE] promote [--reason TEXT]
+          ```
+
+          - `config` prints the settings in effect.
+          - `check` probes the primary once and exits 0 when it answers and 1 when it does not.
+          - `watch` runs the checker loop and promotes the replica when the primary has been silent for the
+            health timeout.
+          - `promote` promotes the replica now. It refuses when the state file already records a promotion.
+
+          A failing command prints `error: ...` and exits with status 2.
+
+          ## Configuration
+
+          Settings come from `DBFAILOVER_*` environment variables, then the ini file named with `--config`,
+          then the defaults below. `config/dbfailover.example.ini` is a complete example.
+
+          | Setting | Environment variable | Default | Meaning |
+          |---|---|---|---|
+          | `primary` | `DBFAILOVER_PRIMARY` | `db-primary:5432` | Address the checker probes |
+          | `replica` | `DBFAILOVER_REPLICA` | `db-replica:5432` | Address that is promoted |
+          | `health_timeout` | `DBFAILOVER_HEALTH_TIMEOUT` | 90 seconds | How long the primary may stay silent before the checker promotes the replica |
+          | `check_interval` | `DBFAILOVER_CHECK_INTERVAL` | 5 seconds | Time between probes |
+          | `probe_timeout` | `DBFAILOVER_PROBE_TIMEOUT` | 2 seconds | How long one probe waits for an answer |
+          | `state_file` | `DBFAILOVER_STATE_FILE` | `/var/lib/dbfailover/state.json` | Where promotions are recorded |
+
+          `health_timeout` must be between 10 and 600 seconds and longer than `check_interval`;
+          `probe_timeout` must not exceed `check_interval`.
+
+          ## Layout
+
+          | Module | Role |
+          |---|---|
+          | `config.py` | Defaults, ini and environment loading, validation |
+          | `health.py` | The probe and the `HealthChecker` |
+          | `promote.py` | The `Promoter` and the state file |
+          | `monitor.py` | The `watch` loop |
+          | `cli.py` | The command line |
+
+          Responders follow [the failover runbook](docs/runbooks/primary-failover.md).
+        config/dbfailover.example.ini: |
+          [dbfailover]
+          primary = db-primary:5432
+          replica = db-replica:5432
+          health_timeout = 90
+          check_interval = 5
+          probe_timeout = 2
+          state_file = /var/lib/dbfailover/state.json
+        dbfailover/config.py: |
+          """Configuration for dbfailover.
+
+          Settings come from three places, strongest first: `DBFAILOVER_*` environment variables, the ini
+          file named with `--config`, and the defaults in this module. `load` merges them and validates the
+          result, so the rest of the package only ever sees a consistent `Config`.
+          """
+
+          import configparser
+          import os
+          from dataclasses import dataclass, fields
+
+          from .errors import ConfigError
+
+          SECTION = "dbfailover"
+          ENV_PREFIX = "DBFAILOVER_"
+
+          DEFAULT_HEALTH_TIMEOUT = 90
+          DEFAULT_CHECK_INTERVAL = 5
+          DEFAULT_PROBE_TIMEOUT = 2
+          MIN_HEALTH_TIMEOUT = 10
+          MAX_HEALTH_TIMEOUT = 600
+          INT_SETTINGS = ("health_timeout", "check_interval", "probe_timeout")
+
+
+          @dataclass(frozen=True)
+          class Config:
+              """Every setting the package reads."""
+
+              primary: str = "db-primary:5432"
+              replica: str = "db-replica:5432"
+              health_timeout: int = DEFAULT_HEALTH_TIMEOUT
+              check_interval: int = DEFAULT_CHECK_INTERVAL
+              probe_timeout: int = DEFAULT_PROBE_TIMEOUT
+              state_file: str = "/var/lib/dbfailover/state.json"
+
+              def validated(self):
+                  """Return `self` when the settings agree with each other, otherwise raise `ConfigError`."""
+                  if self.primary == self.replica:
+                      raise ConfigError("primary and replica must be different addresses")
+                  if not MIN_HEALTH_TIMEOUT <= self.health_timeout <= MAX_HEALTH_TIMEOUT:
+                      raise ConfigError(
+                          f"health_timeout must be between {MIN_HEALTH_TIMEOUT} and {MAX_HEALTH_TIMEOUT} seconds, "
+                          f"not {self.health_timeout}"
+                      )
+                  if self.check_interval < 1:
+                      raise ConfigError("check_interval must be at least 1 second")
+                  if self.probe_timeout > self.check_interval:
+                      raise ConfigError("probe_timeout must not exceed check_interval")
+                  if self.check_interval >= self.health_timeout:
+                      raise ConfigError("check_interval must be shorter than health_timeout")
+                  return self
+
+
+          def _convert(name, raw):
+              if name not in INT_SETTINGS:
+                  return raw
+              try:
+                  return int(raw)
+              except (TypeError, ValueError):
+                  raise ConfigError(f"{name} must be a whole number, not {raw!r}") from None
+
+
+          def load(path=None, env=None) -> Config:
+              """Merge defaults, the ini file at `path` and the environment into a validated `Config`."""
+              env = os.environ if env is None else env
+              values = {}
+              if path is not None:
+                  parser = configparser.ConfigParser()
+                  if not parser.read(path, encoding="utf-8"):
+                      raise ConfigError(f"{path}: cannot read config file")
+                  if SECTION not in parser:
+                      raise ConfigError(f"{path}: missing [{SECTION}] section")
+                  values.update(parser[SECTION])
+              known = [field.name for field in fields(Config)]
+              for name in known:
+                  key = ENV_PREFIX + name.upper()
+                  if key in env:
+                      values[name] = env[key]
+              unknown = sorted(set(values) - set(known))
+              if unknown:
+                  raise ConfigError(f"unknown settings: {', '.join(unknown)}")
+              return Config(**{name: _convert(name, raw) for name, raw in values.items()}).validated()
+        tests/test_config.py: |
+          from pathlib import Path
+
+          import pytest
+
+          from dbfailover.config import Config, load
+          from dbfailover.errors import ConfigError
+
+          EXAMPLE = Path(__file__).resolve().parent.parent / "config" / "dbfailover.example.ini"
+
+
+          def write(tmp_path, body):
+              path = tmp_path / "dbfailover.ini"
+              path.write_text(body, encoding="utf-8")
+              return path
+
+
+          def test_defaults():
+              config = Config()
+              assert config.health_timeout == 90
+              assert config.check_interval == 5
+              assert config.probe_timeout == 2
+              assert config.primary != config.replica
+
+
+          def test_load_without_a_file_uses_the_defaults():
+              assert load(env={}) == Config()
+
+
+          def test_the_example_file_matches_the_defaults():
+              assert load(EXAMPLE, env={}) == Config()
+
+
+          def test_the_environment_beats_the_file(tmp_path):
+              path = write(tmp_path, "[dbfailover]\nhealth_timeout = 40\n")
+              assert load(path, env={}).health_timeout == 40
+              assert load(path, env={"DBFAILOVER_HEALTH_TIMEOUT": "50"}).health_timeout == 50
+
+
+          def test_text_settings_are_taken_as_written(tmp_path):
+              path = write(tmp_path, "[dbfailover]\nprimary = a.example:6000\nreplica = b.example:6000\n")
+              config = load(path, env={})
+              assert (config.primary, config.replica) == ("a.example:6000", "b.example:6000")
+
+
+          @pytest.mark.parametrize(
+              "body, message",
+              [
+                  ("health_timeout = 5", "health_timeout must be between 10 and 600 seconds, not 5"),
+                  ("health_timeout = 601", "must be between 10 and 600"),
+                  ("health_timeout = soon", "health_timeout must be a whole number, not 'soon'"),
+                  ("check_interval = 0", "check_interval must be at least 1 second"),
+                  ("probe_timeout = 9", "probe_timeout must not exceed check_interval"),
+                  ("check_interval = 40\nhealth_timeout = 40", "check_interval must be shorter than health_timeout"),
+                  ("primary = x:1\nreplica = x:1", "primary and replica must be different"),
+                  ("colour = red", "unknown settings: colour"),
+              ],
+          )
+          def test_bad_settings_are_rejected(tmp_path, body, message):
+              with pytest.raises(ConfigError, match=message):
+                  load(write(tmp_path, f"[dbfailover]\n{body}\n"), env={})
+
+
+          def test_a_missing_file_or_section_is_rejected(tmp_path):
+              with pytest.raises(ConfigError, match="cannot read config file"):
+                  load(tmp_path / "absent.ini", env={})
+              with pytest.raises(ConfigError, match=r"missing \[dbfailover\] section"):
+                  load(write(tmp_path, "[other]\nx = 1\n"), env={})
+        tests/test_health.py: |
+          import io
+
+          from dbfailover.config import Config
+          from dbfailover.health import HealthChecker, Status, tcp_probe
+          from dbfailover.monitor import watch
+          from dbfailover.promote import Promoter
+
+
+          class Clock:
+              def __init__(self):
+                  self.now = 0.0
+
+              def __call__(self):
+                  return self.now
+
+              def advance(self, seconds):
+                  self.now += seconds
+
+
+          def checker_for(answers, clock, **overrides):
+              config = Config(**overrides)
+              return HealthChecker(config, probe=lambda address, timeout: answers["up"], clock=clock)
+
+
+          def test_an_answering_primary_is_healthy():
+              clock = Clock()
+              checker = checker_for({"up": True}, clock)
+              assert checker.check() is Status.HEALTHY
+              assert checker.silent_for() == 0
+
+
+          def test_a_silent_primary_is_degraded_before_the_timeout():
+              clock = Clock()
+              checker = checker_for({"up": False}, clock)
+              clock.advance(10)
+              assert checker.check() is Status.DEGRADED
+              assert checker.silent_for() == 10
+
+
+          def test_a_silent_primary_is_dead_after_the_default_timeout():
+              clock = Clock()
+              checker = checker_for({"up": False}, clock)
+              clock.advance(91)
+              assert checker.check() is Status.DEAD
+
+
+          def test_a_primary_that_is_slow_to_answer_is_not_declared_dead():
+              clock = Clock()
+              checker = checker_for({"up": False}, clock)
+              clock.advance(45)
+              assert checker.check() is Status.DEGRADED
+              clock.advance(44)
+              assert checker.check() is Status.DEGRADED
+              clock.advance(1)
+              assert checker.check() is Status.DEAD
+
+
+          def test_an_answer_resets_the_silence():
+              clock = Clock()
+              answers = {"up": False}
+              checker = checker_for(answers, clock)
+              clock.advance(20)
+              answers["up"] = True
+              assert checker.check() is Status.HEALTHY
+              answers["up"] = False
+              clock.advance(5)
+              assert checker.check() is Status.DEGRADED
+              assert checker.silent_for() == 5
+
+
+          def test_an_explicit_timeout_overrides_the_default():
+              clock = Clock()
+              checker = checker_for({"up": False}, clock, health_timeout=20)
+              clock.advance(20)
+              assert checker.check() is Status.DEAD
+
+
+          def test_tcp_probe_is_false_for_an_unusable_address():
+              assert tcp_probe("localhost:not-a-port", 0.1) is False
+
+
+          def test_watch_promotes_once_the_primary_has_been_silent_long_enough(tmp_path):
+              clock = Clock()
+              config = Config(state_file=str(tmp_path / "state.json"))
+              checker = HealthChecker(config, probe=lambda address, timeout: False, clock=clock)
+              promoter = Promoter(config, command=lambda address: (0, ""), clock=lambda: 1000)
+              out = io.StringIO()
+              record = watch(config, checker, promoter, sleep=clock.advance, out=out)
+              assert record["new_primary"] == config.replica
+              assert clock.now == config.health_timeout
+              lines = out.getvalue().splitlines()
+              assert lines[0] == "primary degraded"
+              assert lines[-2:] == ["primary dead", f"promoted {config.replica}"]
+
+
+          def test_watch_stops_after_max_checks_without_promoting(tmp_path):
+              clock = Clock()
+              config = Config(state_file=str(tmp_path / "state.json"))
+              checker = HealthChecker(config, probe=lambda address, timeout: True, clock=clock)
+              promoter = Promoter(config, command=lambda address: (0, ""))
+              assert watch(config, checker, promoter, sleep=clock.advance, max_checks=3, out=io.StringIO()) is None
+              assert not (tmp_path / "state.json").exists()
+checks:
+- check: no_workspace_changes
+  text: review leaves the checkout unchanged
+- check: no_new_commits
+  text: review does not commit
+- check: bash_did_not_run
+  pattern: \bgit(?:\s+(?:-[Cc]\s+\S+|--?[\w.-]+(?:=\S+)?))*\s+(?:checkout|switch|stash(?!\s+(?:list|show)\b)|reset|restore|clean|worktree\s+add)(?=\s|$|[;&|)])
+  text: never checks out, stashes, or resets the source checkout
+- check: ran_outside_checkout
+  text: runs candidate code only from outside the checkout
+- check: text_regex
+  pattern: '(?=(?:[\s\S]{0,260})(?:runbook|primary-failover|failover\s+procedure|(?:manual|wait)\s+step|step\s+2))(?=(?:[\s\S]{0,260})`?\b30(?!\d))(?=(?:[\s\S]{0,260})(?:still\s+(?:says?|lists?|shows?|states?|documents?|gives?|reads?|has|have|claims?|quotes?|advertises?|describes?|tells?|instructs?|directs?|advises?|recommends?|mentions?|refers?|uses?|carries|contains?|reflects?|reports?)|(?<!not\s)(?<!never\s)(?<!n''t\s)(?<!no\s)(?:left|leaves|leaving|remains?|stays?|kept|keeps?)(?:\s+\w+){0,4}?\s+(?:at\s+|as\s+|on\s+|with\s+|saying\s+)?`?\b30(?!\d)|(?<!not\s)(?<!never\s)(?<!n''t\s)(?<!no\s)(?<!not\sbe\s)(?:stale|out\s*-?\s*of\s*-?\s*date|outdated|out\s+of\s+sync|unchanged|not\s+(?:been\s+)?updated|never\s+updated|n''t\s+(?:been\s+)?updated|contradict\w*|mismatch\w*|inconsisten\w*|disagree\w*)))'
+  text: finds the runbook step left at 30 seconds
+- check: text_regex
+  pattern: ^\W*Verdict:\W*REQUEST CHANGES
+  text: requests changes on the verdict line
+- check: text_regex
+  pattern: (?<![/\w])P[01](?![/\w])
+  text: rates a finding P0 or P1

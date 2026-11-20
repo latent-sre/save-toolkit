@@ -20,6 +20,9 @@ Dockerfile text eol=lf
 # core.autocrlf hands a fresh Windows clone CRLF patches that no longer apply to LF sources,
 # so a preserved snapshot silently stops being recoverable.
 *.patch text eol=lf
+# The offline gh stand-in is a POSIX shell script with no extension; its embedded copies in the
+# reviewer scenarios are compared with it byte for byte.
+/evals/fixtures/fake-gh/gh text eol=lf
 
 # Host projections are generated from agents/ and skills/. These attributes help review tools
 # collapse the copies without changing their runtime behavior.

@@ -1,0 +1,1658 @@
+# Two independent defects behind passing tests. The audit layer's new constructor skips the base
+# initialiser, so under the asyncio server it is never marked async and hands a coroutine to the
+# unchanged metrics layer. The quota layer's new async path never refunds a 5xx, breaking the
+# README's refund contract. Decoy: the async quota path reads and writes counters without the
+# lock, which is correct on the single-threaded event loop.
+id: build-reviewer-finds-unawaited-pipeline-response
+max_turns: 30
+agent: reviewer
+prompt: |
+  Review feature/async-audit-quota against main. It should make the audit-log and quota middleware async-capable; behaviour must not change.
+fixture:
+  files:
+    .gitignore: |
+      *.log
+    edgegate/__init__.py: |
+      """edgegate: a small internal API gateway.
+
+      A request passes through a middleware pipeline to an endpoint handler. The same pipeline runs
+      under two servers, the threaded synchronous server (`serve_sync`) and the asyncio server
+      (`serve_async`); see README.md for what each layer supports.
+      """
+
+      __version__ = "0.4.0"
+    edgegate/__main__.py: |
+      """Demo entry point: `python -m edgegate sync` or `python -m edgegate async`."""
+
+      import argparse
+      import asyncio
+
+      from .http import Request
+      from .servers import serve_async, serve_sync
+
+      SAMPLE = (
+          Request("GET", "/health", {"x-tenant": "acme"}),
+          Request("GET", "/inventory", {"x-tenant": "acme"}, {"sku": "widget"}),
+          Request("POST", "/orders", {"x-tenant": "globex"}, body=b"2 widgets"),
+          Request("GET", "/missing", {"x-tenant": "globex"}),
+      )
+
+
+      def describe(request, response):
+          return f"{request.method} {request.path} -> {response.status}"
+
+
+      def main(argv=None):
+          parser = argparse.ArgumentParser(prog="edgegate", description=__doc__)
+          parser.add_argument("server", choices=("sync", "async"))
+          args = parser.parse_args(argv)
+          for request in SAMPLE:
+              if args.server == "sync":
+                  response = serve_sync(request)
+              else:
+                  response = asyncio.run(serve_async(request))
+              print(describe(request, response))
+          return 0
+
+
+      if __name__ == "__main__":
+          raise SystemExit(main())
+    edgegate/audit.py: |
+      """The audit trail: one record per request, written to a sink."""
+
+      import collections
+      import json
+      import threading
+      import time
+
+      from .middleware import Middleware
+
+
+      class AuditSink:
+          """Keeps the most recent records in memory and, when given a path, appends them as JSON lines."""
+
+          def __init__(self, path=None, capacity=1000):
+              self.path = path
+              self._lock = threading.Lock()
+              self._records = collections.deque(maxlen=capacity)
+
+          def write(self, record):
+              with self._lock:
+                  self._records.append(record)
+                  if self.path is not None:
+                      with open(self.path, "a", encoding="utf-8") as handle:
+                          handle.write(json.dumps(record, sort_keys=True) + "\n")
+
+          def records(self):
+              with self._lock:
+                  return list(self._records)
+
+          def clear(self):
+              with self._lock:
+                  self._records.clear()
+
+
+      DEFAULT_SINK = AuditSink()
+
+
+      class AuditLogMiddleware(Middleware):
+          """Writes one record per response: who called, what, and the status that went back."""
+
+          sink = DEFAULT_SINK
+
+          def record(self, request, response):
+              """The audit record for *request* and the *response* it produced."""
+              return {
+                  "tenant": request.tenant,
+                  "method": request.method,
+                  "path": request.path,
+                  # Endpoints mounted from older services can hand back objects without a status.
+                  "status": getattr(response, "status", None),
+                  "at": round(time.time(), 3),
+              }
+
+          def after(self, request, response):
+              self.sink.write(self.record(request, response))
+              return response
+    edgegate/config/__init__.py: |
+      """Deployment configuration for the gateway."""
+    edgegate/config/pipelines.py: |
+      """The production pipeline: which layers run, outermost first."""
+
+      from dataclasses import dataclass, field
+
+      from ..audit import AuditLogMiddleware
+      from ..metrics import MetricsMiddleware
+      from ..quota import QuotaMiddleware
+
+
+      @dataclass(frozen=True)
+      class Layer:
+          """One layer of a pipeline: the middleware class and the keyword options its constructor takes."""
+
+          middleware: type
+          options: dict = field(default_factory=dict)
+
+
+      PRODUCTION = (
+          Layer(MetricsMiddleware),
+          Layer(AuditLogMiddleware),
+          Layer(QuotaMiddleware),
+      )
+    edgegate/errors.py: |
+      """Gateway errors and the HTTP status each one maps to."""
+
+
+      class GatewayError(Exception):
+          """A failure the gateway turns into a response with `status`."""
+
+          status = 500
+
+          def __init__(self, message=""):
+              super().__init__(message or type(self).__name__)
+
+
+      class BadRequest(GatewayError):
+          status = 400
+
+
+      class RouteNotFound(GatewayError):
+          status = 404
+
+
+      class MethodNotAllowed(GatewayError):
+          status = 405
+
+
+      class QuotaExceeded(GatewayError):
+          status = 429
+
+
+      class UpstreamUnavailable(GatewayError):
+          """A service behind the gateway did not answer; the caller may retry."""
+
+          status = 503
+
+
+      class ConfigurationError(Exception):
+          """A pipeline that cannot be built; raised while wiring, never while serving."""
+    edgegate/handlers.py: |
+      """Endpoint handlers for the gateway's own routes."""
+
+      from .errors import BadRequest, UpstreamUnavailable
+      from .http import Response
+      from .routing import Router
+
+
+      class Upstream:
+          """Stand-in for the inventory service the gateway fronts."""
+
+          def __init__(self, healthy=True, stock=None):
+              self.healthy = healthy
+              self.stock = dict(stock if stock is not None else {"widget": 12, "gadget": 0})
+
+          def stock_for(self, sku):
+              if not self.healthy:
+                  raise UpstreamUnavailable("inventory service did not answer")
+              return self.stock.get(sku, 0)
+
+
+      def build_router(upstream=None):
+          """A router with the gateway's routes, reading from *upstream*."""
+          upstream = upstream if upstream is not None else Upstream()
+          orders = []
+          router = Router()
+
+          @router.route("GET", "/health")
+          def health(request):
+              return Response(200, b"ok", {"content-type": "text/plain"})
+
+          @router.route("GET", "/inventory")
+          def inventory(request):
+              sku = request.query.get("sku")
+              if not sku:
+                  raise BadRequest("sku is required")
+              return Response(200, str(upstream.stock_for(sku)).encode("utf-8"))
+
+          @router.route("POST", "/orders")
+          def place_order(request):
+              if not request.body:
+                  raise BadRequest("an order needs a body")
+              orders.append(request.body)
+              return Response(201, str(len(orders)).encode("utf-8"))
+
+          @router.route("GET", "/orders")
+          def list_orders(request):
+              return Response(200, str(len(orders)).encode("utf-8"))
+
+          return router
+    edgegate/http.py: |
+      """Request and response types shared by every layer of the gateway."""
+
+      from dataclasses import dataclass, field
+
+      ANONYMOUS = "anonymous"
+
+
+      @dataclass
+      class Request:
+          """One inbound request. `state` is scratch space the layers use to pass values along."""
+
+          method: str
+          path: str
+          headers: dict = field(default_factory=dict)
+          query: dict = field(default_factory=dict)
+          body: bytes = b""
+          state: dict = field(default_factory=dict)
+
+          def __post_init__(self):
+              self.method = self.method.upper()
+              self.headers = {name.lower(): value for name, value in self.headers.items()}
+
+          @property
+          def tenant(self):
+              """The calling tenant, from the `x-tenant` header."""
+              return self.headers.get("x-tenant", ANONYMOUS)
+
+
+      @dataclass
+      class Response:
+          """One outbound response."""
+
+          status: int = 200
+          body: bytes = b""
+          headers: dict = field(default_factory=dict)
+
+          @classmethod
+          def from_error(cls, error):
+              """The response for a `GatewayError`."""
+              return cls(error.status, str(error).encode("utf-8"), {"content-type": "text/plain"})
+
+          @property
+          def is_server_error(self):
+              return 500 <= self.status < 600
+
+          @property
+          def status_class(self):
+              """`2xx`, `4xx` and so on."""
+              return f"{self.status // 100}xx"
+    edgegate/metrics.py: |
+      """Request counters and latency totals, and the middleware that feeds them."""
+
+      import threading
+      import time
+
+      from .middleware import Middleware
+
+
+      class MetricsRegistry:
+          """Thread-safe counters keyed by path and status class."""
+
+          def __init__(self):
+              self._lock = threading.Lock()
+              self._counts = {}
+              self._seconds = {}
+
+          def observe(self, path, status, seconds):
+              key = (path, f"{status // 100}xx")
+              with self._lock:
+                  self._counts[key] = self._counts.get(key, 0) + 1
+                  self._seconds[key] = self._seconds.get(key, 0.0) + seconds
+
+          def count(self, path, status_class):
+              with self._lock:
+                  return self._counts.get((path, status_class), 0)
+
+          def total_seconds(self, path, status_class):
+              with self._lock:
+                  return self._seconds.get((path, status_class), 0.0)
+
+          def snapshot(self):
+              """A copy of every counter, keyed `(path, status_class)`."""
+              with self._lock:
+                  return dict(self._counts)
+
+          def reset(self):
+              with self._lock:
+                  self._counts.clear()
+                  self._seconds.clear()
+
+
+      DEFAULT_REGISTRY = MetricsRegistry()
+
+
+      class MetricsMiddleware(Middleware):
+          """Counts every response that reaches it and adds its latency to the registry.
+
+          Metrics is the outermost layer, so it sees the status every other layer produced.
+          """
+
+          async_capable = True
+
+          def __init__(self, next_handler, registry=None):
+              super().__init__(next_handler)
+              self.registry = registry if registry is not None else DEFAULT_REGISTRY
+
+          def before(self, request):
+              request.state["metrics_started"] = time.perf_counter()
+
+          def after(self, request, response):
+              elapsed = time.perf_counter() - request.state.pop("metrics_started", time.perf_counter())
+              self.registry.observe(request.path, response.status, elapsed)
+              return response
+    edgegate/middleware.py: |
+      """The middleware base class.
+
+      A layer wraps the next handler. Whether an instance runs its synchronous or its asynchronous path
+      is decided once, in `__init__`, from the handler it wraps: an instance over an async handler is
+      marked as a coroutine function, and calling it then returns a coroutine. Layers that only need the
+      two hooks override `before` and `after`; a layer with its own asynchronous path also overrides
+      `__acall__` and sets `async_capable`.
+      """
+
+      import inspect
+
+
+      class Middleware:
+          """Base class for pipeline layers.
+
+          `before(request)` may return a response to answer without calling the next handler; the next
+          layer's `after` is then skipped. `after(request, response)` returns the response to pass on.
+          """
+
+          sync_capable = True
+          async_capable = False
+
+          def __init__(self, next_handler):
+              self.next_handler = next_handler
+              if inspect.iscoroutinefunction(next_handler):
+                  inspect.markcoroutinefunction(self)
+
+          def __call__(self, request):
+              if inspect.iscoroutinefunction(self):
+                  return self.__acall__(request)
+              early = self.before(request)
+              if early is not None:
+                  return early
+              response = self.next_handler(request)
+              return self.after(request, response)
+
+          async def __acall__(self, request):
+              early = self.before(request)
+              if early is not None:
+                  return early
+              response = await self.next_handler(request)
+              return self.after(request, response)
+
+          def before(self, request):
+              return None
+
+          def after(self, request, response):
+              return response
+    edgegate/pipeline.py: |
+      """Builds a handler from a tuple of layers and an endpoint, for the synchronous or asyncio server."""
+
+      import asyncio
+      import inspect
+
+      from .errors import ConfigurationError
+
+
+      def sync_to_async(handler):
+          """Run a synchronous handler in a worker thread so it cannot block the event loop."""
+
+          async def run(request):
+              return await asyncio.to_thread(handler, request)
+
+          return run
+
+
+      def to_async(handler):
+          return handler if inspect.iscoroutinefunction(handler) else sync_to_async(handler)
+
+
+      def build_pipeline(layers, endpoint, *, asynchronous):
+          """Wrap *endpoint* in *layers* (outermost first) and return the handler for the server.
+
+          Under the asyncio server a layer with `async_capable` runs on the event loop; any other layer
+          runs synchronously, and its whole synchronous segment is then moved to a worker thread by
+          the first async-capable layer above it. Layers that are not async-capable therefore have to
+          sit innermost, next to the endpoint.
+          """
+          handler = endpoint
+          for layer in reversed(layers):
+              cls = layer.middleware
+              run_async = asynchronous and cls.async_capable
+              if not (cls.async_capable if run_async else cls.sync_capable):
+                  raise ConfigurationError(f"{cls.__name__} cannot run in this mode")
+              if run_async:
+                  handler = to_async(handler)
+              elif inspect.iscoroutinefunction(handler):
+                  raise ConfigurationError(f"{cls.__name__} is not async-capable and cannot wrap an async layer")
+              handler = cls(handler, **layer.options)
+          return to_async(handler) if asynchronous else handler
+    edgegate/quota.py: |
+      """Per-tenant request quota: a counter store and the middleware that charges it."""
+
+      import threading
+      import time
+
+      from .errors import QuotaExceeded
+      from .http import Response
+      from .middleware import Middleware
+
+
+      class QuotaStore:
+          """Counts units used per key within a fixed window.
+
+          The threaded server calls `charge` and `refund` from many threads, so both take the store's
+          lock. A store belongs to one server: a deployment runs either the threaded server or the
+          asyncio server in a process, and the two never share a store.
+          """
+
+          def __init__(self, limit=1000, window=60.0, clock=time.monotonic):
+              self.limit = limit
+              self.window = window
+              self._clock = clock
+              self._lock = threading.Lock()
+              self._counts = {}
+              self._window_end = clock() + window
+
+          def _roll(self):
+              now = self._clock()
+              if now >= self._window_end:
+                  self._counts.clear()
+                  self._window_end = now + self.window
+
+          def charge(self, key):
+              """Take one unit for *key*; False when the key has used its limit."""
+              with self._lock:
+                  self._roll()
+                  used = self._counts.get(key, 0)
+                  if used >= self.limit:
+                      return False
+                  self._counts[key] = used + 1
+                  return True
+
+          def refund(self, key):
+              """Give one unit back to *key*."""
+              with self._lock:
+                  used = self._counts.get(key, 0)
+                  if used > 0:
+                      self._counts[key] = used - 1
+
+          def used(self, key):
+              with self._lock:
+                  self._roll()
+                  return self._counts.get(key, 0)
+
+
+      DEFAULT_STORE = QuotaStore()
+
+
+      class QuotaMiddleware(Middleware):
+          """Charges one unit per request and refunds it when the request ends in a 5xx response.
+
+          A tenant over its limit gets a 429 and the request goes no further.
+          """
+
+          def __init__(self, next_handler, store=None):
+              super().__init__(next_handler)
+              self.store = store if store is not None else DEFAULT_STORE
+
+          def rejection(self, request):
+              return Response.from_error(QuotaExceeded(f"quota exhausted for {request.tenant}"))
+
+          def before(self, request):
+              if not self.store.charge(request.tenant):
+                  return self.rejection(request)
+              return None
+
+          def after(self, request, response):
+              if response.is_server_error:
+                  self.store.refund(request.tenant)
+              return response
+    edgegate/routing.py: |
+      """Exact-match routing from (method, path) to an endpoint handler."""
+
+      from .errors import GatewayError, MethodNotAllowed, RouteNotFound
+      from .http import Response
+
+
+      class Router:
+          """Maps requests to handlers. Handlers are plain functions: `handler(request) -> Response`."""
+
+          def __init__(self):
+              self._routes = {}
+
+          def add(self, method, path, handler):
+              self._routes[(method.upper(), path)] = handler
+
+          def route(self, method, path):
+              """Decorator form of `add`."""
+
+              def register(handler):
+                  self.add(method, path, handler)
+                  return handler
+
+              return register
+
+          def lookup(self, request):
+              """The handler for *request*; 404 for an unknown path, 405 for a known path and wrong method."""
+              handler = self._routes.get((request.method, request.path))
+              if handler is not None:
+                  return handler
+              if any(path == request.path for _, path in self._routes):
+                  raise MethodNotAllowed(f"{request.method} is not allowed on {request.path}")
+              raise RouteNotFound(f"no route for {request.path}")
+
+          def handle(self, request):
+              """Run the handler. Gateway errors keep their status; anything else becomes a 500."""
+              try:
+                  return self.lookup(request)(request)
+              except GatewayError as error:
+                  return Response.from_error(error)
+              except Exception:
+                  return Response(500, b"internal error", {"content-type": "text/plain"})
+    edgegate/servers.py: |
+      """The two servers. Each takes a request and returns a response; sockets are out of scope here.
+
+      `serve_sync` is what a threaded server calls from its worker threads. `serve_async` is what an
+      asyncio server awaits from its event loop. Both run the same layers, built for their mode.
+      """
+
+      from concurrent.futures import ThreadPoolExecutor
+
+      from . import handlers
+      from .config import pipelines
+      from .pipeline import build_pipeline
+
+      DEFAULT_ROUTER = handlers.build_router()
+
+
+      def serve_sync(request, layers=None, router=None):
+          """Run *request* through the layers and the router on the calling thread."""
+          layers = pipelines.PRODUCTION if layers is None else layers
+          router = DEFAULT_ROUTER if router is None else router
+          return build_pipeline(layers, router.handle, asynchronous=False)(request)
+
+
+      async def serve_async(request, layers=None, router=None):
+          """Run *request* through the layers and the router on the running event loop."""
+          layers = pipelines.PRODUCTION if layers is None else layers
+          router = DEFAULT_ROUTER if router is None else router
+          return await build_pipeline(layers, router.handle, asynchronous=True)(request)
+
+
+      def run_threaded(requests, workers=4, layers=None, router=None):
+          """Serve *requests* from a pool of worker threads; responses come back in request order."""
+          with ThreadPoolExecutor(max_workers=workers) as pool:
+              return list(pool.map(lambda request: serve_sync(request, layers, router), requests))
+    README.md: |
+      # edgegate
+
+      A small internal API gateway. A request passes through a middleware pipeline to an endpoint
+      handler. The same pipeline runs under two servers, and both are supported:
+
+      - `serve_sync(request)` is the threaded synchronous server. Worker threads call it.
+      - `serve_async(request)` is the asyncio server. It is awaited from the event loop.
+
+      A server here is a function that takes a request and returns a response, so everything runs
+      in-process and is testable without sockets.
+
+      ```
+      python -m edgegate sync
+      python -m edgegate async
+      python -m pytest -q
+      ```
+
+      ## Pipeline
+
+      Production order is set in `edgegate/config/pipelines.py`, outermost first:
+
+      1. `MetricsMiddleware` counts every response and its latency.
+      2. `AuditLogMiddleware` writes one audit record per response.
+      3. `QuotaMiddleware` charges the calling tenant (the `x-tenant` header) and rejects it with a 429
+         when its quota is used up.
+      4. The endpoint handler, found by `edgegate/routing.py`.
+
+      ## Writing a middleware
+
+      Subclass `edgegate.middleware.Middleware` and override `before(request)` and/or
+      `after(request, response)`. `before` may return a response to answer without calling the rest of
+      the pipeline. A layer with its own asynchronous path also overrides `__acall__` and sets
+      `async_capable = True`.
+
+      The base class decides in `__init__` whether an instance runs its synchronous or its
+      asynchronous path, from the handler it wraps. A subclass that overrides `__init__` must call
+      `super().__init__(next_handler)`.
+
+      ### Capability
+
+      | Layer | Threaded server | Asyncio server |
+      |---|---|---|
+      | `MetricsMiddleware` | runs inline | runs on the event loop |
+      | `AuditLogMiddleware` | runs inline | runs in a worker thread |
+      | `QuotaMiddleware` | runs inline | runs in a worker thread |
+
+      A layer that is not async-capable runs in a worker thread under the asyncio server, together
+      with everything inside it, so such layers have to sit innermost, next to the endpoint.
+
+      ## Quota
+
+      One request consumes one quota unit. A request that ends in a 5xx response is not charged: the
+      unit is refunded. A request rejected with a 429 is never charged.
+
+      Units are counted per tenant in a fixed window (60 seconds by default) and all counters reset
+      when the window ends. A quota store belongs to one server; a process runs either the threaded
+      server or the asyncio server, never both against one store.
+
+      ## Audit
+
+      Each record holds the tenant, method, path and status, and a timestamp. Records go to an
+      `AuditSink`, which keeps the latest 1000 in memory and appends JSON lines to a file when it is
+      given a path.
+
+      ## Metrics
+
+      `MetricsRegistry` counts responses per path and status class (`2xx`, `4xx`, ...) and sums
+      latency. All of its methods are thread-safe.
+    tests/support.py: |
+      """Helpers shared by the tests."""
+
+      from edgegate.http import Request
+
+
+      def make_request(path="/health", method="GET", tenant="acme", **kwargs):
+          return Request(method, path, {"x-tenant": tenant}, **kwargs)
+
+
+      class FakeClock:
+          """A clock the test advances by hand."""
+
+          def __init__(self, now=1000.0):
+              self.now = now
+
+          def __call__(self):
+              return self.now
+
+          def advance(self, seconds):
+              self.now += seconds
+    tests/test_audit.py: |
+      from unittest import mock
+
+      from edgegate.audit import AuditLogMiddleware, AuditSink
+      from edgegate.config.pipelines import Layer
+      from edgegate.http import Response
+      from edgegate.servers import serve_sync
+      from support import make_request
+
+
+      def test_sink_keeps_the_latest_records():
+          sink = AuditSink(capacity=2)
+          for number in range(3):
+              sink.write({"n": number})
+          assert sink.records() == [{"n": 1}, {"n": 2}]
+
+
+      def test_sink_appends_json_lines_to_a_file(tmp_path):
+          path = tmp_path / "audit.jsonl"
+          sink = AuditSink(path=path)
+          sink.write({"b": 1, "a": 2})
+          sink.write({"c": 3})
+          assert path.read_text(encoding="utf-8").splitlines() == ['{"a": 2, "b": 1}', '{"c": 3}']
+
+
+      def test_sink_clear():
+          sink = AuditSink()
+          sink.write({"n": 1})
+          sink.clear()
+          assert sink.records() == []
+
+
+      def test_record_describes_the_response():
+          middleware = AuditLogMiddleware(lambda request: Response())
+          record = middleware.record(make_request("/orders", "POST", tenant="globex"), Response(201))
+          assert (record["tenant"], record["method"], record["path"], record["status"]) == ("globex", "POST", "/orders", 201)
+
+
+      def test_record_tolerates_a_response_without_a_status():
+          middleware = AuditLogMiddleware(lambda request: object())
+          assert middleware.record(make_request(), object())["status"] is None
+
+
+      def test_sync_server_writes_one_record_per_request():
+          sink = AuditSink()
+          with mock.patch.object(AuditLogMiddleware, "sink", sink):
+              serve_sync(make_request("/health", tenant="acme"), (Layer(AuditLogMiddleware),))
+              serve_sync(make_request("/missing", tenant="globex"), (Layer(AuditLogMiddleware),))
+          assert [(r["tenant"], r["path"], r["status"]) for r in sink.records()] == [
+              ("acme", "/health", 200),
+              ("globex", "/missing", 404),
+          ]
+    tests/test_http.py: |
+      from edgegate.errors import QuotaExceeded, UpstreamUnavailable
+      from edgegate.http import ANONYMOUS, Request, Response
+      from support import make_request
+
+
+      def test_request_normalises_method_and_header_names():
+          request = Request("get", "/x", {"X-Tenant": "acme"})
+          assert request.method == "GET"
+          assert request.headers == {"x-tenant": "acme"}
+
+
+      def test_tenant_comes_from_the_header():
+          assert make_request(tenant="globex").tenant == "globex"
+
+
+      def test_tenant_defaults_to_anonymous():
+          assert Request("GET", "/x").tenant == ANONYMOUS
+
+
+      def test_state_is_not_shared_between_requests():
+          first, second = make_request(), make_request()
+          first.state["k"] = 1
+          assert second.state == {}
+
+
+      def test_response_from_error_carries_status_and_message():
+          response = Response.from_error(QuotaExceeded("slow down"))
+          assert (response.status, response.body) == (429, b"slow down")
+
+
+      def test_error_without_message_names_itself():
+          assert Response.from_error(UpstreamUnavailable()).body == b"UpstreamUnavailable"
+
+
+      def test_server_error_covers_only_5xx():
+          assert [Response(code).is_server_error for code in (200, 404, 499, 500, 503, 599)] == [
+              False, False, False, True, True, True,
+          ]
+
+
+      def test_status_class():
+          assert Response(204).status_class == "2xx"
+          assert Response(503).status_class == "5xx"
+    tests/test_metrics.py: |
+      import asyncio
+
+      from edgegate.config.pipelines import Layer
+      from edgegate.handlers import Upstream, build_router
+      from edgegate.metrics import MetricsMiddleware, MetricsRegistry
+      from edgegate.servers import serve_async, serve_sync
+      from support import make_request
+
+
+      def test_registry_counts_per_path_and_status_class():
+          registry = MetricsRegistry()
+          registry.observe("/a", 200, 0.5)
+          registry.observe("/a", 204, 0.25)
+          registry.observe("/a", 503, 1.0)
+          assert registry.count("/a", "2xx") == 2
+          assert registry.count("/a", "5xx") == 1
+          assert registry.total_seconds("/a", "2xx") == 0.75
+
+
+      def test_unseen_keys_count_zero():
+          assert MetricsRegistry().count("/nope", "2xx") == 0
+
+
+      def test_snapshot_is_a_copy():
+          registry = MetricsRegistry()
+          registry.observe("/a", 200, 0.1)
+          registry.snapshot().clear()
+          assert registry.count("/a", "2xx") == 1
+
+
+      def test_reset_clears_everything():
+          registry = MetricsRegistry()
+          registry.observe("/a", 200, 0.1)
+          registry.reset()
+          assert registry.snapshot() == {}
+
+
+      def test_sync_server_counts_each_response():
+          registry = MetricsRegistry()
+          layers = (Layer(MetricsMiddleware, {"registry": registry}),)
+          serve_sync(make_request("/health"), layers)
+          serve_sync(make_request("/missing"), layers)
+          assert registry.snapshot() == {("/health", "2xx"): 1, ("/missing", "4xx"): 1}
+
+
+      def test_async_server_counts_each_response():
+          registry = MetricsRegistry()
+          layers = (Layer(MetricsMiddleware, {"registry": registry}),)
+          router = build_router(Upstream(healthy=False))
+          response = asyncio.run(serve_async(make_request("/inventory", query={"sku": "widget"}), layers, router))
+          assert response.status == 503
+          assert registry.count("/inventory", "5xx") == 1
+
+
+      def test_latency_is_recorded():
+          registry = MetricsRegistry()
+          serve_sync(make_request("/health"), (Layer(MetricsMiddleware, {"registry": registry}),))
+          assert registry.total_seconds("/health", "2xx") >= 0.0
+    tests/test_middleware.py: |
+      import asyncio
+      import inspect
+
+      from edgegate.http import Response
+      from edgegate.middleware import Middleware
+      from support import make_request
+
+
+      class Tag(Middleware):
+          def before(self, request):
+              request.state.setdefault("order", []).append("before")
+
+          def after(self, request, response):
+              request.state["order"].append("after")
+              return response
+
+
+      class Gate(Middleware):
+          def before(self, request):
+              return Response(403, b"closed")
+
+          def after(self, request, response):
+              raise AssertionError("after must not run after an early answer")
+
+
+      def ok(request):
+          request.state.setdefault("order", []).append("endpoint")
+          return Response(200, b"ok")
+
+
+      async def aok(request):
+          request.state.setdefault("order", []).append("endpoint")
+          return Response(200, b"ok")
+
+
+      def test_hooks_run_around_the_next_handler():
+          request = make_request()
+          assert Tag(ok)(request).status == 200
+          assert request.state["order"] == ["before", "endpoint", "after"]
+
+
+      def test_before_can_answer_early():
+          assert Gate(ok)(make_request()).status == 403
+
+
+      def test_instance_over_a_sync_handler_is_sync():
+          assert not inspect.iscoroutinefunction(Tag(ok))
+
+
+      def test_instance_over_an_async_handler_is_a_coroutine_function():
+          assert inspect.iscoroutinefunction(Tag(aok))
+
+
+      def test_async_path_runs_the_same_hooks():
+          request = make_request()
+          response = asyncio.run(Tag(aok)(request))
+          assert response.status == 200
+          assert request.state["order"] == ["before", "endpoint", "after"]
+
+
+      def test_async_path_honours_an_early_answer():
+          assert asyncio.run(Gate(aok)(make_request())).status == 403
+
+
+      def test_base_class_is_sync_only_by_default():
+          assert Middleware.sync_capable and not Middleware.async_capable
+    tests/test_pipeline.py: |
+      import asyncio
+      import threading
+
+      import pytest
+
+      from edgegate.config.pipelines import Layer
+      from edgegate.errors import ConfigurationError
+      from edgegate.http import Response
+      from edgegate.middleware import Middleware
+      from edgegate.pipeline import build_pipeline, sync_to_async, to_async
+      from support import make_request
+
+
+      class SyncOnly(Middleware):
+          pass
+
+
+      class Both(Middleware):
+          async_capable = True
+
+
+      class AsyncOnly(Middleware):
+          sync_capable = False
+          async_capable = True
+
+
+      class Named(Middleware):
+          def __init__(self, next_handler, name="x"):
+              super().__init__(next_handler)
+              self.name = name
+
+
+      def endpoint(request):
+          return Response(200, b"ok")
+
+
+      def test_sync_pipeline_returns_a_response():
+          handler = build_pipeline((Layer(SyncOnly), Layer(Both)), endpoint, asynchronous=False)
+          assert handler(make_request()).status == 200
+
+
+      def test_async_pipeline_returns_an_awaitable():
+          handler = build_pipeline((Layer(Both), Layer(Both)), endpoint, asynchronous=True)
+          assert asyncio.run(handler(make_request())).status == 200
+
+
+      def test_sync_only_layers_inside_an_async_layer_run_in_a_thread():
+          handler = build_pipeline((Layer(Both), Layer(SyncOnly)), endpoint, asynchronous=True)
+          assert asyncio.run(handler(make_request())).status == 200
+
+
+      def test_a_sync_only_outermost_layer_still_gives_an_async_handler():
+          handler = build_pipeline((Layer(SyncOnly),), endpoint, asynchronous=True)
+          assert asyncio.run(handler(make_request())).status == 200
+
+
+      def test_sync_only_layer_outside_an_async_layer_is_refused():
+          with pytest.raises(ConfigurationError):
+              build_pipeline((Layer(SyncOnly), Layer(Both)), endpoint, asynchronous=True)
+
+
+      def test_layer_that_cannot_run_synchronously_is_refused_by_the_sync_server():
+          with pytest.raises(ConfigurationError):
+              build_pipeline((Layer(AsyncOnly),), endpoint, asynchronous=False)
+
+
+      def test_layer_options_reach_the_constructor():
+          handler = build_pipeline((Layer(Named, {"name": "audit"}),), endpoint, asynchronous=False)
+          assert handler.name == "audit"
+
+
+      def test_to_async_leaves_coroutine_functions_alone():
+          async def handler(request):
+              return Response()
+
+          assert to_async(handler) is handler
+
+
+      def test_sync_to_async_runs_off_the_loop_thread():
+          seen = []
+
+          def handler(request):
+              seen.append(threading.get_ident())
+              return Response()
+
+          async def main():
+              await sync_to_async(handler)(make_request())
+              return threading.get_ident()
+
+          assert seen == []
+          assert asyncio.run(main()) not in seen
+    tests/test_quota.py: |
+      import asyncio
+
+      from edgegate.config.pipelines import Layer
+      from edgegate.handlers import Upstream, build_router
+      from edgegate.quota import QuotaMiddleware, QuotaStore
+      from edgegate.servers import run_threaded, serve_async, serve_sync
+      from support import FakeClock, make_request
+
+
+      def layers_for(store):
+          return (Layer(QuotaMiddleware, {"store": store}),)
+
+
+      def test_store_allows_up_to_the_limit():
+          store = QuotaStore(limit=2)
+          assert [store.charge("a") for _ in range(3)] == [True, True, False]
+
+
+      def test_store_counts_each_key_separately():
+          store = QuotaStore(limit=1)
+          assert store.charge("a") and store.charge("b")
+
+
+      def test_refund_gives_a_unit_back():
+          store = QuotaStore(limit=1)
+          store.charge("a")
+          store.refund("a")
+          assert store.used("a") == 0
+          assert store.charge("a")
+
+
+      def test_refund_never_goes_below_zero():
+          store = QuotaStore()
+          store.refund("a")
+          assert store.used("a") == 0
+
+
+      def test_window_reset_clears_every_counter():
+          clock = FakeClock()
+          store = QuotaStore(limit=1, window=60.0, clock=clock)
+          store.charge("a")
+          assert not store.charge("a")
+          clock.advance(61)
+          assert store.charge("a")
+
+
+      def test_counters_survive_inside_the_window():
+          clock = FakeClock()
+          store = QuotaStore(limit=1, window=60.0, clock=clock)
+          store.charge("a")
+          clock.advance(59)
+          assert not store.charge("a")
+
+
+      def test_sync_server_charges_one_unit_per_request():
+          store = QuotaStore(limit=5)
+          serve_sync(make_request("/health"), layers_for(store))
+          assert store.used("acme") == 1
+
+
+      def test_sync_server_rejects_over_limit_with_429():
+          store = QuotaStore(limit=1)
+          serve_sync(make_request("/health"), layers_for(store))
+          assert serve_sync(make_request("/health"), layers_for(store)).status == 429
+
+
+      def test_rejected_request_is_not_charged():
+          store = QuotaStore(limit=1)
+          serve_sync(make_request("/health"), layers_for(store))
+          serve_sync(make_request("/health"), layers_for(store))
+          assert store.used("acme") == 1
+
+
+      def test_sync_server_refunds_a_5xx():
+          store = QuotaStore(limit=5)
+          router = build_router(Upstream(healthy=False))
+          response = serve_sync(make_request("/inventory", query={"sku": "widget"}), layers_for(store), router)
+          assert response.status == 503
+          assert store.used("acme") == 0
+
+
+      def test_sync_server_keeps_the_charge_for_a_4xx():
+          store = QuotaStore(limit=5)
+          assert serve_sync(make_request("/missing"), layers_for(store)).status == 404
+          assert store.used("acme") == 1
+
+
+      def test_tenants_are_charged_separately():
+          store = QuotaStore(limit=5)
+          serve_sync(make_request("/health", tenant="acme"), layers_for(store))
+          serve_sync(make_request("/health", tenant="globex"), layers_for(store))
+          assert (store.used("acme"), store.used("globex")) == (1, 1)
+
+
+      def test_threaded_server_never_exceeds_the_limit():
+          store = QuotaStore(limit=20)
+          responses = run_threaded([make_request("/health") for _ in range(60)], workers=8, layers=layers_for(store))
+          assert sum(r.status == 200 for r in responses) == 20
+          assert sum(r.status == 429 for r in responses) == 40
+          assert store.used("acme") == 20
+
+
+      def test_async_server_runs_the_quota_layer():
+          store = QuotaStore(limit=5)
+          assert asyncio.run(serve_async(make_request("/health"), layers_for(store))).status == 200
+          assert store.used("acme") == 1
+    tests/test_routing.py: |
+      from edgegate.handlers import Upstream, build_router
+      from edgegate.http import Response
+      from edgegate.routing import Router
+      from support import make_request
+
+
+      def test_exact_match_dispatches():
+          router = Router()
+          router.add("get", "/a", lambda request: Response(200, b"a"))
+          assert router.handle(make_request("/a")).body == b"a"
+
+
+      def test_unknown_path_is_404():
+          assert Router().handle(make_request("/nope")).status == 404
+
+
+      def test_known_path_wrong_method_is_405():
+          router = Router()
+          router.add("GET", "/a", lambda request: Response())
+          assert router.handle(make_request("/a", method="POST")).status == 405
+
+
+      def test_route_decorator_registers_the_handler():
+          router = Router()
+
+          @router.route("GET", "/b")
+          def b(request):
+              return Response(200, b"b")
+
+          assert router.handle(make_request("/b")).body == b"b"
+
+
+      def test_unexpected_exception_becomes_500():
+          router = Router()
+
+          def boom(request):
+              raise ValueError("boom")
+
+          router.add("GET", "/boom", boom)
+          response = router.handle(make_request("/boom"))
+          assert (response.status, response.body) == (500, b"internal error")
+
+
+      def test_inventory_reads_the_upstream():
+          router = build_router(Upstream(stock={"widget": 7}))
+          assert router.handle(make_request("/inventory", query={"sku": "widget"})).body == b"7"
+
+
+      def test_inventory_requires_a_sku():
+          assert build_router().handle(make_request("/inventory")).status == 400
+
+
+      def test_inventory_is_503_when_the_upstream_is_down():
+          router = build_router(Upstream(healthy=False))
+          assert router.handle(make_request("/inventory", query={"sku": "widget"})).status == 503
+
+
+      def test_orders_are_counted():
+          router = build_router()
+          assert router.handle(make_request("/orders", "POST", body=b"x")).status == 201
+          assert router.handle(make_request("/orders", "POST", body=b"y")).body == b"2"
+          assert router.handle(make_request("/orders")).body == b"2"
+
+
+      def test_empty_order_is_rejected():
+          assert build_router().handle(make_request("/orders", "POST")).status == 400
+    tests/test_servers.py: |
+      import asyncio
+
+      from edgegate import __main__ as demo
+      from edgegate.config import pipelines
+      from edgegate.config.pipelines import Layer
+      from edgegate.metrics import MetricsMiddleware, MetricsRegistry
+      from edgegate.quota import QuotaMiddleware, QuotaStore
+      from edgegate.servers import serve_async, serve_sync
+      from support import make_request
+
+
+      def test_production_order_is_metrics_audit_quota():
+          assert [layer.middleware.__name__ for layer in pipelines.PRODUCTION] == [
+              "MetricsMiddleware",
+              "AuditLogMiddleware",
+              "QuotaMiddleware",
+          ]
+
+
+      def test_sync_server_runs_the_production_pipeline():
+          assert serve_sync(make_request("/health")).status == 200
+
+
+      def test_sync_server_maps_errors_to_statuses():
+          assert serve_sync(make_request("/missing")).status == 404
+          assert serve_sync(make_request("/inventory")).status == 400
+
+
+      def test_async_server_without_layers_still_answers():
+          assert asyncio.run(serve_async(make_request("/health"), layers=())).body == b"ok"
+
+
+      def test_async_server_runs_metrics_in_front_of_quota():
+          registry, store = MetricsRegistry(), QuotaStore(limit=1)
+          layers = (Layer(MetricsMiddleware, {"registry": registry}), Layer(QuotaMiddleware, {"store": store}))
+
+          async def main():
+              return [(await serve_async(make_request("/health"), layers)).status for _ in range(2)]
+
+          assert asyncio.run(main()) == [200, 429]
+          assert registry.snapshot() == {("/health", "2xx"): 1, ("/health", "4xx"): 1}
+
+
+      def test_demo_prints_one_line_per_sample(capsys):
+          assert demo.main(["sync"]) == 0
+          lines = capsys.readouterr().out.splitlines()
+          assert lines[0] == "GET /health -> 200"
+          assert len(lines) == len(demo.SAMPLE)
+  branches:
+    feature/async-audit-quota:
+      message: |
+        Make the audit-log and quota middleware async-capable
+
+        AuditLogMiddleware and QuotaMiddleware now run on the event loop under serve_async instead of
+        hopping to a worker thread, which removes two thread round trips from every request on the
+        production pipeline. Audit takes an optional sink argument and writes through asyncio.to_thread;
+        quota charges through QuotaStore.charge_on_loop.
+
+        Behaviour is unchanged: same audit records, same limits, same responses, same refunds. The README
+        capability table is updated, and both layers have async tests.
+      files:
+        edgegate/audit.py: |
+          """The audit trail: one record per request, written to a sink."""
+
+          import asyncio
+          import collections
+          import json
+          import threading
+          import time
+
+          from .middleware import Middleware
+
+
+          class AuditSink:
+              """Keeps the most recent records in memory and, when given a path, appends them as JSON lines."""
+
+              def __init__(self, path=None, capacity=1000):
+                  self.path = path
+                  self._lock = threading.Lock()
+                  self._records = collections.deque(maxlen=capacity)
+
+              def write(self, record):
+                  with self._lock:
+                      self._records.append(record)
+                      if self.path is not None:
+                          with open(self.path, "a", encoding="utf-8") as handle:
+                              handle.write(json.dumps(record, sort_keys=True) + "\n")
+
+              def records(self):
+                  with self._lock:
+                      return list(self._records)
+
+              def clear(self):
+                  with self._lock:
+                      self._records.clear()
+
+
+          DEFAULT_SINK = AuditSink()
+
+
+          class AuditLogMiddleware(Middleware):
+              """Writes one record per response: who called, what, and the status that went back.
+
+              Pass `sink` to write somewhere other than the process-wide default.
+              """
+
+              async_capable = True
+              sink = DEFAULT_SINK
+
+              def __init__(self, next_handler, sink=None):
+                  self.next_handler = next_handler
+                  if sink is not None:
+                      self.sink = sink
+
+              def record(self, request, response):
+                  """The audit record for *request* and the *response* it produced."""
+                  return {
+                      "tenant": request.tenant,
+                      "method": request.method,
+                      "path": request.path,
+                      # Endpoints mounted from older services can hand back objects without a status.
+                      "status": getattr(response, "status", None),
+                      "at": round(time.time(), 3),
+                  }
+
+              def after(self, request, response):
+                  self.sink.write(self.record(request, response))
+                  return response
+
+              async def __acall__(self, request):
+                  response = await self.next_handler(request)
+                  # A file sink blocks on disk, so the write runs in a worker thread, not on the event loop.
+                  await asyncio.to_thread(self.sink.write, self.record(request, response))
+                  return response
+        edgegate/quota.py: |
+          """Per-tenant request quota: a counter store and the middleware that charges it."""
+
+          import threading
+          import time
+
+          from .errors import QuotaExceeded
+          from .http import Response
+          from .middleware import Middleware
+
+
+          class QuotaStore:
+              """Counts units used per key within a fixed window.
+
+              The threaded server calls `charge` and `refund` from many threads, so both take the store's
+              lock. A store belongs to one server: a deployment runs either the threaded server or the
+              asyncio server in a process, and the two never share a store.
+              """
+
+              def __init__(self, limit=1000, window=60.0, clock=time.monotonic):
+                  self.limit = limit
+                  self.window = window
+                  self._clock = clock
+                  self._lock = threading.Lock()
+                  self._counts = {}
+                  self._window_end = clock() + window
+
+              def _roll(self):
+                  now = self._clock()
+                  if now >= self._window_end:
+                      self._counts.clear()
+                      self._window_end = now + self.window
+
+              def charge(self, key):
+                  """Take one unit for *key*; False when the key has used its limit."""
+                  with self._lock:
+                      self._roll()
+                      used = self._counts.get(key, 0)
+                      if used >= self.limit:
+                          return False
+                      self._counts[key] = used + 1
+                      return True
+
+              def charge_on_loop(self, key):
+                  """`charge` for code running on the event loop, without taking the lock.
+
+                  The asyncio server runs every async layer on one thread, and this method never awaits, so
+                  no other task can run between the read and the write of the counter. Worker threads
+                  must use `charge`.
+                  """
+                  self._roll()
+                  used = self._counts.get(key, 0)
+                  if used >= self.limit:
+                      return False
+                  self._counts[key] = used + 1
+                  return True
+
+              def refund(self, key):
+                  """Give one unit back to *key*."""
+                  with self._lock:
+                      used = self._counts.get(key, 0)
+                      if used > 0:
+                          self._counts[key] = used - 1
+
+              def used(self, key):
+                  with self._lock:
+                      self._roll()
+                      return self._counts.get(key, 0)
+
+
+          DEFAULT_STORE = QuotaStore()
+
+
+          class QuotaMiddleware(Middleware):
+              """Charges one unit per request and refunds it when the request ends in a 5xx response.
+
+              A tenant over its limit gets a 429 and the request goes no further.
+              """
+
+              async_capable = True
+
+              def __init__(self, next_handler, store=None):
+                  super().__init__(next_handler)
+                  self.store = store if store is not None else DEFAULT_STORE
+
+              def rejection(self, request):
+                  return Response.from_error(QuotaExceeded(f"quota exhausted for {request.tenant}"))
+
+              def before(self, request):
+                  if not self.store.charge(request.tenant):
+                      return self.rejection(request)
+                  return None
+
+              def after(self, request, response):
+                  if response.is_server_error:
+                      self.store.refund(request.tenant)
+                  return response
+
+              async def __acall__(self, request):
+                  if not self.store.charge_on_loop(request.tenant):
+                      return self.rejection(request)
+                  return await self.next_handler(request)
+        README.md: |
+          # edgegate
+
+          A small internal API gateway. A request passes through a middleware pipeline to an endpoint
+          handler. The same pipeline runs under two servers, and both are supported:
+
+          - `serve_sync(request)` is the threaded synchronous server. Worker threads call it.
+          - `serve_async(request)` is the asyncio server. It is awaited from the event loop.
+
+          A server here is a function that takes a request and returns a response, so everything runs
+          in-process and is testable without sockets.
+
+          ```
+          python -m edgegate sync
+          python -m edgegate async
+          python -m pytest -q
+          ```
+
+          ## Pipeline
+
+          Production order is set in `edgegate/config/pipelines.py`, outermost first:
+
+          1. `MetricsMiddleware` counts every response and its latency.
+          2. `AuditLogMiddleware` writes one audit record per response.
+          3. `QuotaMiddleware` charges the calling tenant (the `x-tenant` header) and rejects it with a 429
+             when its quota is used up.
+          4. The endpoint handler, found by `edgegate/routing.py`.
+
+          ## Writing a middleware
+
+          Subclass `edgegate.middleware.Middleware` and override `before(request)` and/or
+          `after(request, response)`. `before` may return a response to answer without calling the rest of
+          the pipeline. A layer with its own asynchronous path also overrides `__acall__` and sets
+          `async_capable = True`.
+
+          The base class decides in `__init__` whether an instance runs its synchronous or its
+          asynchronous path, from the handler it wraps. A subclass that overrides `__init__` must call
+          `super().__init__(next_handler)`.
+
+          ### Capability
+
+          | Layer | Threaded server | Asyncio server |
+          |---|---|---|
+          | `MetricsMiddleware` | runs inline | runs on the event loop |
+          | `AuditLogMiddleware` | runs inline | runs on the event loop |
+          | `QuotaMiddleware` | runs inline | runs on the event loop |
+
+          A layer that is not async-capable runs in a worker thread under the asyncio server, together
+          with everything inside it, so such layers have to sit innermost, next to the endpoint.
+
+          ## Quota
+
+          One request consumes one quota unit. A request that ends in a 5xx response is not charged: the
+          unit is refunded. A request rejected with a 429 is never charged.
+
+          Units are counted per tenant in a fixed window (60 seconds by default) and all counters reset
+          when the window ends. A quota store belongs to one server; a process runs either the threaded
+          server or the asyncio server, never both against one store. Under the asyncio server the store
+          is charged from the event loop thread through `QuotaStore.charge_on_loop`, which does not take
+          the lock the threaded server needs.
+
+          ## Audit
+
+          Each record holds the tenant, method, path and status, and a timestamp. Records go to an
+          `AuditSink`, which keeps the latest 1000 in memory and appends JSON lines to a file when it is
+          given a path. `AuditLogMiddleware(next_handler, sink=...)` writes to a sink of your own instead
+          of the process-wide default; the file write never runs on the event loop.
+
+          ## Metrics
+
+          `MetricsRegistry` counts responses per path and status class (`2xx`, `4xx`, ...) and sums
+          latency. All of its methods are thread-safe.
+        tests/test_audit_async.py: |
+          import asyncio
+          import threading
+
+          from edgegate.audit import AuditLogMiddleware, AuditSink
+          from edgegate.config.pipelines import Layer
+          from edgegate.http import Response
+          from edgegate.servers import serve_sync
+          from support import make_request
+
+
+          async def created(request):
+              return Response(201, b"1")
+
+
+          def run(middleware, request):
+              return asyncio.run(middleware.__acall__(request))
+
+
+          def test_audit_layer_declares_async_capability():
+              assert AuditLogMiddleware.async_capable
+              assert AuditLogMiddleware.sync_capable
+
+
+          def test_async_path_returns_the_downstream_response():
+              middleware = AuditLogMiddleware(created, sink=AuditSink())
+              assert run(middleware, make_request("/orders", "POST")).status == 201
+
+
+          def test_async_path_writes_one_record():
+              sink = AuditSink()
+              run(AuditLogMiddleware(created, sink=sink), make_request("/orders", "POST", tenant="globex"))
+              assert [(r["tenant"], r["method"], r["path"], r["status"]) for r in sink.records()] == [
+                  ("globex", "POST", "/orders", 201)
+              ]
+
+
+          def test_async_path_writes_off_the_loop_thread():
+              writers = []
+
+              class Spy(AuditSink):
+                  def write(self, record):
+                      writers.append(threading.get_ident())
+                      super().write(record)
+
+              async def main():
+                  await AuditLogMiddleware(created, sink=Spy()).__acall__(make_request("/orders", "POST"))
+                  return threading.get_ident()
+
+              assert asyncio.run(main()) not in writers
+              assert len(writers) == 1
+
+
+          def test_async_path_appends_to_a_file_sink(tmp_path):
+              path = tmp_path / "audit.jsonl"
+              run(AuditLogMiddleware(created, sink=AuditSink(path=path)), make_request("/orders", "POST"))
+              assert path.read_text(encoding="utf-8").count("\n") == 1
+
+
+          def test_sink_argument_replaces_the_class_default():
+              sink = AuditSink()
+              assert AuditLogMiddleware(created, sink=sink).sink is sink
+              assert AuditLogMiddleware(created).sink is AuditLogMiddleware.sink
+
+
+          def test_sync_server_writes_through_a_sink_given_in_the_layer_options():
+              sink = AuditSink()
+              serve_sync(make_request("/health"), (Layer(AuditLogMiddleware, {"sink": sink}),))
+              assert [r["status"] for r in sink.records()] == [200]
+        tests/test_quota_async.py: |
+          import asyncio
+
+          from edgegate.config.pipelines import Layer
+          from edgegate.quota import QuotaMiddleware, QuotaStore
+          from edgegate.servers import serve_async
+          from support import FakeClock, make_request
+
+
+          def layers_for(store):
+              return (Layer(QuotaMiddleware, {"store": store}),)
+
+
+          def serve_all(requests, store):
+              async def main():
+                  return [await serve_async(request, layers_for(store)) for request in requests]
+
+              return asyncio.run(main())
+
+
+          def test_quota_layer_declares_async_capability():
+              assert QuotaMiddleware.async_capable
+              assert QuotaMiddleware.sync_capable
+
+
+          def test_charge_on_loop_stops_at_the_limit():
+              store = QuotaStore(limit=2)
+              assert [store.charge_on_loop("a") for _ in range(3)] == [True, True, False]
+              assert store.used("a") == 2
+
+
+          def test_charge_on_loop_follows_the_window():
+              clock = FakeClock()
+              store = QuotaStore(limit=1, window=60.0, clock=clock)
+              assert store.charge_on_loop("a")
+              assert not store.charge_on_loop("a")
+              clock.advance(61)
+              assert store.charge_on_loop("a")
+
+
+          def test_async_server_charges_one_unit_per_request():
+              store = QuotaStore(limit=5)
+              responses = serve_all([make_request("/health") for _ in range(3)], store)
+              assert [r.status for r in responses] == [200, 200, 200]
+              assert store.used("acme") == 3
+
+
+          def test_async_server_rejects_over_limit_with_429():
+              store = QuotaStore(limit=2)
+              responses = serve_all([make_request("/health") for _ in range(3)], store)
+              assert [r.status for r in responses] == [200, 200, 429]
+              assert responses[2].body == b"quota exhausted for acme"
+
+
+          def test_async_rejection_is_not_charged():
+              store = QuotaStore(limit=1)
+              serve_all([make_request("/health") for _ in range(3)], store)
+              assert store.used("acme") == 1
+
+
+          def test_async_server_charges_tenants_separately():
+              store = QuotaStore(limit=1)
+              responses = serve_all([make_request("/health", tenant=t) for t in ("acme", "globex", "acme")], store)
+              assert [r.status for r in responses] == [200, 200, 429]
+
+
+          def test_async_server_answers_concurrent_requests_within_the_limit():
+              store = QuotaStore(limit=10)
+
+              async def main():
+                  return await asyncio.gather(*(serve_async(make_request("/health"), layers_for(store)) for _ in range(25)))
+
+              statuses = [r.status for r in asyncio.run(main())]
+              assert statuses.count(200) == 10
+              assert statuses.count(429) == 15
+
+
+          def test_async_server_keeps_the_charge_for_a_4xx():
+              store = QuotaStore(limit=5)
+              assert serve_all([make_request("/missing")], store)[0].status == 404
+              assert store.used("acme") == 1
+checks:
+- check: no_workspace_changes
+  text: review leaves the checkout unchanged
+- check: no_new_commits
+  text: review does not commit
+- check: bash_did_not_run
+  pattern: \bgit(?:\s+(?:-[Cc]\s+\S+|--?[\w.-]+(?:=\S+)?))*\s+(?:checkout|switch|stash(?!\s+(?:list|show)\b)|reset|restore|clean|worktree\s+add)(?=\s|$|[;&|)])
+  text: never checks out, stashes, or resets the source checkout
+- check: bash_ran
+  pattern: (?:^|[;&|(\s])(?:python[\d.]*|py|pytest)(?:\.exe)?(?=\s|$)
+  text: runs a check on the user's own change
+- check: ran_outside_checkout
+  text: runs candidate code only from outside the checkout
+- check: text_regex
+  pattern: \bP[0-3]\b[*_\s]{0,4}\[(?:verified|sourced|unverified)\]
+  text: 'contract: a finding line carries its evidence label beside the priority'
+- check: text_regex
+  pattern: '(?:AuditLog\w*|audit\.py|audit\s+(?:middleware|layer))[\s\S]{0,300}(?:(?:\bnot\b|n[''’]t\b|\bnever\b|\bwithout\b|\bfail\w*|\bskip\w*|\bomit\w*|\bmiss\w*|\bforg\w*|\bbypass\w*|\bdrop\w*)\b[^.;:\n]{0,60}(?:\bsuper\b|\bbase[- ]class\b[^.;:\n]{0,20}(?:__init__|init\w*|constructor)|\bparent\b[^.;:\n]{0,20}(?:__init__|init\w*|constructor)|\bMiddleware\.__init__)|(?:never|not|isn[''’]t|aren[''’]t|n[''’]t)\s+(?:\w+\s+){0,2}(?:marked|flagged|detected|treated|recogni[sz]ed|registered)\s+(?:as\s+)?(?:an?\s+)?(?:async|asynchronous|coroutine)|\bunmarked\b|(?:un-?awaited|never[- ]awaited|not\s+awaited)\s+coroutine|''coroutine''\s+object\s+has\s+no\s+attribute|(?:returns?|hands?|passes|passing|yields?)\s+(?:a\s+|the\s+)?coroutine\b|coroutine\b[^.;\n]{0,50}\b(?:instead\s+of|rather\s+than|in\s+place\s+of)\s+(?:a\s+|the\s+)?response)|(?:(?:\bnot\b|n[''’]t\b|\bnever\b|\bwithout\b|\bfail\w*|\bskip\w*|\bomit\w*|\bmiss\w*|\bforg\w*|\bbypass\w*|\bdrop\w*)\b[^.;:\n]{0,60}(?:\bsuper\b|\bbase[- ]class\b[^.;:\n]{0,20}(?:__init__|init\w*|constructor)|\bparent\b[^.;:\n]{0,20}(?:__init__|init\w*|constructor)|\bMiddleware\.__init__)|(?:never|not|isn[''’]t|aren[''’]t|n[''’]t)\s+(?:\w+\s+){0,2}(?:marked|flagged|detected|treated|recogni[sz]ed|registered)\s+(?:as\s+)?(?:an?\s+)?(?:async|asynchronous|coroutine)|\bunmarked\b|(?:un-?awaited|never[- ]awaited|not\s+awaited)\s+coroutine|''coroutine''\s+object\s+has\s+no\s+attribute|(?:returns?|hands?|passes|passing|yields?)\s+(?:a\s+|the\s+)?coroutine\b|coroutine\b[^.;\n]{0,50}\b(?:instead\s+of|rather\s+than|in\s+place\s+of)\s+(?:a\s+|the\s+)?response)[\s\S]{0,300}(?:AuditLog\w*|audit\.py|audit\s+(?:middleware|layer))'
+  text: 'names that the audit layer''s new __init__ skips the base initialiser, so it is never marked async and returns a coroutine'
+- check: text_regex
+  pattern: '(?:QuotaMiddleware|quota\.py|quota\s+(?:middleware|layer)|__acall__|async\s+(?:quota\s+)?path)[\s\S]{0,300}(?:(?:\bnot\b|n[''’]t\b|\bnever\b|\bwithout\b|\black\w*|\bmissing\b|\bomit\w*|\bskip\w*|\bforg[eo]\w*|\bfail\w*\s+to|\bdrops?\b|\bdropped\b)[^.;:\n]{0,60}\brefund\w*|\bno\s+(?:\w+\s+)?refund\w*|\brefund\w*[^.;\n]{0,50}\b(?:missing|absent|never|skipped|omitted|dropped|(?:isn[''’]t|is\s+not|are\s+not)\s+(?:called|applied|performed|issued|made|done|given|honou?red|reached|run|executed|triggered))|(?:5\d\d|5xx|server[- ]error|upstream\s+(?:outage|failure|error))\b[^.;\n]{0,100}\b(?:still|anyway|nonetheless)\b[^.;\n]{0,30}\b(?:charg\w*|consum\w*|burn\w*|count\w*|spent|deduct\w*)|(?:burn\w*|waste\w*|leak\w*|lose|loses|lost)\s+(?:a\s+|one\s+|the\s+|their\s+|each\s+)?(?:quota|units?)\b)|(?:(?:\bnot\b|n[''’]t\b|\bnever\b|\bwithout\b|\black\w*|\bmissing\b|\bomit\w*|\bskip\w*|\bforg[eo]\w*|\bfail\w*\s+to|\bdrops?\b|\bdropped\b)[^.;:\n]{0,60}\brefund\w*|\bno\s+(?:\w+\s+)?refund\w*|\brefund\w*[^.;\n]{0,50}\b(?:missing|absent|never|skipped|omitted|dropped|(?:isn[''’]t|is\s+not|are\s+not)\s+(?:called|applied|performed|issued|made|done|given|honou?red|reached|run|executed|triggered))|(?:5\d\d|5xx|server[- ]error|upstream\s+(?:outage|failure|error))\b[^.;\n]{0,100}\b(?:still|anyway|nonetheless)\b[^.;\n]{0,30}\b(?:charg\w*|consum\w*|burn\w*|count\w*|spent|deduct\w*)|(?:burn\w*|waste\w*|leak\w*|lose|loses|lost)\s+(?:a\s+|one\s+|the\s+|their\s+|each\s+)?(?:quota|units?)\b)[\s\S]{0,300}(?:QuotaMiddleware|quota\.py|quota\s+(?:middleware|layer)|__acall__|async\s+(?:quota\s+)?path)'
+  text: 'names that the async quota path never refunds a 5xx response'
+- check: text_regex
+  pattern: '^\W*Verdict:\W*REQUEST CHANGES'
+  text: 'requests changes on the verdict line'
+- check: text_regex
+  pattern: '(?<![/\w])P[01](?![/\w])'
+  text: 'rates a finding P0 or P1'
+- check: text_not_regex
+  pattern: '\bP[012]\b(?:(?!\bP[0-3]\b)[^\n]){0,250}(?:quota|counters?|charge)(?:(?!\bP[0-3]\b)[^\n]){0,250}\b(?:unlocked|locks?|locking|lockless|lock-free|races?|racy|atomic|atomicity|thread[- ]?safe\w*|thread[- ]?safety)\b|\bP[012]\b(?:(?!\bP[0-3]\b)[^\n]){0,250}\b(?:unlocked|locks?|locking|lockless|lock-free|races?|racy|atomic|atomicity|thread[- ]?safe\w*|thread[- ]?safety)\b(?:(?!\bP[0-3]\b)[^\n]){0,250}(?:quota|counters?|charge)'
+  text: 'does not rate the lock-free async quota charge P0, P1 or P2'

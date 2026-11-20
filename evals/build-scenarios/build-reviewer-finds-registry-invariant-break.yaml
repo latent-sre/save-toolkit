@@ -1,0 +1,2228 @@
+# A refactor that moves name removal into a helper and adds Catalog.reset_alias. Its drop=True path
+# deletes the record but leaves the name in the catalog's alias set, which len() subtracts: the
+# length under-counts and then goes negative in the unchanged report, and the unchanged store.save
+# writes the stale name into the snapshot, which the unchanged store.load rejects, so the node's
+# agent exits at its next boot. The candidate's tests pass. _forget deletes inside a loop over a
+# generator on the live dict but materialises the names first, so the iteration is safe.
+id: build-reviewer-finds-registry-invariant-break
+max_turns: 30
+agent: reviewer
+prompt: |
+  Review refactor/alias-reset against main before we merge. It is a refactor plus one new method, reset_alias; existing behaviour should be unchanged.
+fixture:
+  files:
+    .gitignore: |
+      *.log
+    README.md: |
+      # svccatalog
+
+      The catalog of deployable services. The agent on every node loads a snapshot of it at start, and
+      the deploy tooling edits it through the command line or the `Catalog` class. Standard library
+      only; run the tests with `python -m pytest -q`.
+
+      ## Concepts
+
+      - A **service** has a name, an owning team and a port.
+      - An **alias** is another name for a service. It points at the service (its `target`), carries a
+        copy of the service's owner and port, and can be removed without touching the service.
+      - Names are lowercase words of letters and digits joined by hyphens, at most 63 characters.
+        `all`, `default` and `none` are reserved.
+
+      ## Contracts
+
+      - `len(catalog)` is the number of real services; aliases are not counted.
+      - Iterating a catalog yields the real services in name order. `names()` and `records()` also
+        list aliases.
+      - An alias points at a service, never at another alias.
+      - Removing a service that aliases still point at fails with `StillReferenced`, unless
+        `cascade=True` is passed, which removes those aliases too.
+      - Snapshots are written on every catalog change, through `store.autosave`. The command line and
+        the node agent both attach it, so a snapshot on disk is never older than the last change.
+      - Loading a snapshot checks it first. A snapshot that cannot be loaded raises `CorruptSnapshot`.
+      - A node that cannot load its snapshot exits and stays out of rotation until an operator repairs
+        the snapshot.
+
+      ## Command line
+
+      ```
+      python -m svccatalog [--snapshot FILE] add NAME --owner TEAM --port PORT
+      python -m svccatalog [--snapshot FILE] alias NAME TARGET
+      python -m svccatalog [--snapshot FILE] remove NAME [--cascade]
+      python -m svccatalog [--snapshot FILE] rename OLD NEW
+      python -m svccatalog [--snapshot FILE] list
+      python -m svccatalog [--snapshot FILE] report
+      python -m svccatalog [--snapshot FILE] resolve NAME
+      ```
+
+      The snapshot file defaults to `$SVCCATALOG_SNAPSHOT`, then `catalog.json`. A missing file is an
+      empty catalog. A failing command prints `error: ...` and exits with status 2.
+
+      ## Node agent
+
+      `python -m svccatalog.agent.startup` is what the node's service manager runs. It reads
+      `$SVCCATALOG_SNAPSHOT` (default `/var/lib/svccatalog/catalog.json`), prints the capacity summary
+      and exits 0. When the snapshot cannot be loaded it prints the reason and exits 3.
+
+      ## Layout
+
+      | Module | Role |
+      |---|---|
+      | `catalog.py` | The `Catalog` class |
+      | `records.py` | `Record` and its constructors |
+      | `validation.py` | Naming rules and record checks |
+      | `resolver.py` | Follow an alias to its service |
+      | `report.py` | Capacity summary and table |
+      | `store.py` | Snapshot save, load and autosave |
+      | `sync.py` | Match the catalog to a release's list of names |
+      | `cli.py` | The command line |
+      | `agent/startup.py` | Node agent boot |
+    svccatalog/__init__.py: |
+      """svccatalog: the catalog of deployable services that a node's agent loads at start."""
+
+      from .catalog import Catalog
+      from .errors import CatalogError, CorruptSnapshot
+
+      __all__ = ["Catalog", "CatalogError", "CorruptSnapshot"]
+    svccatalog/__main__.py: |
+      """`python -m svccatalog` runs the command line."""
+
+      from .cli import main
+
+      raise SystemExit(main())
+    svccatalog/agent/__init__.py: |
+      """The node agent: what runs on every node and reads the catalog."""
+    svccatalog/agent/startup.py: |
+      """Boot sequence of the node agent.
+
+      The agent loads the catalog snapshot once at start, keeps it current with `store.autosave`, and
+      reports the capacity summary. When the snapshot cannot be loaded the agent exits with
+      `EXIT_CORRUPT` and the node stays out of rotation; it never starts on a catalog it could not read.
+      """
+
+      import os
+      import sys
+      from pathlib import Path
+
+      from .. import report, store
+      from ..catalog import Catalog
+      from ..errors import CorruptSnapshot
+
+      EXIT_OK = 0
+      EXIT_CORRUPT = 3
+      DEFAULT_SNAPSHOT = "/var/lib/svccatalog/catalog.json"
+
+
+      def snapshot_path(env=None) -> Path:
+          """Where this node keeps its snapshot."""
+          env = os.environ if env is None else env
+          return Path(env.get("SVCCATALOG_SNAPSHOT", DEFAULT_SNAPSHOT))
+
+
+      def boot(path) -> Catalog:
+          """Load the snapshot, or start empty on a node that has none, and keep it current."""
+          path = Path(path)
+          catalog = store.load(path) if path.exists() else Catalog()
+          store.autosave(catalog, path)
+          return catalog
+
+
+      def main(env=None, out=None, err=None) -> int:
+          """Start the agent and return its exit status."""
+          out = out if out is not None else sys.stdout
+          err = err if err is not None else sys.stderr
+          path = snapshot_path(env)
+          try:
+              catalog = boot(path)
+          except CorruptSnapshot as exc:
+              print(f"svccatalog-agent: refusing to start: {exc}", file=err)
+              return EXIT_CORRUPT
+          print(f"svccatalog-agent: loaded {path}: {report.summary(catalog)}", file=out)
+          return EXIT_OK
+
+
+      if __name__ == "__main__":
+          raise SystemExit(main())
+    svccatalog/catalog.py: |
+      """The in-memory service catalog.
+
+      A catalog holds services and the aliases that point at them. Every mutating method ends with a
+      change notification, which is how a store keeps its snapshot current (see `store.autosave`).
+      """
+
+      from collections.abc import Callable, Iterable, Iterator
+
+      from .errors import DuplicateName, InvalidRecord, StillReferenced, UnknownService
+      from .records import ALIAS, SERVICE, Record, alias, service
+      from .validation import check_name, check_port, check_record
+
+      Listener = Callable[["Catalog"], None]
+
+
+      class Catalog:
+          """Services and their aliases, keyed by name.
+
+          `len(catalog)` is the number of real services; aliases are not counted. Iterating a catalog
+          yields the real services in name order. `names()` and `records()` cover aliases as well.
+          """
+
+          def __init__(self):
+              self._records: dict[str, Record] = {}
+              # Names in _records that are aliases, kept beside the table so len() stays constant time.
+              self._alias_names: set[str] = set()
+              self._listeners: list[Listener] = []
+
+          @classmethod
+          def from_records(cls, records: Iterable[Record]):
+              """Build a catalog from records, checking each one and the links between them."""
+              catalog = cls()
+              for record in records:
+                  check_record(record)
+                  if record.name in catalog._records:
+                      raise DuplicateName(record.name)
+                  catalog._records[record.name] = record
+                  if record.is_alias:
+                      catalog._alias_names.add(record.name)
+              for name in sorted(catalog._alias_names):
+                  target = catalog._records.get(catalog._records[name].target)
+                  if target is None or target.is_alias:
+                      raise InvalidRecord(f"{name}: alias target must be a service in the catalog")
+              return catalog
+
+          # -- reading ---------------------------------------------------------------------------
+
+          def __len__(self):
+              return len(self._records) - len(self._alias_names)
+
+          def __iter__(self) -> Iterator[Record]:
+              services = (record for record in self._records.values() if not record.is_alias)
+              return iter(sorted(services, key=lambda record: record.name))
+
+          def __contains__(self, name):
+              return name in self._records
+
+          def get(self, name) -> Record:
+              """The record for `name`, which may be an alias; `UnknownService` when absent."""
+              return self._require(name)
+
+          def names(self) -> list[str]:
+              """Every name, services and aliases, in order."""
+              return sorted(self._records)
+
+          def records(self) -> list[Record]:
+              """Every record, services and aliases, in name order."""
+              return [self._records[name] for name in self.names()]
+
+          @property
+          def alias_names(self) -> frozenset[str]:
+              """The names that are aliases."""
+              return frozenset(self._alias_names)
+
+          def aliases_of(self, name) -> list[str]:
+              """The aliases that point at the service `name`, in order."""
+              return sorted(n for n, record in self._records.items() if record.target == name)
+
+          # -- changing --------------------------------------------------------------------------
+
+          def add(self, name, owner, port) -> Record:
+              """Add a service."""
+              check_name(name)
+              check_port(port)
+              if name in self._records:
+                  raise DuplicateName(name)
+              record = service(name, owner, port)
+              check_record(record)
+              self._records[name] = record
+              self._changed()
+              return record
+
+          def add_alias(self, name, target) -> Record:
+              """Add `name` as another name for the service `target`."""
+              check_name(name)
+              if name in self._records:
+                  raise DuplicateName(name)
+              base = self._require(target)
+              if base.is_alias:
+                  raise InvalidRecord(f"{target} is an alias; point at the service it names")
+              record = alias(name, base)
+              check_record(record)
+              self._records[name] = record
+              self._alias_names.add(name)
+              self._changed()
+              return record
+
+          def remove(self, name, *, cascade=False):
+              """Remove a service or an alias.
+
+              A service that aliases still point at raises `StillReferenced`, unless `cascade` is true,
+              which removes those aliases with it.
+              """
+              record = self._require(name)
+              dependents = [] if record.is_alias else self.aliases_of(name)
+              if dependents and not cascade:
+                  raise StillReferenced(name, dependents)
+              for doomed in (*dependents, name):
+                  del self._records[doomed]
+                  self._alias_names.discard(doomed)
+              self._changed()
+
+          def rename(self, old, new):
+              """Give a service or alias a new name; aliases that point at it follow."""
+              record = self._require(old)
+              check_name(new)
+              if new in self._records:
+                  raise DuplicateName(new)
+              for dependent in self.aliases_of(old):
+                  self._records[dependent] = Record(
+                      dependent, ALIAS, record.owner, record.port, new
+                  )
+              del self._records[old]
+              self._records[new] = Record(new, record.kind, record.owner, record.port, record.target)
+              if record.is_alias:
+                  self._alias_names.discard(old)
+                  self._alias_names.add(new)
+              self._changed()
+
+          def set_owner(self, name, owner):
+              """Change the owning team of a service; its aliases show the new owner too."""
+              record = self._require(name)
+              if record.is_alias:
+                  raise InvalidRecord(f"{name} is an alias; change the owner of {record.target}")
+              if not owner:
+                  raise InvalidRecord(f"{name}: a service needs an owner")
+              self._records[name] = Record(name, SERVICE, owner, record.port)
+              for dependent in self.aliases_of(name):
+                  self._records[dependent] = Record(dependent, ALIAS, owner, record.port, name)
+              self._changed()
+
+          # -- notification ----------------------------------------------------------------------
+
+          def subscribe(self, listener: Listener):
+              """Call `listener(catalog)` after every change."""
+              self._listeners.append(listener)
+
+          def _changed(self):
+              for listener in list(self._listeners):
+                  listener(self)
+
+          def _require(self, name) -> Record:
+              try:
+                  return self._records[name]
+              except KeyError:
+                  raise UnknownService(name) from None
+    svccatalog/cli.py: |
+      """The `svccatalog` command line.
+
+      Each invocation loads the snapshot, runs one command and, for a command that changes the catalog,
+      writes the snapshot back through `store.autosave`. A missing snapshot file is an empty catalog.
+      """
+
+      import argparse
+      import os
+      import sys
+      from pathlib import Path
+
+      from . import report, resolver, store
+      from .catalog import Catalog
+      from .errors import CatalogError
+
+      DEFAULT_SNAPSHOT = "catalog.json"
+
+
+      def build_parser():
+          parser = argparse.ArgumentParser(prog="svccatalog", description="Inspect and edit the service catalog.")
+          parser.add_argument(
+              "--snapshot",
+              default=os.environ.get("SVCCATALOG_SNAPSHOT", DEFAULT_SNAPSHOT),
+              help="snapshot file (default: $SVCCATALOG_SNAPSHOT or %(default)s)",
+          )
+          commands = parser.add_subparsers(dest="command", required=True)
+
+          add = commands.add_parser("add", help="add a service")
+          add.add_argument("name")
+          add.add_argument("--owner", required=True)
+          add.add_argument("--port", required=True, type=int)
+
+          alias = commands.add_parser("alias", help="add another name for a service")
+          alias.add_argument("name")
+          alias.add_argument("target")
+
+          remove = commands.add_parser("remove", help="remove a service or an alias")
+          remove.add_argument("name")
+          remove.add_argument("--cascade", action="store_true", help="also remove the aliases of a service")
+
+          rename = commands.add_parser("rename", help="rename a service or an alias")
+          rename.add_argument("old")
+          rename.add_argument("new")
+
+          commands.add_parser("list", help="list every name")
+          commands.add_parser("report", help="print the capacity summary")
+
+          resolve = commands.add_parser("resolve", help="print the endpoint a name resolves to")
+          resolve.add_argument("name")
+          return parser
+
+
+      def _load(path):
+          path = Path(path)
+          return store.load(path) if path.exists() else Catalog()
+
+
+      def _run(args, catalog, out):
+          if args.command == "add":
+              record = catalog.add(args.name, args.owner, args.port)
+              print(f"added {record.name} on port {record.port}", file=out)
+          elif args.command == "alias":
+              record = catalog.add_alias(args.name, args.target)
+              print(f"added {record.name} as an alias of {record.target}", file=out)
+          elif args.command == "remove":
+              catalog.remove(args.name, cascade=args.cascade)
+              print(f"removed {args.name}", file=out)
+          elif args.command == "rename":
+              catalog.rename(args.old, args.new)
+              print(f"renamed {args.old} to {args.new}", file=out)
+          elif args.command == "list":
+              for record in catalog.records():
+                  suffix = f" -> {record.target}" if record.is_alias else ""
+                  print(f"{record.name}{suffix}", file=out)
+          elif args.command == "report":
+              out.write(report.render(catalog))
+          elif args.command == "resolve":
+              print(resolver.endpoint(catalog, args.name), file=out)
+
+
+      def main(argv=None, out=None):
+          """Run one command and return the process exit status: 0, or 2 when the command fails."""
+          out = out if out is not None else sys.stdout
+          args = build_parser().parse_args(argv)
+          try:
+              catalog = _load(args.snapshot)
+              store.autosave(catalog, args.snapshot)
+              _run(args, catalog, out)
+          except CatalogError as exc:
+              print(f"error: {exc}", file=sys.stderr)
+              return 2
+          return 0
+    svccatalog/errors.py: |
+      """Exceptions raised by svccatalog.
+
+      Every error the package raises on purpose derives from `CatalogError`, so a caller that only wants
+      to report a failure can catch that one class.
+      """
+
+
+      class CatalogError(Exception):
+          """Base class for every error this package raises on purpose."""
+
+
+      class InvalidName(CatalogError):
+          """A service or alias name does not follow the naming rules."""
+
+
+      class InvalidRecord(CatalogError):
+          """A record is malformed or contradicts the rest of the catalog."""
+
+
+      class DuplicateName(CatalogError):
+          """The name is already taken by a service or an alias."""
+
+          def __init__(self, name):
+              super().__init__(f"{name} already exists")
+              self.name = name
+
+
+      class UnknownService(CatalogError):
+          """The name is not in the catalog."""
+
+          def __init__(self, name):
+              super().__init__(f"{name} is not in the catalog")
+              self.name = name
+
+
+      class NotAnAlias(CatalogError):
+          """The operation needs an alias and the name belongs to a service."""
+
+          def __init__(self, name):
+              super().__init__(f"{name} is not an alias")
+              self.name = name
+
+
+      class StillReferenced(CatalogError):
+          """A service cannot be removed while aliases still point at it."""
+
+          def __init__(self, name, aliases):
+              super().__init__(f"{name} is still referenced by: {', '.join(sorted(aliases))}")
+              self.name = name
+              self.aliases = sorted(aliases)
+
+
+      class AliasCycle(CatalogError):
+          """Following an alias never reached a service."""
+
+
+      class CorruptSnapshot(CatalogError):
+          """A snapshot file cannot be turned back into a catalog."""
+    svccatalog/records.py: |
+      """Record types held by the catalog.
+
+      A `Record` is immutable. Changing a service means replacing its record, which keeps every
+      snapshot a plain list of values.
+      """
+
+      from dataclasses import dataclass
+
+      from .errors import InvalidRecord
+
+      SERVICE = "service"
+      ALIAS = "alias"
+      KINDS = (SERVICE, ALIAS)
+
+
+      @dataclass(frozen=True)
+      class Record:
+          """One name in the catalog.
+
+          A service carries the owning team and the port it listens on. An alias is another name for a
+          service: `target` names that service, and the owner and port are copies taken when the alias
+          was created, so a listing can show them without a lookup.
+          """
+
+          name: str
+          kind: str = SERVICE
+          owner: str = ""
+          port: int = 0
+          target: str | None = None
+
+          @property
+          def is_alias(self):
+              return self.kind == ALIAS
+
+          def to_dict(self):
+              """The JSON-ready form written to snapshots."""
+              return {
+                  "name": self.name,
+                  "kind": self.kind,
+                  "owner": self.owner,
+                  "port": self.port,
+                  "target": self.target,
+              }
+
+          @classmethod
+          def from_dict(cls, data):
+              """Rebuild a record from `to_dict` output; anything else raises `InvalidRecord`."""
+              if not isinstance(data, dict):
+                  raise InvalidRecord(f"a record must be an object, not {type(data).__name__}")
+              unknown = set(data) - {"name", "kind", "owner", "port", "target"}
+              if unknown:
+                  raise InvalidRecord(f"unknown record fields: {', '.join(sorted(unknown))}")
+              try:
+                  return cls(
+                      name=data["name"],
+                      kind=data.get("kind", SERVICE),
+                      owner=data.get("owner", ""),
+                      port=data.get("port", 0),
+                      target=data.get("target"),
+                  )
+              except KeyError as exc:
+                  raise InvalidRecord(f"record is missing {exc.args[0]}") from None
+
+
+      def service(name, owner, port):
+          """A service record."""
+          return Record(name, SERVICE, owner, port)
+
+
+      def alias(name, of):
+          """An alias record for the service record `of`, copying its owner and port."""
+          return Record(name, ALIAS, of.owner, of.port, of.name)
+    svccatalog/report.py: |
+      """Text reports over a catalog.
+
+      `summary` is the one-line capacity figure the agents print at boot; `render` is the table behind
+      `svccatalog report`.
+      """
+
+      from .resolver import owners
+
+
+      def summary(catalog) -> str:
+          """One line: how many services, how many extra names, how many owning teams."""
+          extra = sum(1 for record in catalog.records() if record.is_alias)
+          return f"{len(catalog)} services, {extra} aliases, {len(owners(catalog))} owners"
+
+
+      def render(catalog) -> str:
+          """A capacity summary followed by one row per service with its aliases."""
+          lines = [f"Capacity summary: {summary(catalog)}"]
+          ports = sorted(record.port for record in catalog)
+          if ports:
+              lines.append(f"Ports in use: {ports[0]}-{ports[-1]}")
+          width = max((len(record.name) for record in catalog), default=4)
+          lines.append(f"{'NAME':<{width}}  {'OWNER':<12}  {'PORT':>5}  ALIASES")
+          for record in catalog:
+              names = ", ".join(catalog.aliases_of(record.name)) or "-"
+              lines.append(f"{record.name:<{width}}  {record.owner:<12}  {record.port:>5}  {names}")
+          return "\n".join(lines) + "\n"
+    svccatalog/resolver.py: |
+      """Follow aliases to the services they name.
+
+      The catalog refuses aliases of aliases, so a lookup is one hop. The resolver still bounds the
+      walk, because it is also pointed at records that were built by hand in tests and tools.
+      """
+
+      from .errors import AliasCycle, NotAnAlias
+      from .records import Record
+
+      MAX_HOPS = 8
+
+
+      def resolve(catalog, name) -> Record:
+          """The service that `name` stands for: `name` itself, or what its alias points at."""
+          record = catalog.get(name)
+          hops = 0
+          while record.is_alias:
+              hops += 1
+              if hops > MAX_HOPS:
+                  raise AliasCycle(f"{name} does not reach a service within {MAX_HOPS} hops")
+              record = catalog.get(record.target)
+          return record
+
+
+      def target_of(catalog, name) -> str:
+          """The service an alias points at; `NotAnAlias` for a service."""
+          record = catalog.get(name)
+          if not record.is_alias:
+              raise NotAnAlias(name)
+          return record.target
+
+
+      def endpoint(catalog, name, host="localhost") -> str:
+          """`host:port` for the service `name` resolves to."""
+          return f"{host}:{resolve(catalog, name).port}"
+
+
+      def owners(catalog) -> dict[str, list[str]]:
+          """Service names grouped by owning team; aliases never appear."""
+          grouped: dict[str, list[str]] = {}
+          for record in catalog:
+              grouped.setdefault(record.owner, []).append(record.name)
+          return grouped
+    svccatalog/store.py: |
+      """Snapshots: the catalog as a JSON file that survives a restart.
+
+      A snapshot holds the records and, beside them, the list of alias names. `load` checks that every
+      listed alias is one of the records before it builds a catalog, and raises `CorruptSnapshot` when
+      it is not, so a half-written or hand-edited file never becomes a running catalog.
+      """
+
+      import json
+      import os
+      from pathlib import Path
+
+      from .catalog import Catalog
+      from .errors import CatalogError, CorruptSnapshot
+      from .records import Record
+
+      SNAPSHOT_VERSION = 1
+
+
+      def to_document(catalog) -> dict:
+          """The JSON-ready form of a catalog."""
+          return {
+              "version": SNAPSHOT_VERSION,
+              "records": [record.to_dict() for record in catalog.records()],
+              "aliases": sorted(catalog.alias_names),
+          }
+
+
+      def save(catalog, path):
+          """Write the snapshot to `path`, replacing the previous one in a single step."""
+          path = Path(path)
+          temp = path.with_name(path.name + ".tmp")
+          temp.write_text(json.dumps(to_document(catalog), indent=2) + "\n", encoding="utf-8")
+          os.replace(temp, path)
+
+
+      def load(path) -> Catalog:
+          """Read a snapshot back into a catalog; anything unusable raises `CorruptSnapshot`."""
+          path = Path(path)
+          try:
+              document = json.loads(path.read_text(encoding="utf-8"))
+          except (OSError, ValueError) as exc:
+              raise CorruptSnapshot(f"{path}: cannot read snapshot: {exc}") from exc
+          if not isinstance(document, dict) or document.get("version") != SNAPSHOT_VERSION:
+              raise CorruptSnapshot(f"{path}: not a version {SNAPSHOT_VERSION} snapshot")
+          try:
+              records = [Record.from_dict(item) for item in document.get("records", [])]
+          except CatalogError as exc:
+              raise CorruptSnapshot(f"{path}: {exc}") from exc
+          known = {record.name for record in records}
+          missing = sorted(set(document.get("aliases", [])) - known)
+          if missing:
+              raise CorruptSnapshot(f"{path}: alias names missing from the records: {', '.join(missing)}")
+          try:
+              return Catalog.from_records(records)
+          except CatalogError as exc:
+              raise CorruptSnapshot(f"{path}: {exc}") from exc
+
+
+      def autosave(catalog, path):
+          """Write a snapshot to `path` after every change to `catalog`."""
+          catalog.subscribe(lambda changed: save(changed, path))
+    svccatalog/sync.py: |
+      """Bring a catalog in line with a desired list of records.
+
+      Used by the deploy tooling after a release: the release lists the names that should exist, and
+      `sync_to` removes what is gone and adds what is new.
+      """
+
+      from dataclasses import dataclass, field
+
+      from .errors import InvalidRecord
+      from .validation import check_record
+
+
+      @dataclass
+      class SyncResult:
+          added: list[str] = field(default_factory=list)
+          removed: list[str] = field(default_factory=list)
+
+          @property
+          def changed(self):
+              return bool(self.added or self.removed)
+
+
+      def sync_to(catalog, desired) -> SyncResult:
+          """Make the catalog's names match `desired`; records already present are left as they are.
+
+          An alias in `desired` must point at a service that is also in `desired`.
+          """
+          wanted = {}
+          for record in desired:
+              check_record(record)
+              wanted[record.name] = record
+          for record in wanted.values():
+              if record.is_alias and (record.target not in wanted or wanted[record.target].is_alias):
+                  raise InvalidRecord(f"{record.name}: alias target must be a service in the release")
+
+          result = SyncResult()
+          result.removed = [name for name in catalog.names() if name not in wanted]
+          for name in result.removed:
+              if name in catalog:  # an earlier cascade may already have taken an alias
+                  catalog.remove(name, cascade=True)
+          for record in wanted.values():
+              if record.name not in catalog and not record.is_alias:
+                  catalog.add(record.name, record.owner, record.port)
+                  result.added.append(record.name)
+          for record in wanted.values():
+              if record.name not in catalog and record.is_alias:
+                  catalog.add_alias(record.name, record.target)
+                  result.added.append(record.name)
+          return result
+    svccatalog/validation.py: |
+      """Naming rules and record checks.
+
+      These run before a record enters a catalog, whether it comes from a caller or from a snapshot.
+      """
+
+      import re
+
+      from .errors import InvalidName, InvalidRecord
+      from .records import ALIAS, KINDS, SERVICE
+
+      NAME_PATTERN = re.compile(r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*")
+      MAX_NAME_LENGTH = 63
+      RESERVED_NAMES = frozenset({"all", "default", "none"})
+      MIN_PORT = 1
+      MAX_PORT = 65535
+
+
+      def check_name(name):
+          """Return `name` when it follows the naming rules, otherwise raise `InvalidName`."""
+          if not isinstance(name, str) or not name:
+              raise InvalidName("a name must be a non-empty string")
+          if len(name) > MAX_NAME_LENGTH:
+              raise InvalidName(f"{name[:12]}... is longer than {MAX_NAME_LENGTH} characters")
+          if NAME_PATTERN.fullmatch(name) is None:
+              raise InvalidName(f"{name!r} must be lowercase words of letters and digits joined by hyphens")
+          if name in RESERVED_NAMES:
+              raise InvalidName(f"{name} is reserved")
+          return name
+
+
+      def check_port(port):
+          """Return `port` when it can be listened on, otherwise raise `InvalidRecord`."""
+          if isinstance(port, bool) or not isinstance(port, int) or not MIN_PORT <= port <= MAX_PORT:
+              raise InvalidRecord(f"port must be an integer from {MIN_PORT} to {MAX_PORT}, not {port!r}")
+          return port
+
+
+      def check_record(record):
+          """Raise unless `record` is a well-formed service or alias on its own.
+
+          Whether an alias points at a real service is a question for the catalog, which sees the
+          other records.
+          """
+          check_name(record.name)
+          if record.kind not in KINDS:
+              raise InvalidRecord(f"{record.name}: kind must be one of {', '.join(KINDS)}")
+          if record.kind == SERVICE:
+              if record.target is not None:
+                  raise InvalidRecord(f"{record.name}: a service has no target")
+              if not record.owner:
+                  raise InvalidRecord(f"{record.name}: a service needs an owner")
+          if record.kind == ALIAS:
+              if record.target is None:
+                  raise InvalidRecord(f"{record.name}: an alias needs a target")
+              if record.target == record.name:
+                  raise InvalidRecord(f"{record.name}: an alias cannot point at itself")
+          check_port(record.port)
+          return record
+    tests/conftest.py: |
+      """Shared fixtures: a small catalog and a snapshot path."""
+
+      import pytest
+
+      from svccatalog import Catalog
+
+
+      @pytest.fixture
+      def catalog():
+          """Three services; `billing` has one alias and `api` has one alias."""
+          catalog = Catalog()
+          catalog.add("api", "platform", 8080)
+          catalog.add("billing", "payments", 8081)
+          catalog.add("search", "discovery", 8082)
+          catalog.add_alias("billing-old", "billing")
+          catalog.add_alias("api-v1", "api")
+          return catalog
+
+
+      @pytest.fixture
+      def snapshot(tmp_path):
+          """Where a test keeps its snapshot."""
+          return tmp_path / "catalog.json"
+    tests/test_catalog.py: |
+      import pytest
+
+      from svccatalog import Catalog
+      from svccatalog.errors import (
+          DuplicateName,
+          InvalidName,
+          InvalidRecord,
+          StillReferenced,
+          UnknownService,
+      )
+      from svccatalog.records import alias, service
+
+
+      def test_len_counts_services_not_aliases(catalog):
+          assert len(catalog) == 3
+          assert len(catalog.names()) == 5
+
+
+      def test_iteration_yields_services_in_name_order(catalog):
+          assert [record.name for record in catalog] == ["api", "billing", "search"]
+
+
+      def test_names_and_records_include_aliases(catalog):
+          assert catalog.names() == ["api", "api-v1", "billing", "billing-old", "search"]
+          assert [record.name for record in catalog.records()] == catalog.names()
+          assert catalog.alias_names == {"api-v1", "billing-old"}
+
+
+      def test_contains_and_get(catalog):
+          assert "billing-old" in catalog
+          assert "ghost" not in catalog
+          assert catalog.get("billing-old").target == "billing"
+          with pytest.raises(UnknownService, match="ghost is not in the catalog"):
+              catalog.get("ghost")
+
+
+      def test_aliases_of(catalog):
+          catalog.add_alias("billing-legacy", "billing")
+          assert catalog.aliases_of("billing") == ["billing-legacy", "billing-old"]
+          assert catalog.aliases_of("search") == []
+
+
+      def test_add_validates_and_rejects_duplicates(catalog):
+          with pytest.raises(DuplicateName):
+              catalog.add("api", "platform", 9000)
+          with pytest.raises(DuplicateName):
+              catalog.add("api-v1", "platform", 9000)
+          with pytest.raises(InvalidName):
+              catalog.add("Bad Name", "platform", 9000)
+          with pytest.raises(InvalidRecord):
+              catalog.add("worker", "platform", 70000)
+          with pytest.raises(InvalidRecord):
+              catalog.add("worker", "", 9000)
+          assert len(catalog) == 3
+
+
+      def test_add_alias_copies_owner_and_port(catalog):
+          record = catalog.add_alias("find", "search")
+          assert (record.owner, record.port, record.target) == ("discovery", 8082, "search")
+          assert len(catalog) == 3
+
+
+      def test_add_alias_rejects_unknown_duplicate_and_alias_targets(catalog):
+          with pytest.raises(UnknownService):
+              catalog.add_alias("find", "ghost")
+          with pytest.raises(DuplicateName):
+              catalog.add_alias("search", "api")
+          with pytest.raises(InvalidRecord, match="is an alias"):
+              catalog.add_alias("find", "api-v1")
+
+
+      def test_remove_an_alias(catalog):
+          catalog.remove("billing-old")
+          assert "billing-old" not in catalog
+          assert len(catalog) == 3
+          assert catalog.alias_names == {"api-v1"}
+
+
+      def test_remove_a_service_without_aliases(catalog):
+          catalog.remove("search")
+          assert catalog.names() == ["api", "api-v1", "billing", "billing-old"]
+          assert len(catalog) == 2
+
+
+      def test_remove_a_referenced_service_needs_cascade(catalog):
+          with pytest.raises(StillReferenced, match="billing is still referenced by: billing-old") as caught:
+              catalog.remove("billing")
+          assert caught.value.aliases == ["billing-old"]
+          assert "billing" in catalog
+          catalog.remove("billing", cascade=True)
+          assert catalog.names() == ["api", "api-v1", "search"]
+          assert len(catalog) == 2
+
+
+      def test_remove_unknown_name(catalog):
+          with pytest.raises(UnknownService):
+              catalog.remove("ghost")
+
+
+      def test_rename_a_service_moves_its_aliases(catalog):
+          catalog.rename("billing", "payments-api")
+          assert catalog.get("billing-old").target == "payments-api"
+          assert "billing" not in catalog
+          assert len(catalog) == 3
+
+
+      def test_rename_an_alias(catalog):
+          catalog.rename("api-v1", "api-legacy")
+          assert catalog.alias_names == {"api-legacy", "billing-old"}
+          assert catalog.get("api-legacy").target == "api"
+
+
+      def test_rename_rejects_taken_and_invalid_names(catalog):
+          with pytest.raises(DuplicateName):
+              catalog.rename("api", "search")
+          with pytest.raises(InvalidName):
+              catalog.rename("api", "API")
+          with pytest.raises(UnknownService):
+              catalog.rename("ghost", "ghost-2")
+
+
+      def test_set_owner_updates_aliases(catalog):
+          catalog.set_owner("api", "edge")
+          assert catalog.get("api").owner == "edge"
+          assert catalog.get("api-v1").owner == "edge"
+          with pytest.raises(InvalidRecord, match="is an alias"):
+              catalog.set_owner("api-v1", "edge")
+          with pytest.raises(InvalidRecord, match="needs an owner"):
+              catalog.set_owner("api", "")
+
+
+      def test_every_change_notifies_listeners_once():
+          catalog = Catalog()
+          seen = []
+          catalog.subscribe(lambda changed: seen.append(len(changed)))
+          catalog.add("api", "platform", 8080)
+          catalog.add_alias("api-v1", "api")
+          catalog.rename("api-v1", "api-old")
+          catalog.set_owner("api", "edge")
+          catalog.remove("api", cascade=True)
+          assert seen == [1, 1, 1, 1, 0]
+
+
+      def test_a_failed_change_does_not_notify(catalog):
+          seen = []
+          catalog.subscribe(seen.append)
+          with pytest.raises(DuplicateName):
+              catalog.add("api", "platform", 8080)
+          with pytest.raises(StillReferenced):
+              catalog.remove("api")
+          assert seen == []
+
+
+      def test_from_records_checks_links():
+          base = service("api", "platform", 8080)
+          built = Catalog.from_records([alias("api-v1", base), base])
+          assert len(built) == 1
+          assert built.alias_names == {"api-v1"}
+          with pytest.raises(DuplicateName):
+              Catalog.from_records([base, base])
+          with pytest.raises(InvalidRecord, match="alias target"):
+              Catalog.from_records([alias("api-v1", base)])
+          with pytest.raises(InvalidRecord, match="alias target"):
+              Catalog.from_records([base, alias("api-v1", base), alias("api-v2", alias("api-v1", base))])
+    tests/test_cli.py: |
+      import io
+
+      from svccatalog import store
+      from svccatalog.cli import main
+
+
+      def run(snapshot, *argv):
+          out = io.StringIO()
+          code = main(["--snapshot", str(snapshot), *argv], out=out)
+          return code, out.getvalue()
+
+
+      def test_add_alias_and_list(snapshot):
+          assert run(snapshot, "add", "api", "--owner", "platform", "--port", "8080") == (0, "added api on port 8080\n")
+          assert run(snapshot, "alias", "api-v1", "api") == (0, "added api-v1 as an alias of api\n")
+          assert run(snapshot, "list") == (0, "api\napi-v1 -> api\n")
+
+
+      def test_every_mutating_command_writes_the_snapshot(snapshot):
+          run(snapshot, "add", "api", "--owner", "platform", "--port", "8080")
+          assert store.load(snapshot).names() == ["api"]
+          run(snapshot, "alias", "api-v1", "api")
+          assert store.load(snapshot).names() == ["api", "api-v1"]
+          run(snapshot, "rename", "api-v1", "api-old")
+          assert store.load(snapshot).names() == ["api", "api-old"]
+          run(snapshot, "remove", "api", "--cascade")
+          assert store.load(snapshot).names() == []
+
+
+      def test_remove_refuses_a_referenced_service(snapshot, capsys):
+          run(snapshot, "add", "api", "--owner", "platform", "--port", "8080")
+          run(snapshot, "alias", "api-v1", "api")
+          assert run(snapshot, "remove", "api") == (2, "")
+          assert "api is still referenced by: api-v1" in capsys.readouterr().err
+          assert store.load(snapshot).names() == ["api", "api-v1"]
+
+
+      def test_report_and_resolve(snapshot):
+          run(snapshot, "add", "api", "--owner", "platform", "--port", "8080")
+          run(snapshot, "alias", "api-v1", "api")
+          code, text = run(snapshot, "report")
+          assert code == 0 and text.startswith("Capacity summary: 1 services, 1 aliases, 1 owners\n")
+          assert run(snapshot, "resolve", "api-v1") == (0, "localhost:8080\n")
+
+
+      def test_errors_exit_with_status_two(snapshot, capsys):
+          assert run(snapshot, "resolve", "ghost") == (2, "")
+          assert "error: ghost is not in the catalog" in capsys.readouterr().err
+          snapshot.write_text("{", encoding="utf-8")
+          assert run(snapshot, "list") == (2, "")
+          assert "cannot read snapshot" in capsys.readouterr().err
+
+
+      def test_a_missing_snapshot_is_an_empty_catalog(snapshot):
+          assert run(snapshot, "list") == (0, "")
+          assert not snapshot.exists()
+    tests/test_records.py: |
+      import pytest
+
+      from svccatalog.errors import InvalidName, InvalidRecord
+      from svccatalog.records import ALIAS, Record, alias, service
+      from svccatalog.validation import MAX_NAME_LENGTH, check_name, check_port, check_record
+
+
+      def test_service_and_alias_constructors():
+          base = service("api", "platform", 8080)
+          twin = alias("api-v1", base)
+          assert (base.kind, base.owner, base.port, base.target) == ("service", "platform", 8080, None)
+          assert (twin.kind, twin.owner, twin.port, twin.target) == (ALIAS, "platform", 8080, "api")
+          assert twin.is_alias and not base.is_alias
+
+
+      def test_round_trip_through_a_dict():
+          record = alias("api-v1", service("api", "platform", 8080))
+          assert Record.from_dict(record.to_dict()) == record
+
+
+      def test_from_dict_rejects_unknown_fields_and_missing_name():
+          with pytest.raises(InvalidRecord, match="unknown record fields: color"):
+              Record.from_dict({"name": "api", "color": "red"})
+          with pytest.raises(InvalidRecord, match="missing name"):
+              Record.from_dict({"kind": "service"})
+          with pytest.raises(InvalidRecord, match="must be an object"):
+              Record.from_dict(["api"])
+
+
+      @pytest.mark.parametrize("name", ["api", "billing-2", "a1", "x-y-z"])
+      def test_good_names(name):
+          assert check_name(name) == name
+
+
+      @pytest.mark.parametrize(
+          "name", ["", "Api", "-api", "api-", "api--v1", "1api", "api_v1", "all", "none", "x" * (MAX_NAME_LENGTH + 1), None]
+      )
+      def test_bad_names(name):
+          with pytest.raises(InvalidName):
+              check_name(name)
+
+
+      @pytest.mark.parametrize("port", [0, 65536, -1, "80", 80.5, True])
+      def test_bad_ports(port):
+          with pytest.raises(InvalidRecord):
+              check_port(port)
+
+
+      def test_record_checks():
+          assert check_record(service("api", "platform", 8080)).name == "api"
+          for bad in [
+              Record("api", "service", "", 8080),
+              Record("api", "service", "platform", 8080, target="other"),
+              Record("api-v1", ALIAS, "platform", 8080),
+              Record("api", ALIAS, "platform", 8080, target="api"),
+              Record("api", "gadget", "platform", 8080),
+              Record("api", "service", "platform", 0),
+          ]:
+              with pytest.raises(InvalidRecord):
+                  check_record(bad)
+    tests/test_report.py: |
+      from svccatalog import report
+      from svccatalog.catalog import Catalog
+
+
+      def test_summary_counts_services_aliases_and_owners(catalog):
+          assert report.summary(catalog) == "3 services, 2 aliases, 3 owners"
+
+
+      def test_summary_of_an_empty_catalog():
+          assert report.summary(Catalog()) == "0 services, 0 aliases, 0 owners"
+
+
+      def test_render_lists_each_service_with_its_aliases(catalog):
+          lines = report.render(catalog).splitlines()
+          assert lines[0] == "Capacity summary: 3 services, 2 aliases, 3 owners"
+          assert lines[1] == "Ports in use: 8080-8082"
+          assert lines[2].split() == ["NAME", "OWNER", "PORT", "ALIASES"]
+          rows = {line.split()[0]: line.split() for line in lines[3:]}
+          assert rows["api"][-1] == "api-v1"
+          assert rows["billing"][-1] == "billing-old"
+          assert rows["search"][-1] == "-"
+          assert set(rows) == {"api", "billing", "search"}
+
+
+      def test_render_of_an_empty_catalog_has_no_port_line():
+          lines = report.render(Catalog()).splitlines()
+          assert lines[0] == "Capacity summary: 0 services, 0 aliases, 0 owners"
+          assert not any(line.startswith("Ports") for line in lines)
+
+
+      def test_render_ends_with_a_newline(catalog):
+          assert report.render(catalog).endswith("\n")
+    tests/test_resolver.py: |
+      import pytest
+
+      from svccatalog import resolver
+      from svccatalog.catalog import Catalog
+      from svccatalog.errors import AliasCycle, NotAnAlias, UnknownService
+      from svccatalog.records import Record
+
+
+      def test_a_service_resolves_to_itself(catalog):
+          assert resolver.resolve(catalog, "api").name == "api"
+
+
+      def test_an_alias_resolves_to_its_service(catalog):
+          record = resolver.resolve(catalog, "billing-old")
+          assert (record.name, record.port) == ("billing", 8081)
+
+
+      def test_unknown_names_raise(catalog):
+          with pytest.raises(UnknownService):
+              resolver.resolve(catalog, "ghost")
+
+
+      def test_a_cycle_built_by_hand_is_bounded():
+          # from_records refuses this shape, so the catalog is assembled directly.
+          catalog = Catalog()
+          catalog._records["a"] = Record("a", "alias", "t", 1, target="b")
+          catalog._records["b"] = Record("b", "alias", "t", 1, target="a")
+          catalog._alias_names.update({"a", "b"})
+          with pytest.raises(AliasCycle, match="does not reach a service"):
+              resolver.resolve(catalog, "a")
+
+
+      def test_target_of(catalog):
+          assert resolver.target_of(catalog, "api-v1") == "api"
+          with pytest.raises(NotAnAlias):
+              resolver.target_of(catalog, "api")
+
+
+      def test_endpoint(catalog):
+          assert resolver.endpoint(catalog, "search") == "localhost:8082"
+          assert resolver.endpoint(catalog, "api-v1", host="10.0.0.7") == "10.0.0.7:8080"
+
+
+      def test_owners_group_services_only(catalog):
+          assert resolver.owners(catalog) == {
+              "platform": ["api"],
+              "payments": ["billing"],
+              "discovery": ["search"],
+          }
+          catalog.add("worker", "platform", 9000)
+          assert resolver.owners(catalog)["platform"] == ["api", "worker"]
+    tests/test_startup.py: |
+      import io
+
+      from svccatalog import store
+      from svccatalog.agent import startup
+
+
+      def start(snapshot):
+          out, err = io.StringIO(), io.StringIO()
+          code = startup.main(env={"SVCCATALOG_SNAPSHOT": str(snapshot)}, out=out, err=err)
+          return code, out.getvalue(), err.getvalue()
+
+
+      def test_snapshot_path_comes_from_the_environment():
+          assert str(startup.snapshot_path({"SVCCATALOG_SNAPSHOT": "/tmp/x.json"})).endswith("x.json")
+          assert startup.snapshot_path({}).as_posix() == "/var/lib/svccatalog/catalog.json"
+
+
+      def test_boot_loads_the_snapshot_and_prints_the_summary(catalog, snapshot):
+          store.save(catalog, snapshot)
+          code, out, err = start(snapshot)
+          assert code == startup.EXIT_OK
+          assert "3 services, 2 aliases, 3 owners" in out
+          assert err == ""
+
+
+      def test_a_node_without_a_snapshot_starts_empty(snapshot):
+          code, out, _ = start(snapshot)
+          assert code == 0
+          assert "0 services, 0 aliases, 0 owners" in out
+
+
+      def test_boot_keeps_the_snapshot_current(catalog, snapshot):
+          store.save(catalog, snapshot)
+          booted = startup.boot(snapshot)
+          booted.add("worker", "platform", 9000)
+          assert "worker" in store.load(snapshot).names()
+
+
+      def test_a_corrupt_snapshot_stops_the_agent(snapshot):
+          snapshot.write_text('{"version": 1, "records": [], "aliases": ["ghost"]}', encoding="utf-8")
+          code, out, err = start(snapshot)
+          assert code == startup.EXIT_CORRUPT == 3
+          assert out == ""
+          assert "refusing to start" in err and "ghost" in err
+
+
+      def test_an_unreadable_snapshot_stops_the_agent(snapshot):
+          snapshot.write_text("not json", encoding="utf-8")
+          assert start(snapshot)[0] == startup.EXIT_CORRUPT
+    tests/test_store.py: |
+      import json
+
+      import pytest
+
+      from svccatalog import store
+      from svccatalog.catalog import Catalog
+      from svccatalog.errors import CorruptSnapshot
+
+
+      def test_save_then_load_round_trips(catalog, snapshot):
+          store.save(catalog, snapshot)
+          loaded = store.load(snapshot)
+          assert loaded.records() == catalog.records()
+          assert loaded.alias_names == catalog.alias_names
+          assert len(loaded) == 3
+
+
+      def test_snapshot_document_shape(catalog, snapshot):
+          store.save(catalog, snapshot)
+          document = json.loads(snapshot.read_text(encoding="utf-8"))
+          assert document["version"] == 1
+          assert document["aliases"] == ["api-v1", "billing-old"]
+          assert [record["name"] for record in document["records"]] == catalog.names()
+
+
+      def test_save_leaves_no_temporary_file(catalog, snapshot):
+          store.save(catalog, snapshot)
+          assert [path.name for path in snapshot.parent.iterdir()] == ["catalog.json"]
+
+
+      def test_autosave_writes_on_every_change(snapshot):
+          catalog = Catalog()
+          store.autosave(catalog, snapshot)
+          catalog.add("api", "platform", 8080)
+          assert store.load(snapshot).names() == ["api"]
+          catalog.add_alias("api-v1", "api")
+          assert store.load(snapshot).names() == ["api", "api-v1"]
+          catalog.remove("api-v1")
+          assert store.load(snapshot).names() == ["api"]
+          catalog.remove("api")
+          assert store.load(snapshot).names() == []
+
+
+      def test_load_rejects_unreadable_files(snapshot):
+          with pytest.raises(CorruptSnapshot, match="cannot read snapshot"):
+              store.load(snapshot)
+          snapshot.write_text("{not json", encoding="utf-8")
+          with pytest.raises(CorruptSnapshot, match="cannot read snapshot"):
+              store.load(snapshot)
+
+
+      def test_load_rejects_other_versions_and_shapes(snapshot):
+          for body in ('{"version": 2, "records": []}', "[]", '{"records": []}'):
+              snapshot.write_text(body, encoding="utf-8")
+              with pytest.raises(CorruptSnapshot, match="not a version 1 snapshot"):
+                  store.load(snapshot)
+
+
+      def test_load_rejects_bad_records(snapshot):
+          snapshot.write_text('{"version": 1, "records": [{"kind": "service"}]}', encoding="utf-8")
+          with pytest.raises(CorruptSnapshot, match="missing name"):
+              store.load(snapshot)
+          snapshot.write_text(
+              '{"version": 1, "records": [{"name": "api-v1", "kind": "alias", "owner": "p", "port": 1, "target": "api"}]}',
+              encoding="utf-8",
+          )
+          with pytest.raises(CorruptSnapshot, match="alias target"):
+              store.load(snapshot)
+
+
+      def test_load_rejects_an_alias_name_that_is_not_among_the_records(catalog, snapshot):
+          store.save(catalog, snapshot)
+          document = json.loads(snapshot.read_text(encoding="utf-8"))
+          document["aliases"].append("ghost")
+          snapshot.write_text(json.dumps(document), encoding="utf-8")
+          with pytest.raises(CorruptSnapshot, match="alias names missing from the records: ghost"):
+              store.load(snapshot)
+    tests/test_sync.py: |
+      import pytest
+
+      from svccatalog import store
+      from svccatalog.errors import InvalidRecord
+      from svccatalog.records import alias, service
+      from svccatalog.sync import sync_to
+
+
+      def release():
+          api = service("api", "platform", 8080)
+          search = service("search", "discovery", 8082)
+          worker = service("worker", "platform", 9000)
+          return [api, search, worker, alias("api-v1", api)]
+
+
+      def test_sync_removes_what_is_gone_and_adds_what_is_new(catalog):
+          result = sync_to(catalog, release())
+          assert catalog.names() == ["api", "api-v1", "search", "worker"]
+          assert sorted(result.removed) == ["billing", "billing-old"]
+          assert result.added == ["worker"]
+          assert result.changed
+
+
+      def test_sync_adds_aliases_after_their_services():
+          from svccatalog.catalog import Catalog
+
+          catalog = Catalog()
+          result = sync_to(catalog, [alias("api-v1", service("api", "platform", 8080)), service("api", "platform", 8080)])
+          assert catalog.names() == ["api", "api-v1"]
+          assert result.added == ["api", "api-v1"]
+          assert len(catalog) == 1
+
+
+      def test_sync_leaves_matching_records_alone(catalog):
+          before = catalog.records()
+          result = sync_to(catalog, catalog.records())
+          assert catalog.records() == before
+          assert not result.changed
+
+
+      def test_sync_rejects_an_alias_without_its_service(catalog):
+          with pytest.raises(InvalidRecord, match="alias target must be a service in the release"):
+              sync_to(catalog, [alias("api-v1", service("api", "platform", 8080))])
+          assert len(catalog) == 3
+
+
+      def test_sync_removes_a_service_together_with_its_aliases(catalog):
+          sync_to(catalog, [service("api", "platform", 8080), alias("api-v1", service("api", "platform", 8080))])
+          assert catalog.names() == ["api", "api-v1"]
+          assert len(catalog) == 1
+
+
+      def test_sync_snapshots_stay_loadable(catalog, snapshot):
+          store.autosave(catalog, snapshot)
+          sync_to(catalog, release())
+          assert store.load(snapshot).names() == ["api", "api-v1", "search", "worker"]
+  branches:
+    refactor/alias-reset:
+      message: |
+        Extract _forget and add Catalog.reset_alias; remove names in batches
+
+        Name removal lived inline in Catalog.remove, and sync_to called it once per removed name, so a
+        release that retired N services wrote N snapshots. Move the record-table deletion into _forget,
+        add remove_many (one change notification for the whole batch, same StillReferenced and cascade
+        rules as remove) and make sync_to use it.
+
+        Add reset_alias(name, drop=False) for an alias that has outlived its purpose. By default the name
+        stays in the catalog as an ordinary service record with the owner and port the alias carried;
+        with drop=True the name is deleted. It is exposed as `svccatalog reset-alias NAME [--drop]`.
+
+        README documents both methods. Tests cover both reset paths, remove_many (batching, cascade,
+        all-or-nothing) and the new CLI command. remove, lookups, snapshots and reports are unchanged.
+      files:
+        README.md: |
+          # svccatalog
+
+          The catalog of deployable services. The agent on every node loads a snapshot of it at start, and
+          the deploy tooling edits it through the command line or the `Catalog` class. Standard library
+          only; run the tests with `python -m pytest -q`.
+
+          ## Concepts
+
+          - A **service** has a name, an owning team and a port.
+          - An **alias** is another name for a service. It points at the service (its `target`), carries a
+            copy of the service's owner and port, and can be removed without touching the service.
+          - Names are lowercase words of letters and digits joined by hyphens, at most 63 characters.
+            `all`, `default` and `none` are reserved.
+
+          ## Contracts
+
+          - `len(catalog)` is the number of real services; aliases are not counted.
+          - Iterating a catalog yields the real services in name order. `names()` and `records()` also
+            list aliases.
+          - An alias points at a service, never at another alias.
+          - Removing a service that aliases still point at fails with `StillReferenced`, unless
+            `cascade=True` is passed, which removes those aliases too.
+          - `reset_alias(name, drop=False)` stops treating an alias as an alias. The name stays as a
+            service with the owner and port the alias carried; with `drop=True` the name is removed.
+          - `remove_many(names, cascade=False)` removes several names as one change, with the same rules as
+            `remove`.
+          - Snapshots are written on every catalog change, through `store.autosave`. The command line and
+            the node agent both attach it, so a snapshot on disk is never older than the last change.
+          - Loading a snapshot checks it first. A snapshot that cannot be loaded raises `CorruptSnapshot`.
+          - A node that cannot load its snapshot exits and stays out of rotation until an operator repairs
+            the snapshot.
+
+          ## Command line
+
+          ```
+          python -m svccatalog [--snapshot FILE] add NAME --owner TEAM --port PORT
+          python -m svccatalog [--snapshot FILE] alias NAME TARGET
+          python -m svccatalog [--snapshot FILE] remove NAME [--cascade]
+          python -m svccatalog [--snapshot FILE] rename OLD NEW
+          python -m svccatalog [--snapshot FILE] reset-alias NAME [--drop]
+          python -m svccatalog [--snapshot FILE] list
+          python -m svccatalog [--snapshot FILE] report
+          python -m svccatalog [--snapshot FILE] resolve NAME
+          ```
+
+          The snapshot file defaults to `$SVCCATALOG_SNAPSHOT`, then `catalog.json`. A missing file is an
+          empty catalog. A failing command prints `error: ...` and exits with status 2.
+
+          ## Node agent
+
+          `python -m svccatalog.agent.startup` is what the node's service manager runs. It reads
+          `$SVCCATALOG_SNAPSHOT` (default `/var/lib/svccatalog/catalog.json`), prints the capacity summary
+          and exits 0. When the snapshot cannot be loaded it prints the reason and exits 3.
+
+          ## Layout
+
+          | Module | Role |
+          |---|---|
+          | `catalog.py` | The `Catalog` class |
+          | `records.py` | `Record` and its constructors |
+          | `validation.py` | Naming rules and record checks |
+          | `resolver.py` | Follow an alias to its service |
+          | `report.py` | Capacity summary and table |
+          | `store.py` | Snapshot save, load and autosave |
+          | `sync.py` | Match the catalog to a release's list of names |
+          | `cli.py` | The command line |
+          | `agent/startup.py` | Node agent boot |
+        svccatalog/catalog.py: |
+          """The in-memory service catalog.
+
+          A catalog holds services and the aliases that point at them. Every mutating method ends with a
+          change notification, which is how a store keeps its snapshot current (see `store.autosave`).
+          """
+
+          from collections.abc import Callable, Iterable, Iterator
+          from dataclasses import replace
+
+          from .errors import DuplicateName, InvalidRecord, NotAnAlias, StillReferenced, UnknownService
+          from .records import ALIAS, SERVICE, Record, alias, service
+          from .validation import check_name, check_port, check_record
+
+          Listener = Callable[["Catalog"], None]
+
+
+          class Catalog:
+              """Services and their aliases, keyed by name.
+
+              `len(catalog)` is the number of real services; aliases are not counted. Iterating a catalog
+              yields the real services in name order. `names()` and `records()` cover aliases as well.
+              """
+
+              def __init__(self):
+                  self._records: dict[str, Record] = {}
+                  # Names in _records that are aliases, kept beside the table so len() stays constant time.
+                  self._alias_names: set[str] = set()
+                  self._listeners: list[Listener] = []
+
+              @classmethod
+              def from_records(cls, records: Iterable[Record]):
+                  """Build a catalog from records, checking each one and the links between them."""
+                  catalog = cls()
+                  for record in records:
+                      check_record(record)
+                      if record.name in catalog._records:
+                          raise DuplicateName(record.name)
+                      catalog._records[record.name] = record
+                      if record.is_alias:
+                          catalog._alias_names.add(record.name)
+                  for name in sorted(catalog._alias_names):
+                      target = catalog._records.get(catalog._records[name].target)
+                      if target is None or target.is_alias:
+                          raise InvalidRecord(f"{name}: alias target must be a service in the catalog")
+                  return catalog
+
+              # -- reading ---------------------------------------------------------------------------
+
+              def __len__(self):
+                  return len(self._records) - len(self._alias_names)
+
+              def __iter__(self) -> Iterator[Record]:
+                  services = (record for record in self._records.values() if not record.is_alias)
+                  return iter(sorted(services, key=lambda record: record.name))
+
+              def __contains__(self, name):
+                  return name in self._records
+
+              def get(self, name) -> Record:
+                  """The record for `name`, which may be an alias; `UnknownService` when absent."""
+                  return self._require(name)
+
+              def names(self) -> list[str]:
+                  """Every name, services and aliases, in order."""
+                  return sorted(self._records)
+
+              def records(self) -> list[Record]:
+                  """Every record, services and aliases, in name order."""
+                  return [self._records[name] for name in self.names()]
+
+              @property
+              def alias_names(self) -> frozenset[str]:
+                  """The names that are aliases."""
+                  return frozenset(self._alias_names)
+
+              def aliases_of(self, name) -> list[str]:
+                  """The aliases that point at the service `name`, in order."""
+                  return sorted(n for n, record in self._records.items() if record.target == name)
+
+              # -- changing --------------------------------------------------------------------------
+
+              def add(self, name, owner, port) -> Record:
+                  """Add a service."""
+                  check_name(name)
+                  check_port(port)
+                  if name in self._records:
+                      raise DuplicateName(name)
+                  record = service(name, owner, port)
+                  check_record(record)
+                  self._records[name] = record
+                  self._changed()
+                  return record
+
+              def add_alias(self, name, target) -> Record:
+                  """Add `name` as another name for the service `target`."""
+                  check_name(name)
+                  if name in self._records:
+                      raise DuplicateName(name)
+                  base = self._require(target)
+                  if base.is_alias:
+                      raise InvalidRecord(f"{target} is an alias; point at the service it names")
+                  record = alias(name, base)
+                  check_record(record)
+                  self._records[name] = record
+                  self._alias_names.add(name)
+                  self._changed()
+                  return record
+
+              def remove(self, name, *, cascade=False):
+                  """Remove a service or an alias.
+
+                  A service that aliases still point at raises `StillReferenced`, unless `cascade` is true,
+                  which removes those aliases with it.
+                  """
+                  self.remove_many([name], cascade=cascade)
+
+              def remove_many(self, names, *, cascade=False):
+                  """Remove several services or aliases as one change, with a single notification.
+
+                  The rules of `remove` apply to each name; an alias that is removed together with its
+                  service does not count as a reference.
+                  """
+                  requested = list(dict.fromkeys(names))
+                  if not requested:
+                      return
+                  for name in requested:
+                      self._require(name)
+                  doomed = set(requested)
+                  for name in requested:
+                      blockers = [n for n in self.aliases_of(name) if n not in doomed]
+                      if blockers and not cascade:
+                          raise StillReferenced(name, blockers)
+                      doomed.update(blockers)
+                  self._forget(name for name in self._records if name in doomed)
+                  self._alias_names -= doomed
+                  self._changed()
+
+              def reset_alias(self, name, drop=False):
+                  """Stop treating `name` as an alias of its service.
+
+                  By default the name stays in the catalog as a service in its own right, with the owner
+                  and port its alias carried. With `drop=True` the name is removed instead.
+                  """
+                  record = self._require(name)
+                  if not record.is_alias:
+                      raise NotAnAlias(name)
+                  if drop:
+                      self._forget([name])
+                  else:
+                      self._records[name] = replace(record, kind=SERVICE, target=None)
+                      self._alias_names.discard(name)
+                  self._changed()
+
+              def rename(self, old, new):
+                  """Give a service or alias a new name; aliases that point at it follow."""
+                  record = self._require(old)
+                  check_name(new)
+                  if new in self._records:
+                      raise DuplicateName(new)
+                  for dependent in self.aliases_of(old):
+                      self._records[dependent] = Record(
+                          dependent, ALIAS, record.owner, record.port, new
+                      )
+                  del self._records[old]
+                  self._records[new] = Record(new, record.kind, record.owner, record.port, record.target)
+                  if record.is_alias:
+                      self._alias_names.discard(old)
+                      self._alias_names.add(new)
+                  self._changed()
+
+              def set_owner(self, name, owner):
+                  """Change the owning team of a service; its aliases show the new owner too."""
+                  record = self._require(name)
+                  if record.is_alias:
+                      raise InvalidRecord(f"{name} is an alias; change the owner of {record.target}")
+                  if not owner:
+                      raise InvalidRecord(f"{name}: a service needs an owner")
+                  self._records[name] = Record(name, SERVICE, owner, record.port)
+                  for dependent in self.aliases_of(name):
+                      self._records[dependent] = Record(dependent, ALIAS, owner, record.port, name)
+                  self._changed()
+
+              # -- notification ----------------------------------------------------------------------
+
+              def subscribe(self, listener: Listener):
+                  """Call `listener(catalog)` after every change."""
+                  self._listeners.append(listener)
+
+              def _changed(self):
+                  for listener in list(self._listeners):
+                      listener(self)
+
+              def _forget(self, names):
+                  """Delete `names` from the record table."""
+                  names = list(names)
+                  for name in names:
+                      del self._records[name]
+
+              def _require(self, name) -> Record:
+                  try:
+                      return self._records[name]
+                  except KeyError:
+                      raise UnknownService(name) from None
+        svccatalog/cli.py: |
+          """The `svccatalog` command line.
+
+          Each invocation loads the snapshot, runs one command and, for a command that changes the catalog,
+          writes the snapshot back through `store.autosave`. A missing snapshot file is an empty catalog.
+          """
+
+          import argparse
+          import os
+          import sys
+          from pathlib import Path
+
+          from . import report, resolver, store
+          from .catalog import Catalog
+          from .errors import CatalogError
+
+          DEFAULT_SNAPSHOT = "catalog.json"
+
+
+          def build_parser():
+              parser = argparse.ArgumentParser(prog="svccatalog", description="Inspect and edit the service catalog.")
+              parser.add_argument(
+                  "--snapshot",
+                  default=os.environ.get("SVCCATALOG_SNAPSHOT", DEFAULT_SNAPSHOT),
+                  help="snapshot file (default: $SVCCATALOG_SNAPSHOT or %(default)s)",
+              )
+              commands = parser.add_subparsers(dest="command", required=True)
+
+              add = commands.add_parser("add", help="add a service")
+              add.add_argument("name")
+              add.add_argument("--owner", required=True)
+              add.add_argument("--port", required=True, type=int)
+
+              alias = commands.add_parser("alias", help="add another name for a service")
+              alias.add_argument("name")
+              alias.add_argument("target")
+
+              remove = commands.add_parser("remove", help="remove a service or an alias")
+              remove.add_argument("name")
+              remove.add_argument("--cascade", action="store_true", help="also remove the aliases of a service")
+
+              rename = commands.add_parser("rename", help="rename a service or an alias")
+              rename.add_argument("old")
+              rename.add_argument("new")
+
+              reset = commands.add_parser("reset-alias", help="stop treating an alias as an alias")
+              reset.add_argument("name")
+              reset.add_argument("--drop", action="store_true", help="delete the name instead of keeping it as a service")
+
+              commands.add_parser("list", help="list every name")
+              commands.add_parser("report", help="print the capacity summary")
+
+              resolve = commands.add_parser("resolve", help="print the endpoint a name resolves to")
+              resolve.add_argument("name")
+              return parser
+
+
+          def _load(path):
+              path = Path(path)
+              return store.load(path) if path.exists() else Catalog()
+
+
+          def _run(args, catalog, out):
+              if args.command == "add":
+                  record = catalog.add(args.name, args.owner, args.port)
+                  print(f"added {record.name} on port {record.port}", file=out)
+              elif args.command == "alias":
+                  record = catalog.add_alias(args.name, args.target)
+                  print(f"added {record.name} as an alias of {record.target}", file=out)
+              elif args.command == "remove":
+                  catalog.remove(args.name, cascade=args.cascade)
+                  print(f"removed {args.name}", file=out)
+              elif args.command == "rename":
+                  catalog.rename(args.old, args.new)
+                  print(f"renamed {args.old} to {args.new}", file=out)
+              elif args.command == "reset-alias":
+                  catalog.reset_alias(args.name, drop=args.drop)
+                  print(f"dropped alias {args.name}" if args.drop else f"{args.name} is now a service", file=out)
+              elif args.command == "list":
+                  for record in catalog.records():
+                      suffix = f" -> {record.target}" if record.is_alias else ""
+                      print(f"{record.name}{suffix}", file=out)
+              elif args.command == "report":
+                  out.write(report.render(catalog))
+              elif args.command == "resolve":
+                  print(resolver.endpoint(catalog, args.name), file=out)
+
+
+          def main(argv=None, out=None):
+              """Run one command and return the process exit status: 0, or 2 when the command fails."""
+              out = out if out is not None else sys.stdout
+              args = build_parser().parse_args(argv)
+              try:
+                  catalog = _load(args.snapshot)
+                  store.autosave(catalog, args.snapshot)
+                  _run(args, catalog, out)
+              except CatalogError as exc:
+                  print(f"error: {exc}", file=sys.stderr)
+                  return 2
+              return 0
+        svccatalog/sync.py: |
+          """Bring a catalog in line with a desired list of records.
+
+          Used by the deploy tooling after a release: the release lists the names that should exist, and
+          `sync_to` removes what is gone and adds what is new.
+          """
+
+          from dataclasses import dataclass, field
+
+          from .errors import InvalidRecord
+          from .validation import check_record
+
+
+          @dataclass
+          class SyncResult:
+              added: list[str] = field(default_factory=list)
+              removed: list[str] = field(default_factory=list)
+
+              @property
+              def changed(self):
+                  return bool(self.added or self.removed)
+
+
+          def sync_to(catalog, desired) -> SyncResult:
+              """Make the catalog's names match `desired`; records already present are left as they are.
+
+              An alias in `desired` must point at a service that is also in `desired`. Everything that is
+              removed goes in one change, so a snapshot is written once rather than once per name.
+              """
+              wanted = {}
+              for record in desired:
+                  check_record(record)
+                  wanted[record.name] = record
+              for record in wanted.values():
+                  if record.is_alias and (record.target not in wanted or wanted[record.target].is_alias):
+                      raise InvalidRecord(f"{record.name}: alias target must be a service in the release")
+
+              result = SyncResult()
+              result.removed = [name for name in catalog.names() if name not in wanted]
+              catalog.remove_many(result.removed, cascade=True)
+              for record in wanted.values():
+                  if record.name not in catalog and not record.is_alias:
+                      catalog.add(record.name, record.owner, record.port)
+                      result.added.append(record.name)
+              for record in wanted.values():
+                  if record.name not in catalog and record.is_alias:
+                      catalog.add_alias(record.name, record.target)
+                      result.added.append(record.name)
+              return result
+        tests/test_catalog.py: |
+          import pytest
+
+          from svccatalog import Catalog
+          from svccatalog.errors import (
+              DuplicateName,
+              InvalidName,
+              InvalidRecord,
+              NotAnAlias,
+              StillReferenced,
+              UnknownService,
+          )
+          from svccatalog.records import alias, service
+
+
+          def test_len_counts_services_not_aliases(catalog):
+              assert len(catalog) == 3
+              assert len(catalog.names()) == 5
+
+
+          def test_iteration_yields_services_in_name_order(catalog):
+              assert [record.name for record in catalog] == ["api", "billing", "search"]
+
+
+          def test_names_and_records_include_aliases(catalog):
+              assert catalog.names() == ["api", "api-v1", "billing", "billing-old", "search"]
+              assert [record.name for record in catalog.records()] == catalog.names()
+              assert catalog.alias_names == {"api-v1", "billing-old"}
+
+
+          def test_contains_and_get(catalog):
+              assert "billing-old" in catalog
+              assert "ghost" not in catalog
+              assert catalog.get("billing-old").target == "billing"
+              with pytest.raises(UnknownService, match="ghost is not in the catalog"):
+                  catalog.get("ghost")
+
+
+          def test_aliases_of(catalog):
+              catalog.add_alias("billing-legacy", "billing")
+              assert catalog.aliases_of("billing") == ["billing-legacy", "billing-old"]
+              assert catalog.aliases_of("search") == []
+
+
+          def test_add_validates_and_rejects_duplicates(catalog):
+              with pytest.raises(DuplicateName):
+                  catalog.add("api", "platform", 9000)
+              with pytest.raises(DuplicateName):
+                  catalog.add("api-v1", "platform", 9000)
+              with pytest.raises(InvalidName):
+                  catalog.add("Bad Name", "platform", 9000)
+              with pytest.raises(InvalidRecord):
+                  catalog.add("worker", "platform", 70000)
+              with pytest.raises(InvalidRecord):
+                  catalog.add("worker", "", 9000)
+              assert len(catalog) == 3
+
+
+          def test_add_alias_copies_owner_and_port(catalog):
+              record = catalog.add_alias("find", "search")
+              assert (record.owner, record.port, record.target) == ("discovery", 8082, "search")
+              assert len(catalog) == 3
+
+
+          def test_add_alias_rejects_unknown_duplicate_and_alias_targets(catalog):
+              with pytest.raises(UnknownService):
+                  catalog.add_alias("find", "ghost")
+              with pytest.raises(DuplicateName):
+                  catalog.add_alias("search", "api")
+              with pytest.raises(InvalidRecord, match="is an alias"):
+                  catalog.add_alias("find", "api-v1")
+
+
+          def test_remove_an_alias(catalog):
+              catalog.remove("billing-old")
+              assert "billing-old" not in catalog
+              assert len(catalog) == 3
+              assert catalog.alias_names == {"api-v1"}
+
+
+          def test_remove_a_service_without_aliases(catalog):
+              catalog.remove("search")
+              assert catalog.names() == ["api", "api-v1", "billing", "billing-old"]
+              assert len(catalog) == 2
+
+
+          def test_remove_a_referenced_service_needs_cascade(catalog):
+              with pytest.raises(StillReferenced, match="billing is still referenced by: billing-old") as caught:
+                  catalog.remove("billing")
+              assert caught.value.aliases == ["billing-old"]
+              assert "billing" in catalog
+              catalog.remove("billing", cascade=True)
+              assert catalog.names() == ["api", "api-v1", "search"]
+              assert len(catalog) == 2
+
+
+          def test_remove_unknown_name(catalog):
+              with pytest.raises(UnknownService):
+                  catalog.remove("ghost")
+
+
+          def test_rename_a_service_moves_its_aliases(catalog):
+              catalog.rename("billing", "payments-api")
+              assert catalog.get("billing-old").target == "payments-api"
+              assert "billing" not in catalog
+              assert len(catalog) == 3
+
+
+          def test_rename_an_alias(catalog):
+              catalog.rename("api-v1", "api-legacy")
+              assert catalog.alias_names == {"api-legacy", "billing-old"}
+              assert catalog.get("api-legacy").target == "api"
+
+
+          def test_rename_rejects_taken_and_invalid_names(catalog):
+              with pytest.raises(DuplicateName):
+                  catalog.rename("api", "search")
+              with pytest.raises(InvalidName):
+                  catalog.rename("api", "API")
+              with pytest.raises(UnknownService):
+                  catalog.rename("ghost", "ghost-2")
+
+
+          def test_set_owner_updates_aliases(catalog):
+              catalog.set_owner("api", "edge")
+              assert catalog.get("api").owner == "edge"
+              assert catalog.get("api-v1").owner == "edge"
+              with pytest.raises(InvalidRecord, match="is an alias"):
+                  catalog.set_owner("api-v1", "edge")
+              with pytest.raises(InvalidRecord, match="needs an owner"):
+                  catalog.set_owner("api", "")
+
+
+          def test_every_change_notifies_listeners_once():
+              catalog = Catalog()
+              seen = []
+              catalog.subscribe(lambda changed: seen.append(len(changed)))
+              catalog.add("api", "platform", 8080)
+              catalog.add_alias("api-v1", "api")
+              catalog.rename("api-v1", "api-old")
+              catalog.set_owner("api", "edge")
+              catalog.remove("api", cascade=True)
+              assert seen == [1, 1, 1, 1, 0]
+
+
+          def test_a_failed_change_does_not_notify(catalog):
+              seen = []
+              catalog.subscribe(seen.append)
+              with pytest.raises(DuplicateName):
+                  catalog.add("api", "platform", 8080)
+              with pytest.raises(StillReferenced):
+                  catalog.remove("api")
+              assert seen == []
+
+
+          def test_from_records_checks_links():
+              base = service("api", "platform", 8080)
+              built = Catalog.from_records([alias("api-v1", base), base])
+              assert len(built) == 1
+              assert built.alias_names == {"api-v1"}
+              with pytest.raises(DuplicateName):
+                  Catalog.from_records([base, base])
+              with pytest.raises(InvalidRecord, match="alias target"):
+                  Catalog.from_records([alias("api-v1", base)])
+              with pytest.raises(InvalidRecord, match="alias target"):
+                  Catalog.from_records([base, alias("api-v1", base), alias("api-v2", alias("api-v1", base))])
+
+
+          def test_remove_many_removes_every_named_service_and_alias(catalog):
+              catalog.remove_many(["search", "billing-old"])
+              assert catalog.names() == ["api", "api-v1", "billing"]
+              assert len(catalog) == 2
+
+
+          def test_remove_many_notifies_once(catalog):
+              seen = []
+              catalog.subscribe(seen.append)
+              catalog.remove_many(["search", "billing", "billing-old", "billing"], cascade=True)
+              assert len(seen) == 1
+              assert catalog.names() == ["api", "api-v1"]
+
+
+          def test_remove_many_with_a_service_and_its_aliases_needs_no_cascade(catalog):
+              catalog.remove_many(["billing", "billing-old"])
+              assert catalog.names() == ["api", "api-v1", "search"]
+              assert len(catalog) == 2
+
+
+          def test_remove_many_cascades_to_aliases_that_were_not_named(catalog):
+              catalog.remove_many(["api", "billing"], cascade=True)
+              assert catalog.names() == ["search"]
+              assert len(catalog) == 1
+
+
+          def test_remove_many_is_all_or_nothing(catalog):
+              with pytest.raises(StillReferenced, match="billing is still referenced by: billing-old"):
+                  catalog.remove_many(["search", "billing"])
+              with pytest.raises(UnknownService):
+                  catalog.remove_many(["search", "ghost"])
+              assert len(catalog.names()) == 5
+
+
+          def test_remove_many_of_nothing_is_not_a_change(catalog):
+              seen = []
+              catalog.subscribe(seen.append)
+              catalog.remove_many([])
+              assert seen == []
+
+
+          def test_reset_alias_keeps_the_name_as_a_service(catalog):
+              catalog.reset_alias("billing-old")
+              record = catalog.get("billing-old")
+              assert (record.kind, record.target, record.owner, record.port) == ("service", None, "payments", 8081)
+              assert catalog.names() == ["api", "api-v1", "billing", "billing-old", "search"]
+              assert catalog.alias_names == {"api-v1"}
+              assert len(catalog) == 4
+              assert [r.name for r in catalog] == ["api", "billing", "billing-old", "search"]
+
+
+          def test_reset_alias_with_drop_removes_the_name(catalog):
+              catalog.reset_alias("billing-old", drop=True)
+              assert "billing-old" not in catalog
+              assert catalog.names() == ["api", "api-v1", "billing", "search"]
+              assert catalog.get("billing").owner == "payments"
+              with pytest.raises(UnknownService):
+                  catalog.get("billing-old")
+
+
+          def test_reset_alias_rejects_services_and_unknown_names(catalog):
+              with pytest.raises(NotAnAlias, match="api is not an alias"):
+                  catalog.reset_alias("api")
+              with pytest.raises(UnknownService):
+                  catalog.reset_alias("ghost")
+              assert len(catalog) == 3
+
+
+          def test_reset_alias_notifies_once_per_call(catalog):
+              seen = []
+              catalog.subscribe(seen.append)
+              catalog.reset_alias("api-v1")
+              catalog.reset_alias("billing-old", drop=True)
+              assert len(seen) == 2
+
+
+          def test_a_reset_name_can_be_aliased_again(catalog):
+              catalog.reset_alias("billing-old")
+              catalog.add_alias("payments-api", "billing-old")
+              assert catalog.get("payments-api").target == "billing-old"
+              assert catalog.aliases_of("billing-old") == ["payments-api"]
+        tests/test_cli.py: |
+          import io
+
+          from svccatalog import store
+          from svccatalog.cli import main
+
+
+          def run(snapshot, *argv):
+              out = io.StringIO()
+              code = main(["--snapshot", str(snapshot), *argv], out=out)
+              return code, out.getvalue()
+
+
+          def test_add_alias_and_list(snapshot):
+              assert run(snapshot, "add", "api", "--owner", "platform", "--port", "8080") == (0, "added api on port 8080\n")
+              assert run(snapshot, "alias", "api-v1", "api") == (0, "added api-v1 as an alias of api\n")
+              assert run(snapshot, "list") == (0, "api\napi-v1 -> api\n")
+
+
+          def test_every_mutating_command_writes_the_snapshot(snapshot):
+              run(snapshot, "add", "api", "--owner", "platform", "--port", "8080")
+              assert store.load(snapshot).names() == ["api"]
+              run(snapshot, "alias", "api-v1", "api")
+              assert store.load(snapshot).names() == ["api", "api-v1"]
+              run(snapshot, "rename", "api-v1", "api-old")
+              assert store.load(snapshot).names() == ["api", "api-old"]
+              run(snapshot, "remove", "api", "--cascade")
+              assert store.load(snapshot).names() == []
+
+
+          def test_remove_refuses_a_referenced_service(snapshot, capsys):
+              run(snapshot, "add", "api", "--owner", "platform", "--port", "8080")
+              run(snapshot, "alias", "api-v1", "api")
+              assert run(snapshot, "remove", "api") == (2, "")
+              assert "api is still referenced by: api-v1" in capsys.readouterr().err
+              assert store.load(snapshot).names() == ["api", "api-v1"]
+
+
+          def test_report_and_resolve(snapshot):
+              run(snapshot, "add", "api", "--owner", "platform", "--port", "8080")
+              run(snapshot, "alias", "api-v1", "api")
+              code, text = run(snapshot, "report")
+              assert code == 0 and text.startswith("Capacity summary: 1 services, 1 aliases, 1 owners\n")
+              assert run(snapshot, "resolve", "api-v1") == (0, "localhost:8080\n")
+
+
+          def test_errors_exit_with_status_two(snapshot, capsys):
+              assert run(snapshot, "resolve", "ghost") == (2, "")
+              assert "error: ghost is not in the catalog" in capsys.readouterr().err
+              snapshot.write_text("{", encoding="utf-8")
+              assert run(snapshot, "list") == (2, "")
+              assert "cannot read snapshot" in capsys.readouterr().err
+
+
+          def test_a_missing_snapshot_is_an_empty_catalog(snapshot):
+              assert run(snapshot, "list") == (0, "")
+              assert not snapshot.exists()
+
+
+          def test_reset_alias_keeps_the_name_as_a_service(snapshot):
+              run(snapshot, "add", "api", "--owner", "platform", "--port", "8080")
+              run(snapshot, "alias", "api-v1", "api")
+              assert run(snapshot, "reset-alias", "api-v1") == (0, "api-v1 is now a service\n")
+              reloaded = store.load(snapshot)
+              assert reloaded.get("api-v1").kind == "service"
+              assert len(reloaded) == 2
+
+
+          def test_reset_alias_with_drop_reports_the_drop(snapshot):
+              run(snapshot, "add", "api", "--owner", "platform", "--port", "8080")
+              run(snapshot, "alias", "api-v1", "api")
+              assert run(snapshot, "reset-alias", "api-v1", "--drop") == (0, "dropped alias api-v1\n")
+              assert snapshot.exists()
+
+
+          def test_reset_alias_refuses_a_service(snapshot, capsys):
+              run(snapshot, "add", "api", "--owner", "platform", "--port", "8080")
+              assert run(snapshot, "reset-alias", "api") == (2, "")
+              assert "error: api is not an alias" in capsys.readouterr().err
+        tests/test_sync.py: |
+          import pytest
+
+          from svccatalog import store
+          from svccatalog.errors import InvalidRecord
+          from svccatalog.records import alias, service
+          from svccatalog.sync import sync_to
+
+
+          def release():
+              api = service("api", "platform", 8080)
+              search = service("search", "discovery", 8082)
+              worker = service("worker", "platform", 9000)
+              return [api, search, worker, alias("api-v1", api)]
+
+
+          def test_sync_removes_what_is_gone_and_adds_what_is_new(catalog):
+              result = sync_to(catalog, release())
+              assert catalog.names() == ["api", "api-v1", "search", "worker"]
+              assert sorted(result.removed) == ["billing", "billing-old"]
+              assert result.added == ["worker"]
+              assert result.changed
+
+
+          def test_sync_adds_aliases_after_their_services():
+              from svccatalog.catalog import Catalog
+
+              catalog = Catalog()
+              result = sync_to(catalog, [alias("api-v1", service("api", "platform", 8080)), service("api", "platform", 8080)])
+              assert catalog.names() == ["api", "api-v1"]
+              assert result.added == ["api", "api-v1"]
+              assert len(catalog) == 1
+
+
+          def test_sync_leaves_matching_records_alone(catalog):
+              before = catalog.records()
+              result = sync_to(catalog, catalog.records())
+              assert catalog.records() == before
+              assert not result.changed
+
+
+          def test_sync_rejects_an_alias_without_its_service(catalog):
+              with pytest.raises(InvalidRecord, match="alias target must be a service in the release"):
+                  sync_to(catalog, [alias("api-v1", service("api", "platform", 8080))])
+              assert len(catalog) == 3
+
+
+          def test_sync_removes_a_service_together_with_its_aliases(catalog):
+              sync_to(catalog, [service("api", "platform", 8080), alias("api-v1", service("api", "platform", 8080))])
+              assert catalog.names() == ["api", "api-v1"]
+              assert len(catalog) == 1
+
+
+          def test_sync_snapshots_stay_loadable(catalog, snapshot):
+              store.autosave(catalog, snapshot)
+              sync_to(catalog, release())
+              assert store.load(snapshot).names() == ["api", "api-v1", "search", "worker"]
+
+
+          def test_sync_removes_in_one_change(catalog):
+              seen = []
+              catalog.subscribe(seen.append)
+              sync_to(catalog, [service("search", "discovery", 8082)])
+              assert catalog.names() == ["search"]
+              assert len(seen) == 1
+
+
+          def test_sync_with_nothing_to_remove_notifies_only_for_additions(catalog):
+              seen = []
+              catalog.subscribe(seen.append)
+              sync_to(catalog, [*catalog.records(), service("worker", "platform", 9000)])
+              assert len(seen) == 1
+checks:
+- check: no_workspace_changes
+  text: review leaves the checkout unchanged
+- check: no_new_commits
+  text: review does not commit
+- check: bash_did_not_run
+  pattern: \bgit(?:\s+(?:-[Cc]\s+\S+|--?[\w.-]+(?:=\S+)?))*\s+(?:checkout|switch|stash(?!\s+(?:list|show)\b)|reset|restore|clean|worktree\s+add)(?=\s|$|[;&|)])
+  text: never checks out, stashes, or resets the source checkout
+- check: bash_ran
+  pattern: (?:^|[;&|(\s])(?:python[\d.]*|py|pytest)(?:\.exe)?(?=\s|$)
+  text: runs a check on the user's own change
+- check: ran_outside_checkout
+  text: runs candidate code only from outside the checkout
+- check: text_regex
+  pattern: '(?=(?:[\s\S]{0,450})(?:reset_alias|drop\s*=\s*True|reset-alias))(?=(?:[\s\S]{0,450})(?:_alias_names|alias[_ ]names?|alias\s+(?:set|index|registry|bookkeeping|tracking)))(?=(?:[\s\S]{0,450})(?:(?:(?<!no\s)(?<!not\s)(?<!without\s)stale|left\s+behind|leftover|lingers?|orphan\w*|dangling|(?:not|never|n''t)\s+(?:be\s+|been\s+)?(?:removed|discarded|cleared|dropped|updated|deleted|pruned)|(?:fails?|forgets?|omits?|misses|neglects?)\s+(?:to\s+)?(?:\w+\s+){0,6}(?:discard|remov|clear|updat|delet|prun)|still\s+(?:contains?|holds?|lists?|has|includes?|counts?)|(?<!never\s)(?<!not\s)(?<!n''t\s)(?<!no\s)(?<!without\s)(?:goes|becomes?|turns?|returns?|is|are)\s+(?:negative|wrong|too\s+small|less)|>=\s*0|under-?count\w*)))'
+  text: finds that reset_alias(drop=True) leaves the name in the alias set, so len() is wrong or negative
+- check: text_regex
+  pattern: '(?=(?:[\s\S]{0,450})(?:snapshot|store\.(?:save|load)|autosave|startup(?:\.py)?|restart|reboot))(?=(?:[\s\S]{0,450})(?:reset_alias|drop\s*=\s*True|drop(?:ped|s)?\s+alias|dropped|stale|alias(?:es)?\s+names?|alias\s+list))(?=(?:[\s\S]{0,450})(?:(?<!never\s)(?<!not\s)(?<!n''t\s)(?<!no\s)(?<!without\s)(?:raises?|throws?|hits?|trips?|fails?\s+with|fails?\s+on|exits?\s+(?:on|with))\s+(?:a\s+|an\s+|the\s+)?`?CorruptSnapshot|(?<!never\s)(?<!not\s)(?<!n''t\s)(?<!no\s)(?<!without\s)(?:fails?|refuses?)\s+(?:to\s+)?(?:start|boot|load|come\s+back)|(?:cannot|can''t|won''t|will\s+not)\s+(?:start|boot|come\s+back)|(?<!never\s)(?<!not\s)(?<!n''t\s)(?<!no\s)(?<!without\s)stays?\s+out\s+of\s+rotation|exits?\s+(?:non-?zero|with\s+(?:status\s+|code\s+)?3)))'
+  text: finds that the saved snapshot lists the dropped alias, fails to load and keeps the node from starting
+- check: bash_ran
+  pattern: 'store\.py|svccatalog/\*|svccatalog/\$\{?\w+|\$\([^)]*\bls-tree\b[^)]*svccatalog[^)]*\)|\bfor\s+\w+\s+in\b[^\n]*\bsvccatalog\b'
+  text: opens the unchanged snapshot store that persists the alias names
+- check: text_regex
+  pattern: ^\W*Verdict:\W*REQUEST CHANGES
+  text: requests changes on the verdict line
+- check: text_regex
+  pattern: (?<![/\w])P[01](?![/\w])
+  text: rates a finding P0 or P1
+- check: text_regex
+  pattern: \bP[0-3]\b[*_\s]{0,4}\[(?:verified|sourced|unverified)\]
+  text: 'contract: a finding line carries its evidence label beside the priority'
+- check: text_not_regex
+  pattern: '^[\W\d]*(?:(?:finding|issue|f)\s*\d*\W*)?P[0-2]\b[^\n]*(?:dict(?:ionary)?\s+changed\s+size|changed\s+size\s+during|mutat\w*[^\n]{0,60}(?:while|during)[^\n]{0,20}iterat|(?:while|during)\s+iterat\w*|RuntimeError)'
+  text: does not rate the list-copied deletion in _forget as a dict-changed-during-iteration defect

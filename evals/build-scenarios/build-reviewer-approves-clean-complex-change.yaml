@@ -1,0 +1,1876 @@
+# A correct control case: a behaviour-preserving extraction of rule matching into matching.py plus
+# one additive feature, per-team quiet hours, each with tests. The right answer is an approval with
+# no P0 or P1 finding. select() returns inside its loop on the first match and falls through to the
+# catch-all after it, which is the documented first-match-wins contract that a test on main already
+# pins. QuietHours.contains joins its comparisons with `or` for a window that crosses midnight,
+# which is the correct form for a wrapping window; the candidate's tests cover both edges of a
+# wrapping and a non-wrapping window. One narrow gap is real: release_due drops the due alerts from
+# the held list before delivering them, so a notifier that raises loses the ones not yet sent. That
+# is a P2, so an approval with nits that names it is as right as a plain approval.
+id: build-reviewer-approves-clean-complex-change
+max_turns: 30
+agent: reviewer
+prompt: |
+  Review refactor/route-matching against main before we merge. It extracts the route matching into its own module and adds per-team quiet hours; existing routing behaviour should be unchanged.
+fixture:
+  files:
+    .gitignore: |
+      *.log
+    README.md: |
+      # alertrouter
+
+      Routes incoming alerts to on-call teams. Standard library only; run the tests with
+      `python -m pytest -q`.
+
+      ## Concepts
+
+      - An **alert** has a name, a severity (`info`, `warning`, `error` or `critical`), string labels and
+        the time it fired. Times are UTC; a time without an offset is read as UTC.
+      - A **rule** names a team and says which alerts it takes: label matchers (`match`), labels that
+        must be absent (`absent`) and a severity floor (`min_severity`).
+      - A **team** has an escalation ladder: who is paged first, and who takes over after how many minutes.
+
+      ## Contracts
+
+      - Rules are evaluated in file order and the first match wins.
+      - An alert with no matching rule goes to the catch-all team.
+      - A rule matches only when every one of its conditions holds. A label matcher lists the values the
+        label may have; the alert's label must be present and equal to one of them.
+      - `min_severity` matches alerts at that severity or above.
+      - An alert with the same name and labels as one delivered less than `dedup_seconds` earlier is
+        suppressed. A suppressed alert does not restart the window. The default is 300 seconds; 0 turns
+        de-duplication off.
+      - Every delivered alert is notified to the first level of its team's escalation ladder.
+      - A rules file is checked as a whole before anything is routed; a file that fails the check raises
+        `ConfigError`, and the command line prints `error: ...` and exits with status 2.
+
+      ## Rules file
+
+      ```json
+      {
+        "catch_all": "platform",
+        "dedup_seconds": 300,
+        "teams": {
+          "platform": {"escalation": [{"target": "platform-oncall", "after_minutes": 0}]},
+          "payments": {"escalation": [
+            {"target": "payments-oncall", "after_minutes": 0},
+            {"target": "payments-lead", "after_minutes": 30}
+          ]}
+        },
+        "rules": [
+          {"name": "payments-errors", "team": "payments", "match": {"service": ["checkout", "ledger"]},
+           "min_severity": "error"}
+        ]
+      }
+      ```
+
+      ## Command line
+
+      ```
+      python -m alertrouter check    --config FILE
+      python -m alertrouter route    --config FILE --alerts FILE
+      python -m alertrouter dispatch --config FILE --alerts FILE
+      ```
+
+      `route` prints one JSON decision per alert. `dispatch` prints what happened to each alert and then
+      the notifications it sent.
+
+      ## Layout
+
+      | Module | Role |
+      |---|---|
+      | `models.py` | `Alert` and `Rule` |
+      | `severity.py` | Severity names and their order |
+      | `router.py` | `Router` and `Decision` |
+      | `escalation.py` | Escalation ladders |
+      | `dedup.py` | The de-duplication window |
+      | `config.py` | Load and validate the rules file |
+      | `dispatch.py` | De-duplicate, route, notify |
+      | `cli.py` | The command line |
+    alertrouter/__init__.py: |
+      """alertrouter: route incoming alerts to on-call teams."""
+
+      from .models import Alert, Rule
+      from .router import Decision, Router
+
+      __all__ = ["Alert", "Decision", "Router", "Rule"]
+    alertrouter/__main__.py: |
+      """`python -m alertrouter`."""
+
+      import sys
+
+      from .cli import main
+
+      sys.exit(main())
+    alertrouter/cli.py: |
+      """The command line: `check`, `route` and `dispatch`.
+
+      A failing command prints `error: ...` to stderr and exits with status 2.
+      """
+
+      from __future__ import annotations
+
+      import argparse
+      import json
+      import sys
+
+      from . import config
+      from .dispatch import Dispatcher
+      from .models import Alert, AlertError
+
+
+      def _read_alerts(path):
+          try:
+              with open(path, encoding="utf-8") as handle:
+                  raw = json.load(handle)
+          except OSError as exc:
+              raise AlertError(f"cannot read {path}: {exc.strerror or exc}") from None
+          except json.JSONDecodeError as exc:
+              raise AlertError(f"{path} is not valid JSON: {exc}") from None
+          if not isinstance(raw, list):
+              raise AlertError(f"{path}: expected a list of alerts")
+          return [Alert.from_dict(item) for item in raw]
+
+
+      def _check(args, out):
+          settings = config.load(args.config)
+          out.write(f"ok: {len(settings.rules)} rules, {len(settings.teams)} teams\n")
+
+
+      def _route(args, out):
+          settings = config.load(args.config)
+          router = settings.build_router()
+          for decision in router.route_all(_read_alerts(args.alerts)):
+              out.write(json.dumps(decision.as_dict(), sort_keys=True) + "\n")
+
+
+      def _dispatch(args, out):
+          settings = config.load(args.config)
+          deliveries = []
+          dispatcher = Dispatcher(settings, lambda team, target, alert: deliveries.append((team, target, alert.name)))
+          for alert in _read_alerts(args.alerts):
+              outcome = dispatcher.handle(alert)
+              team = outcome.decision.team if outcome.decision else "-"
+              out.write(f"{outcome.kind}\t{team}\t{alert.name}\n")
+          for team, target, name in deliveries:
+              out.write(f"notify\t{team}\t{target}\t{name}\n")
+
+
+      def _parser():
+          parser = argparse.ArgumentParser(prog="alertrouter")
+          commands = parser.add_subparsers(dest="command", required=True)
+          for name, handler, needs_alerts in (("check", _check, False), ("route", _route, True), ("dispatch", _dispatch, True)):
+              sub = commands.add_parser(name)
+              sub.add_argument("--config", required=True)
+              if needs_alerts:
+                  sub.add_argument("--alerts", required=True)
+              sub.set_defaults(handler=handler)
+          return parser
+
+
+      def main(argv=None, out=None, err=None):
+          out = out or sys.stdout
+          err = err or sys.stderr
+          args = _parser().parse_args(argv)
+          try:
+              args.handler(args, out)
+          except (config.ConfigError, AlertError) as exc:
+              err.write(f"error: {exc}\n")
+              return 2
+          return 0
+    alertrouter/config.py: |
+      """Loading and validating the rules file.
+
+      The file is JSON. `parse` checks the whole document and raises `ConfigError` naming the first
+      problem, with a path such as `rules[2].team`, so a bad file never produces a half-built router.
+      """
+
+      from __future__ import annotations
+
+      import json
+      from collections.abc import Mapping
+      from dataclasses import dataclass
+      from datetime import timedelta
+
+      from .escalation import Escalation, Level
+      from .models import Rule
+      from .router import Router
+      from .severity import SEVERITIES
+
+      DEFAULT_DEDUP_SECONDS = 300
+
+
+      class ConfigError(ValueError):
+          """The rules file is unreadable or invalid."""
+
+
+      @dataclass(frozen=True)
+      class TeamSettings:
+          name: str
+          escalation: Escalation
+
+
+      @dataclass(frozen=True)
+      class Settings:
+          catch_all: str
+          teams: Mapping[str, TeamSettings]
+          rules: tuple[Rule, ...]
+          dedup_seconds: int = DEFAULT_DEDUP_SECONDS
+
+          def build_router(self):
+              return Router(self.rules, self.catch_all)
+
+
+      def load(path):
+          """Read and parse the rules file at *path*."""
+          try:
+              with open(path, encoding="utf-8") as handle:
+                  data = json.load(handle)
+          except OSError as exc:
+              raise ConfigError(f"cannot read {path}: {exc.strerror or exc}") from None
+          except json.JSONDecodeError as exc:
+              raise ConfigError(f"{path} is not valid JSON: {exc}") from None
+          return parse(data)
+
+
+      def _object(value, where):
+          if not isinstance(value, Mapping):
+              raise ConfigError(f"{where}: expected an object")
+          return value
+
+
+      def _text(value, where):
+          if not isinstance(value, str) or not value:
+              raise ConfigError(f"{where}: expected a non-empty string")
+          return value
+
+
+      def _parse_level(raw, where):
+          raw = _object(raw, where)
+          target = _text(raw.get("target"), f"{where}.target")
+          minutes = raw.get("after_minutes")
+          if isinstance(minutes, bool) or not isinstance(minutes, int) or minutes < 0:
+              raise ConfigError(f"{where}.after_minutes: expected a whole number of minutes, 0 or more")
+          return Level(target, timedelta(minutes=minutes))
+
+
+      def _parse_team(name, raw):
+          where = f"teams.{name}"
+          raw = _object(raw, where)
+          levels = raw.get("escalation")
+          if not isinstance(levels, list):
+              raise ConfigError(f"{where}.escalation: expected a list of levels")
+          parsed = [_parse_level(level, f"{where}.escalation[{index}]") for index, level in enumerate(levels)]
+          try:
+              escalation = Escalation(parsed)
+          except ValueError as exc:
+              raise ConfigError(f"{where}.escalation: {exc}") from None
+          return TeamSettings(name, escalation)
+
+
+      def _parse_match(raw, where):
+          raw = _object(raw, where)
+          match = {}
+          for label, wanted in raw.items():
+              values = [wanted] if isinstance(wanted, str) else wanted
+              if not isinstance(values, list) or not values or not all(isinstance(v, str) for v in values):
+                  raise ConfigError(f"{where}.{label}: expected a string or a non-empty list of strings")
+              match[label] = tuple(values)
+          return match
+
+
+      def _parse_rule(raw, index, teams):
+          where = f"rules[{index}]"
+          raw = _object(raw, where)
+          name = _text(raw.get("name"), f"{where}.name")
+          team = _text(raw.get("team"), f"{where}.team")
+          if team not in teams:
+              raise ConfigError(f"{where}.team: unknown team {team!r}")
+          absent = raw.get("absent", [])
+          if not isinstance(absent, list) or not all(isinstance(label, str) for label in absent):
+              raise ConfigError(f"{where}.absent: expected a list of label names")
+          floor = raw.get("min_severity")
+          if floor is not None and floor not in SEVERITIES:
+              raise ConfigError(f"{where}.min_severity: must be one of {', '.join(SEVERITIES)}")
+          match = _parse_match(raw.get("match", {}), f"{where}.match")
+          return Rule(name, team, match, tuple(absent), floor)
+
+
+      def parse(data):
+          """Validate the decoded rules file and return its `Settings`."""
+          data = _object(data, "the rules file")
+          raw_teams = _object(data.get("teams"), "teams")
+          if not raw_teams:
+              raise ConfigError("teams: define at least one team")
+          teams = {name: _parse_team(name, raw) for name, raw in raw_teams.items()}
+          catch_all = _text(data.get("catch_all"), "catch_all")
+          if catch_all not in teams:
+              raise ConfigError(f"catch_all: unknown team {catch_all!r}")
+          raw_rules = data.get("rules", [])
+          if not isinstance(raw_rules, list):
+              raise ConfigError("rules: expected a list")
+          rules = [_parse_rule(raw, index, teams) for index, raw in enumerate(raw_rules)]
+          seen = set()
+          for index, rule in enumerate(rules):
+              if rule.name in seen:
+                  raise ConfigError(f"rules[{index}].name: duplicate rule name {rule.name!r}")
+              seen.add(rule.name)
+          seconds = data.get("dedup_seconds", DEFAULT_DEDUP_SECONDS)
+          if isinstance(seconds, bool) or not isinstance(seconds, int) or seconds < 0:
+              raise ConfigError("dedup_seconds: expected a whole number of seconds, 0 or more")
+          return Settings(catch_all, teams, tuple(rules), seconds)
+    alertrouter/dedup.py: |
+      """The de-duplication window.
+
+      An alert with the same fingerprint as one admitted less than `seconds` earlier is a duplicate and is
+      dropped. A dropped duplicate does not restart the window.
+      """
+
+      from __future__ import annotations
+
+      from datetime import timedelta
+
+
+      class DedupWindow:
+          def __init__(self, seconds):
+              if seconds < 0:
+                  raise ValueError("the dedup window cannot be negative")
+              self.window = timedelta(seconds=seconds)
+              self._last = {}
+
+          def admit(self, alert):
+              """True when *alert* is new; False when it repeats one admitted inside the window."""
+              if not self.window:
+                  return True
+              now = alert.fired_at
+              last = self._last.get(alert.fingerprint)
+              if last is not None and now - last < self.window:
+                  return False
+              self._last[alert.fingerprint] = now
+              self._forget_expired(now)
+              return True
+
+          def _forget_expired(self, now):
+              expired = [key for key, seen in self._last.items() if now - seen >= self.window]
+              for key in expired:
+                  del self._last[key]
+
+          def __len__(self):
+              return len(self._last)
+    alertrouter/dispatch.py: |
+      """The dispatcher: de-duplicate, route, and notify.
+
+      `Dispatcher.handle` takes one alert at a time. The notifier is any callable taking
+      `(team, target, alert)`; the dispatcher calls it once per delivered alert, with the target of the
+      first level of the team's escalation ladder.
+      """
+
+      from __future__ import annotations
+
+      from dataclasses import dataclass
+      from datetime import timedelta
+
+      from .dedup import DedupWindow
+      from .router import Decision
+
+      DELIVERED = "delivered"
+      SUPPRESSED = "suppressed"
+
+
+      @dataclass(frozen=True)
+      class Outcome:
+          """What `handle` did with an alert; `decision` is None for a suppressed duplicate."""
+
+          kind: str
+          decision: Decision | None
+
+
+      class Dispatcher:
+          def __init__(self, settings, notify):
+              self.settings = settings
+              self.router = settings.build_router()
+              self.dedup = DedupWindow(settings.dedup_seconds)
+              self._notify = notify
+
+          def handle(self, alert):
+              if not self.dedup.admit(alert):
+                  return Outcome(SUPPRESSED, None)
+              decision = self.router.route(alert)
+              self._deliver(decision)
+              return Outcome(DELIVERED, decision)
+
+          def _deliver(self, decision):
+              ladder = self.settings.teams[decision.team].escalation
+              target = ladder.level_at(timedelta(0)).target
+              self._notify(decision.team, target, decision.alert)
+    alertrouter/escalation.py: |
+      """Escalation ladders: who is paged first and who is paged if nobody acknowledges.
+
+      A ladder is an ordered list of levels. Each level names a target (a person or a rotation) and the
+      time after the alert first reached the team at which that target takes over.
+      """
+
+      from __future__ import annotations
+
+      from dataclasses import dataclass
+      from datetime import timedelta
+
+
+      @dataclass(frozen=True)
+      class Level:
+          target: str
+          after: timedelta
+
+
+      class Escalation:
+          """An ordered, non-empty ladder whose first level starts at once."""
+
+          def __init__(self, levels):
+              levels = tuple(levels)
+              if not levels:
+                  raise ValueError("an escalation needs at least one level")
+              if levels[0].after != timedelta(0):
+                  raise ValueError("the first escalation level must start at 0 minutes")
+              for earlier, later in zip(levels, levels[1:]):
+                  if later.after <= earlier.after:
+                      raise ValueError("escalation levels must be in strictly increasing order of delay")
+              self.levels = levels
+
+          def level_at(self, elapsed):
+              """The level in charge once *elapsed* has passed since the alert reached the team."""
+              current = self.levels[0]
+              for level in self.levels:
+                  if level.after <= elapsed:
+                      current = level
+              return current
+
+          def next_after(self, elapsed):
+              """The next level to take over after *elapsed*, or None at the top of the ladder."""
+              for level in self.levels:
+                  if level.after > elapsed:
+                      return level
+              return None
+    alertrouter/models.py: |
+      """Alert and rule types shared by every alertrouter module.
+
+      An `Alert` is what a monitoring system sends us. A `Rule` is one entry of the routing table that the
+      config loader builds from the rules file.
+      """
+
+      from __future__ import annotations
+
+      from collections.abc import Mapping
+      from dataclasses import dataclass, field
+      from datetime import UTC, datetime
+
+      from .severity import SEVERITIES
+
+
+      class AlertError(ValueError):
+          """An alert payload that cannot be turned into an Alert."""
+
+
+      def _moment(value):
+          """Parse *value* into an aware UTC datetime; a naive time is taken to be UTC already."""
+          if isinstance(value, datetime):
+              moment = value
+          else:
+              try:
+                  moment = datetime.fromisoformat(value)
+              except (TypeError, ValueError):
+                  raise AlertError(f"fired_at is not an ISO 8601 time: {value!r}") from None
+          if moment.tzinfo is None:
+              return moment.replace(tzinfo=UTC)
+          return moment.astimezone(UTC)
+
+
+      @dataclass(frozen=True)
+      class Alert:
+          """One alert as received: a name, a severity, string labels and the time it fired (UTC)."""
+
+          name: str
+          severity: str
+          labels: Mapping[str, str]
+          fired_at: datetime
+
+          @property
+          def fingerprint(self):
+              """Stable identity used for de-duplication: the name plus the sorted labels."""
+              pairs = (f"{key}={value}" for key, value in sorted(self.labels.items()))
+              return "|".join([self.name, *pairs])
+
+          @classmethod
+          def from_dict(cls, data):
+              if not isinstance(data, Mapping):
+                  raise AlertError("an alert must be an object")
+              name = data.get("name")
+              if not isinstance(name, str) or not name:
+                  raise AlertError("an alert needs a non-empty string name")
+              severity = data.get("severity")
+              if severity not in SEVERITIES:
+                  raise AlertError(f"alert {name!r}: severity must be one of {', '.join(SEVERITIES)}")
+              labels = data.get("labels", {})
+              if not isinstance(labels, Mapping) or not all(
+                  isinstance(key, str) and isinstance(value, str) for key, value in labels.items()
+              ):
+                  raise AlertError(f"alert {name!r}: labels must map strings to strings")
+              if "fired_at" not in data:
+                  raise AlertError(f"alert {name!r}: fired_at is required")
+              return cls(name, severity, dict(labels), _moment(data["fired_at"]))
+
+
+      @dataclass(frozen=True)
+      class Rule:
+          """A routing rule.
+
+          `match` maps a label to the values it may have (any one of them); `absent` lists labels that
+          must not be present; `min_severity` is a floor. A rule with no conditions matches every alert.
+          """
+
+          name: str
+          team: str
+          match: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
+          absent: tuple[str, ...] = ()
+          min_severity: str | None = None
+    alertrouter/router.py: |
+      """The routing table: which team an alert goes to.
+
+      Rules are evaluated in file order and the first match wins. An alert that matches no rule goes to the
+      catch-all team.
+      """
+
+      from __future__ import annotations
+
+      from dataclasses import dataclass
+
+      from .models import Alert
+      from .severity import at_least
+
+
+      @dataclass(frozen=True)
+      class Decision:
+          """Where one alert goes and which rule sent it there (None for the catch-all)."""
+
+          alert: Alert
+          team: str
+          rule: str | None
+
+          def as_dict(self):
+              return {
+                  "alert": self.alert.name,
+                  "fingerprint": self.alert.fingerprint,
+                  "team": self.team,
+                  "rule": self.rule,
+              }
+
+
+      def _labels_match(rule, alert):
+          for label, allowed in rule.match.items():
+              if alert.labels.get(label) not in allowed:
+                  return False
+          for label in rule.absent:
+              if label in alert.labels:
+                  return False
+          return True
+
+
+      def _rule_matches(rule, alert):
+          if rule.min_severity is not None and not at_least(alert.severity, rule.min_severity):
+              return False
+          return _labels_match(rule, alert)
+
+
+      class Router:
+          """Routes alerts with an ordered list of rules and a catch-all team."""
+
+          def __init__(self, rules, catch_all):
+              self.rules = tuple(rules)
+              self.catch_all = catch_all
+
+          def route(self, alert):
+              for rule in self.rules:
+                  if _rule_matches(rule, alert):
+                      return Decision(alert, rule.team, rule.name)
+              return Decision(alert, self.catch_all, None)
+
+          def route_all(self, alerts):
+              """Decisions for *alerts*, in the order given."""
+              return [self.route(alert) for alert in alerts]
+    alertrouter/severity.py: |
+      """Severity names and their order.
+
+      Monitoring systems disagree about severity vocabularies, so alertrouter accepts exactly these four,
+      lowest first. Everything that compares severities goes through `rank` or `at_least`.
+      """
+
+      SEVERITIES = ("info", "warning", "error", "critical")
+
+
+      class UnknownSeverity(ValueError):
+          """A severity name outside SEVERITIES."""
+
+
+      def rank(name):
+          """Position of *name* in SEVERITIES; higher is more severe."""
+          try:
+              return SEVERITIES.index(name)
+          except ValueError:
+              raise UnknownSeverity(f"unknown severity {name!r}; expected one of {', '.join(SEVERITIES)}") from None
+
+
+      def at_least(severity, floor):
+          """True when *severity* is the same as or more severe than *floor*."""
+          return rank(severity) >= rank(floor)
+    tests/__init__.py: |
+      """Builders shared by the alertrouter tests."""
+
+      from datetime import UTC, datetime
+
+      from alertrouter.models import Alert, Rule
+
+
+      def at(hour=12, minute=0, second=0, day=1):
+          """A UTC time on a fixed month, for alerts that need a time of day."""
+          return datetime(2031, 3, day, hour, minute, second, tzinfo=UTC)
+
+
+      def alert(name="HighLatency", severity="warning", labels=None, fired_at=None):
+          return Alert(name, severity, dict(labels or {}), fired_at or at())
+
+
+      def rule(name, team, match=None, absent=(), min_severity=None):
+          values = {label: (v,) if isinstance(v, str) else tuple(v) for label, v in (match or {}).items()}
+          return Rule(name, team, values, tuple(absent), min_severity)
+
+
+      def rules_file(**overrides):
+          """A small valid rules document; keyword arguments replace top-level keys."""
+          data = {
+              "catch_all": "platform",
+              "dedup_seconds": 300,
+              "teams": {
+                  "platform": {"escalation": [{"target": "platform-oncall", "after_minutes": 0}]},
+                  "payments": {
+                      "escalation": [
+                          {"target": "payments-oncall", "after_minutes": 0},
+                          {"target": "payments-lead", "after_minutes": 30},
+                      ]
+                  },
+              },
+              "rules": [
+                  {"name": "payments-errors", "team": "payments", "match": {"service": "checkout"}, "min_severity": "error"},
+              ],
+          }
+          data.update(overrides)
+          return data
+    tests/test_cli.py: |
+      import io
+      import json
+
+      import pytest
+
+      from alertrouter.cli import main
+      from tests import rules_file
+
+
+      def run(argv):
+          out, err = io.StringIO(), io.StringIO()
+          code = main(argv, out, err)
+          return code, out.getvalue(), err.getvalue()
+
+
+      @pytest.fixture
+      def files(tmp_path):
+          config = tmp_path / "rules.json"
+          config.write_text(json.dumps(rules_file()), encoding="utf-8")
+          alerts = tmp_path / "alerts.json"
+          alerts.write_text(json.dumps([
+              {"name": "Slow", "severity": "error", "labels": {"service": "checkout"}, "fired_at": "2031-03-01T12:00:00Z"},
+              {"name": "Slow", "severity": "error", "labels": {"service": "checkout"}, "fired_at": "2031-03-01T12:01:00Z"},
+              {"name": "Down", "severity": "critical", "labels": {"service": "cart"}, "fired_at": "2031-03-01T12:02:00Z"},
+          ]), encoding="utf-8")
+          return str(config), str(alerts)
+
+
+      def test_check_reports_the_size_of_the_file(files):
+          code, out, err = run(["check", "--config", files[0]])
+          assert (code, out, err) == (0, "ok: 1 rules, 2 teams\n", "")
+
+
+      def test_route_prints_one_decision_per_alert(files):
+          code, out, _ = run(["route", "--config", files[0], "--alerts", files[1]])
+          assert code == 0
+          decisions = [json.loads(line) for line in out.splitlines()]
+          assert [(d["alert"], d["team"], d["rule"]) for d in decisions] == [
+              ("Slow", "payments", "payments-errors"),
+              ("Slow", "payments", "payments-errors"),
+              ("Down", "platform", None),
+          ]
+
+
+      def test_dispatch_prints_outcomes_then_notifications(files):
+          code, out, _ = run(["dispatch", "--config", files[0], "--alerts", files[1]])
+          assert code == 0
+          assert out.splitlines() == [
+              "delivered\tpayments\tSlow",
+              "suppressed\t-\tSlow",
+              "delivered\tplatform\tDown",
+              "notify\tpayments\tpayments-oncall\tSlow",
+              "notify\tplatform\tplatform-oncall\tDown",
+          ]
+
+
+      def test_a_bad_rules_file_exits_2(tmp_path, files):
+          bad = tmp_path / "bad.json"
+          bad.write_text(json.dumps(rules_file(catch_all="nobody")), encoding="utf-8")
+          code, out, err = run(["check", "--config", str(bad)])
+          assert (code, out) == (2, "")
+          assert err == "error: catch_all: unknown team 'nobody'\n"
+
+
+      def test_a_bad_alert_exits_2(tmp_path, files):
+          alerts = tmp_path / "alerts.json"
+          alerts.write_text(json.dumps([{"name": "Slow", "severity": "fatal", "fired_at": "2031-03-01T12:00:00Z"}]),
+                            encoding="utf-8")
+          code, _, err = run(["route", "--config", files[0], "--alerts", str(alerts)])
+          assert code == 2
+          assert err.startswith("error: alert 'Slow': severity must be one of")
+
+
+      def test_alerts_must_be_a_list(tmp_path, files):
+          alerts = tmp_path / "alerts.json"
+          alerts.write_text("{}", encoding="utf-8")
+          code, _, err = run(["route", "--config", files[0], "--alerts", str(alerts)])
+          assert (code, err) == (2, f"error: {alerts}: expected a list of alerts\n")
+    tests/test_config.py: |
+      import json
+      from datetime import timedelta
+
+      import pytest
+
+      from alertrouter import config
+      from alertrouter.config import ConfigError
+      from tests import rules_file
+
+
+      def test_a_valid_file_parses():
+          settings = config.parse(rules_file())
+          assert settings.catch_all == "platform"
+          assert settings.dedup_seconds == 300
+          assert sorted(settings.teams) == ["payments", "platform"]
+          assert [rule.name for rule in settings.rules] == ["payments-errors"]
+
+
+      def test_rule_fields_are_normalised():
+          rule = config.parse(rules_file()).rules[0]
+          assert rule.match == {"service": ("checkout",)}
+          assert rule.absent == ()
+          assert rule.min_severity == "error"
+
+
+      def test_escalation_levels_become_timedeltas():
+          ladder = config.parse(rules_file()).teams["payments"].escalation
+          assert [(level.target, level.after) for level in ladder.levels] == [
+              ("payments-oncall", timedelta(0)),
+              ("payments-lead", timedelta(minutes=30)),
+          ]
+
+
+      def test_dedup_seconds_defaults_when_absent():
+          data = rules_file()
+          del data["dedup_seconds"]
+          assert config.parse(data).dedup_seconds == config.DEFAULT_DEDUP_SECONDS
+
+
+      def test_the_built_router_follows_file_order():
+          data = rules_file(rules=[
+              {"name": "first", "team": "platform", "match": {"service": "checkout"}},
+              {"name": "second", "team": "payments", "match": {"service": "checkout"}},
+          ])
+          router = config.parse(data).build_router()
+          assert [rule.name for rule in router.rules] == ["first", "second"]
+          assert router.catch_all == "platform"
+
+
+      @pytest.mark.parametrize("mutate, message", [
+          (lambda d: d.pop("teams"), "teams: expected an object"),
+          (lambda d: d.update(teams={}), "define at least one team"),
+          (lambda d: d.update(catch_all="nobody"), "catch_all: unknown team 'nobody'"),
+          (lambda d: d.pop("catch_all"), "catch_all: expected a non-empty string"),
+          (lambda d: d.update(rules={}), "rules: expected a list"),
+          (lambda d: d.update(dedup_seconds=-1), "dedup_seconds"),
+          (lambda d: d.update(dedup_seconds=True), "dedup_seconds"),
+          (lambda d: d["rules"][0].update(team="nobody"), "rules[0].team: unknown team 'nobody'"),
+          (lambda d: d["rules"][0].update(min_severity="fatal"), "rules[0].min_severity"),
+          (lambda d: d["rules"][0].update(match={"service": []}), "rules[0].match.service"),
+          (lambda d: d["rules"][0].update(match={"service": 5}), "rules[0].match.service"),
+          (lambda d: d["rules"][0].update(absent="maintenance"), "rules[0].absent"),
+          (lambda d: d["rules"][0].pop("name"), "rules[0].name"),
+          (lambda d: d["rules"].append(dict(d["rules"][0])), "rules[1].name: duplicate rule name"),
+          (lambda d: d["teams"]["payments"].update(escalation=[]), "teams.payments.escalation: an escalation needs"),
+          (lambda d: d["teams"]["payments"].update(escalation="page"), "teams.payments.escalation: expected a list"),
+          (lambda d: d["teams"]["platform"]["escalation"][0].update(after_minutes=-5), "after_minutes"),
+          (lambda d: d["teams"]["platform"]["escalation"][0].update(target=""), "target"),
+      ])
+      def test_invalid_files_name_the_first_problem(mutate, message):
+          data = rules_file()
+          mutate(data)
+          with pytest.raises(ConfigError) as caught:
+              config.parse(data)
+          assert message in str(caught.value)
+
+
+      def test_load_reads_a_file(tmp_path):
+          path = tmp_path / "rules.json"
+          path.write_text(json.dumps(rules_file()), encoding="utf-8")
+          assert config.load(path).catch_all == "platform"
+
+
+      def test_load_reports_a_missing_file(tmp_path):
+          with pytest.raises(ConfigError, match="cannot read"):
+              config.load(tmp_path / "missing.json")
+
+
+      def test_load_reports_invalid_json(tmp_path):
+          path = tmp_path / "rules.json"
+          path.write_text("{not json", encoding="utf-8")
+          with pytest.raises(ConfigError, match="not valid JSON"):
+              config.load(path)
+    tests/test_dedup.py: |
+      import pytest
+
+      from alertrouter.dedup import DedupWindow
+      from tests import alert, at
+
+
+      def test_the_first_alert_is_admitted():
+          assert DedupWindow(300).admit(alert())
+
+
+      def test_a_repeat_inside_the_window_is_dropped():
+          window = DedupWindow(300)
+          assert window.admit(alert(fired_at=at(12, 0)))
+          assert not window.admit(alert(fired_at=at(12, 4, 59)))
+
+
+      def test_a_repeat_at_the_window_edge_is_admitted():
+          window = DedupWindow(300)
+          assert window.admit(alert(fired_at=at(12, 0)))
+          assert window.admit(alert(fired_at=at(12, 5)))
+
+
+      def test_a_dropped_repeat_does_not_restart_the_window():
+          window = DedupWindow(300)
+          assert window.admit(alert(fired_at=at(12, 0)))
+          assert not window.admit(alert(fired_at=at(12, 3)))
+          assert window.admit(alert(fired_at=at(12, 5)))
+
+
+      def test_different_labels_are_different_alerts():
+          window = DedupWindow(300)
+          assert window.admit(alert(labels={"service": "checkout"}))
+          assert window.admit(alert(labels={"service": "cart"}))
+
+
+      def test_a_zero_window_admits_everything():
+          window = DedupWindow(0)
+          assert window.admit(alert())
+          assert window.admit(alert())
+          assert len(window) == 0
+
+
+      def test_expired_fingerprints_are_forgotten():
+          window = DedupWindow(60)
+          window.admit(alert("A", fired_at=at(12, 0)))
+          window.admit(alert("B", fired_at=at(12, 0, 30)))
+          assert len(window) == 2
+          window.admit(alert("C", fired_at=at(12, 5)))
+          assert len(window) == 1
+
+
+      def test_a_negative_window_is_rejected():
+          with pytest.raises(ValueError):
+              DedupWindow(-1)
+    tests/test_dispatch.py: |
+      from alertrouter import config
+      from alertrouter.dispatch import DELIVERED, SUPPRESSED, Dispatcher
+      from tests import alert, at, rules_file
+
+
+      def dispatcher(**overrides):
+          sent = []
+          settings = config.parse(rules_file(**overrides))
+          return Dispatcher(settings, lambda team, target, a: sent.append((team, target, a.name))), sent
+
+
+      def test_a_matching_alert_is_delivered_to_the_first_level():
+          dispatch, sent = dispatcher()
+          outcome = dispatch.handle(alert("Slow", "error", {"service": "checkout"}))
+          assert outcome.kind == DELIVERED
+          assert outcome.decision.team == "payments"
+          assert sent == [("payments", "payments-oncall", "Slow")]
+
+
+      def test_an_unmatched_alert_goes_to_the_catch_all_team():
+          dispatch, sent = dispatcher()
+          dispatch.handle(alert("Slow", "error", {"service": "cart"}))
+          assert sent == [("platform", "platform-oncall", "Slow")]
+
+
+      def test_a_duplicate_is_suppressed_and_not_notified():
+          dispatch, sent = dispatcher()
+          first = dispatch.handle(alert("Slow", fired_at=at(12, 0)))
+          second = dispatch.handle(alert("Slow", fired_at=at(12, 1)))
+          assert (first.kind, second.kind) == (DELIVERED, SUPPRESSED)
+          assert second.decision is None
+          assert len(sent) == 1
+
+
+      def test_a_duplicate_after_the_window_is_delivered_again():
+          dispatch, sent = dispatcher(dedup_seconds=60)
+          dispatch.handle(alert("Slow", fired_at=at(12, 0)))
+          dispatch.handle(alert("Slow", fired_at=at(12, 2)))
+          assert len(sent) == 2
+
+
+      def test_dedup_can_be_turned_off():
+          dispatch, sent = dispatcher(dedup_seconds=0)
+          dispatch.handle(alert("Slow"))
+          dispatch.handle(alert("Slow"))
+          assert len(sent) == 2
+
+
+      def test_notifications_follow_arrival_order():
+          dispatch, sent = dispatcher()
+          for name in ("A", "B", "C"):
+              dispatch.handle(alert(name))
+          assert [name for _, _, name in sent] == ["A", "B", "C"]
+    tests/test_escalation.py: |
+      from datetime import timedelta
+
+      import pytest
+
+      from alertrouter.escalation import Escalation, Level
+
+
+      def minutes(n):
+          return timedelta(minutes=n)
+
+
+      def ladder():
+          return Escalation([Level("primary", minutes(0)), Level("secondary", minutes(15)), Level("lead", minutes(45))])
+
+
+      def test_the_first_level_is_in_charge_at_once():
+          assert ladder().level_at(minutes(0)).target == "primary"
+
+
+      def test_a_level_takes_over_exactly_at_its_delay():
+          assert ladder().level_at(minutes(14)).target == "primary"
+          assert ladder().level_at(minutes(15)).target == "secondary"
+          assert ladder().level_at(minutes(44)).target == "secondary"
+          assert ladder().level_at(minutes(45)).target == "lead"
+
+
+      def test_the_top_level_stays_in_charge():
+          assert ladder().level_at(minutes(24 * 60)).target == "lead"
+
+
+      def test_next_after_names_the_following_level():
+          assert ladder().next_after(minutes(0)).target == "secondary"
+          assert ladder().next_after(minutes(15)).target == "lead"
+          assert ladder().next_after(minutes(45)) is None
+
+
+      def test_an_empty_ladder_is_rejected():
+          with pytest.raises(ValueError, match="at least one level"):
+              Escalation([])
+
+
+      def test_the_first_level_must_start_at_zero():
+          with pytest.raises(ValueError, match="start at 0"):
+              Escalation([Level("primary", minutes(5))])
+
+
+      @pytest.mark.parametrize("delays", [(0, 10, 10), (0, 20, 10)])
+      def test_delays_must_strictly_increase(delays):
+          with pytest.raises(ValueError, match="strictly increasing"):
+              Escalation([Level(f"l{n}", minutes(delay)) for n, delay in enumerate(delays)])
+    tests/test_models.py: |
+      from datetime import UTC, datetime, timedelta, timezone
+
+      import pytest
+
+      from alertrouter.models import Alert, AlertError
+      from alertrouter.severity import SEVERITIES, UnknownSeverity, at_least, rank
+
+
+      def payload(**overrides):
+          data = {"name": "HighLatency", "severity": "warning", "labels": {"service": "checkout"},
+                  "fired_at": "2031-03-01T12:00:00Z"}
+          data.update(overrides)
+          return data
+
+
+      def test_from_dict_builds_an_alert():
+          alert = Alert.from_dict(payload())
+          assert alert.name == "HighLatency"
+          assert alert.severity == "warning"
+          assert alert.labels == {"service": "checkout"}
+          assert alert.fired_at == datetime(2031, 3, 1, 12, 0, tzinfo=UTC)
+
+
+      def test_labels_default_to_empty():
+          data = payload()
+          del data["labels"]
+          assert Alert.from_dict(data).labels == {}
+
+
+      def test_a_time_without_an_offset_is_utc():
+          assert Alert.from_dict(payload(fired_at="2031-03-01T12:00:00")).fired_at == datetime(2031, 3, 1, 12, tzinfo=UTC)
+
+
+      def test_an_offset_time_is_converted_to_utc():
+          zone = timezone(timedelta(hours=2))
+          alert = Alert.from_dict(payload(fired_at=datetime(2031, 3, 1, 14, 0, tzinfo=zone)))
+          assert alert.fired_at == datetime(2031, 3, 1, 12, 0, tzinfo=UTC)
+          assert alert.fired_at.utcoffset() == timedelta(0)
+
+
+      @pytest.mark.parametrize("bad", [
+          {"name": ""}, {"name": 3}, {"severity": "fatal"}, {"labels": {"a": 1}}, {"labels": ["a"]},
+          {"fired_at": "yesterday"}, {"fired_at": None},
+      ])
+      def test_invalid_payloads_are_rejected(bad):
+          with pytest.raises(AlertError):
+              Alert.from_dict(payload(**bad))
+
+
+      def test_missing_fired_at_is_rejected():
+          data = payload()
+          del data["fired_at"]
+          with pytest.raises(AlertError, match="fired_at is required"):
+              Alert.from_dict(data)
+
+
+      def test_a_payload_must_be_an_object():
+          with pytest.raises(AlertError, match="must be an object"):
+              Alert.from_dict(["HighLatency"])
+
+
+      def test_fingerprint_ignores_label_order():
+          first = Alert.from_dict(payload(labels={"a": "1", "b": "2"}))
+          second = Alert.from_dict(payload(labels={"b": "2", "a": "1"}))
+          assert first.fingerprint == second.fingerprint == "HighLatency|a=1|b=2"
+
+
+      def test_fingerprint_differs_by_label_value():
+          assert Alert.from_dict(payload(labels={"a": "1"})).fingerprint != Alert.from_dict(payload(labels={"a": "2"})).fingerprint
+
+
+      def test_severities_are_ordered_lowest_first():
+          assert [rank(name) for name in SEVERITIES] == [0, 1, 2, 3]
+
+
+      def test_at_least_includes_the_floor_itself():
+          assert at_least("error", "error")
+          assert at_least("critical", "error")
+          assert not at_least("warning", "error")
+
+
+      def test_unknown_severity_is_named_in_the_error():
+          with pytest.raises(UnknownSeverity, match="fatal"):
+              rank("fatal")
+    tests/test_router.py: |
+      from alertrouter.router import Router
+      from tests import alert, rule
+
+
+      def test_a_matching_rule_names_the_team_and_the_rule():
+          router = Router([rule("db", "data", match={"service": "orders-db"})], catch_all="platform")
+          decision = router.route(alert(labels={"service": "orders-db"}))
+          assert (decision.team, decision.rule) == ("data", "db")
+
+
+      def test_no_matching_rule_goes_to_the_catch_all_team():
+          router = Router([rule("db", "data", match={"service": "orders-db"})], catch_all="platform")
+          decision = router.route(alert(labels={"service": "checkout"}))
+          assert (decision.team, decision.rule) == ("platform", None)
+
+
+      def test_an_empty_table_sends_everything_to_the_catch_all_team():
+          assert Router([], catch_all="platform").route(alert()).team == "platform"
+
+
+      def test_first_match_wins_even_when_a_later_rule_is_more_specific():
+          router = Router(
+              [
+                  rule("any-checkout", "web", match={"service": "checkout"}),
+                  rule("checkout-critical", "payments", match={"service": "checkout"}, min_severity="critical"),
+              ],
+              catch_all="platform",
+          )
+          decision = router.route(alert(severity="critical", labels={"service": "checkout"}))
+          assert (decision.team, decision.rule) == ("web", "any-checkout")
+
+
+      def test_file_order_decides_between_overlapping_rules():
+          first = rule("a", "team-a", match={"env": "prod"})
+          second = rule("b", "team-b", match={"env": "prod"})
+          labels = {"env": "prod"}
+          assert Router([first, second], "platform").route(alert(labels=labels)).team == "team-a"
+          assert Router([second, first], "platform").route(alert(labels=labels)).team == "team-b"
+
+
+      def test_a_rule_with_no_conditions_matches_everything():
+          assert Router([rule("all", "web")], "platform").route(alert(severity="info")).team == "web"
+
+
+      def test_a_label_matcher_accepts_any_listed_value():
+          router = Router([rule("web", "web", match={"service": ["checkout", "cart"]})], "platform")
+          assert router.route(alert(labels={"service": "cart"})).team == "web"
+          assert router.route(alert(labels={"service": "ledger"})).team == "platform"
+
+
+      def test_every_label_matcher_must_hold():
+          router = Router([rule("prod-web", "web", match={"service": "checkout", "env": "prod"})], "platform")
+          assert router.route(alert(labels={"service": "checkout", "env": "prod"})).team == "web"
+          assert router.route(alert(labels={"service": "checkout", "env": "dev"})).team == "platform"
+          assert router.route(alert(labels={"service": "checkout"})).team == "platform"
+
+
+      def test_a_missing_label_never_matches_a_matcher():
+          router = Router([rule("web", "web", match={"service": "checkout"})], "platform")
+          assert router.route(alert(labels={})).team == "platform"
+
+
+      def test_absent_excludes_alerts_that_carry_the_label():
+          router = Router([rule("live", "web", absent=["maintenance"])], "platform")
+          assert router.route(alert(labels={"service": "checkout"})).team == "web"
+          assert router.route(alert(labels={"maintenance": "true"})).team == "platform"
+
+
+      def test_min_severity_is_a_floor():
+          router = Router([rule("loud", "web", min_severity="error")], "platform")
+          assert router.route(alert(severity="warning")).team == "platform"
+          assert router.route(alert(severity="error")).team == "web"
+          assert router.route(alert(severity="critical")).team == "web"
+
+
+      def test_route_all_keeps_the_order_given():
+          router = Router([rule("web", "web", match={"service": "checkout"})], "platform")
+          decisions = router.route_all([
+              alert("A", labels={"service": "checkout"}),
+              alert("B", labels={"service": "ledger"}),
+              alert("C", labels={"service": "checkout"}),
+          ])
+          assert [(d.alert.name, d.team) for d in decisions] == [("A", "web"), ("B", "platform"), ("C", "web")]
+
+
+      def test_as_dict_is_what_the_command_line_prints():
+          decision = Router([rule("web", "web")], "platform").route(alert("A", labels={"x": "1"}))
+          assert decision.as_dict() == {"alert": "A", "fingerprint": "A|x=1", "team": "web", "rule": "web"}
+  branches:
+    refactor/route-matching:
+      message: |
+        Extract rule matching into matching.py and add per-team quiet hours
+
+        Rule matching moves out of router.py into matching.py without changing it: matches() decides
+        whether one rule takes an alert, and select() walks the table in file order, returns at the first
+        match and falls through to the catch-all team. Router.route now calls select().
+
+        A team may define quiet_hours {start, end} in the rules file (UTC, HH:MM, start inclusive, end
+        exclusive, may cross midnight; start and end must differ). During a team's quiet hours alerts
+        below critical are held until the window ends: the decision carries hold_until, Dispatcher.handle
+        returns "held", and Dispatcher.release_due(now) delivers what the window has released. Teams
+        without quiet_hours behave exactly as before, and a decision without a hold prints as it did.
+
+        Tests cover the matcher, both edges of a wrapping and a non-wrapping window, the config
+        validation and the dispatcher's hold and release.
+      files:
+        alertrouter/config.py: |
+          """Loading and validating the rules file.
+
+          The file is JSON. `parse` checks the whole document and raises `ConfigError` naming the first
+          problem, with a path such as `rules[2].team`, so a bad file never produces a half-built router.
+          """
+
+          from __future__ import annotations
+
+          import json
+          from collections.abc import Mapping
+          from dataclasses import dataclass
+          from datetime import timedelta
+
+          from .escalation import Escalation, Level
+          from .models import Rule
+          from .quiet import QuietHours
+          from .router import Router
+          from .severity import SEVERITIES
+
+          DEFAULT_DEDUP_SECONDS = 300
+
+
+          class ConfigError(ValueError):
+              """The rules file is unreadable or invalid."""
+
+
+          @dataclass(frozen=True)
+          class TeamSettings:
+              name: str
+              escalation: Escalation
+              quiet_hours: QuietHours | None = None
+
+
+          @dataclass(frozen=True)
+          class Settings:
+              catch_all: str
+              teams: Mapping[str, TeamSettings]
+              rules: tuple[Rule, ...]
+              dedup_seconds: int = DEFAULT_DEDUP_SECONDS
+
+              def build_router(self):
+                  quiet_hours = {name: team.quiet_hours for name, team in self.teams.items() if team.quiet_hours}
+                  return Router(self.rules, self.catch_all, quiet_hours)
+
+
+          def load(path):
+              """Read and parse the rules file at *path*."""
+              try:
+                  with open(path, encoding="utf-8") as handle:
+                      data = json.load(handle)
+              except OSError as exc:
+                  raise ConfigError(f"cannot read {path}: {exc.strerror or exc}") from None
+              except json.JSONDecodeError as exc:
+                  raise ConfigError(f"{path} is not valid JSON: {exc}") from None
+              return parse(data)
+
+
+          def _object(value, where):
+              if not isinstance(value, Mapping):
+                  raise ConfigError(f"{where}: expected an object")
+              return value
+
+
+          def _text(value, where):
+              if not isinstance(value, str) or not value:
+                  raise ConfigError(f"{where}: expected a non-empty string")
+              return value
+
+
+          def _parse_level(raw, where):
+              raw = _object(raw, where)
+              target = _text(raw.get("target"), f"{where}.target")
+              minutes = raw.get("after_minutes")
+              if isinstance(minutes, bool) or not isinstance(minutes, int) or minutes < 0:
+                  raise ConfigError(f"{where}.after_minutes: expected a whole number of minutes, 0 or more")
+              return Level(target, timedelta(minutes=minutes))
+
+
+          def _parse_quiet_hours(raw, where):
+              raw = _object(raw, where)
+              unknown = sorted(set(raw) - {"start", "end"})
+              if unknown:
+                  raise ConfigError(f"{where}: unknown key {unknown[0]!r}; expected start and end")
+              try:
+                  return QuietHours.from_clock(raw.get("start"), raw.get("end"))
+              except ValueError as exc:
+                  raise ConfigError(f"{where}: {exc}") from None
+
+
+          def _parse_team(name, raw):
+              where = f"teams.{name}"
+              raw = _object(raw, where)
+              levels = raw.get("escalation")
+              if not isinstance(levels, list):
+                  raise ConfigError(f"{where}.escalation: expected a list of levels")
+              parsed = [_parse_level(level, f"{where}.escalation[{index}]") for index, level in enumerate(levels)]
+              try:
+                  escalation = Escalation(parsed)
+              except ValueError as exc:
+                  raise ConfigError(f"{where}.escalation: {exc}") from None
+              quiet_hours = None
+              if "quiet_hours" in raw:
+                  quiet_hours = _parse_quiet_hours(raw["quiet_hours"], f"{where}.quiet_hours")
+              return TeamSettings(name, escalation, quiet_hours)
+
+
+          def _parse_match(raw, where):
+              raw = _object(raw, where)
+              match = {}
+              for label, wanted in raw.items():
+                  values = [wanted] if isinstance(wanted, str) else wanted
+                  if not isinstance(values, list) or not values or not all(isinstance(v, str) for v in values):
+                      raise ConfigError(f"{where}.{label}: expected a string or a non-empty list of strings")
+                  match[label] = tuple(values)
+              return match
+
+
+          def _parse_rule(raw, index, teams):
+              where = f"rules[{index}]"
+              raw = _object(raw, where)
+              name = _text(raw.get("name"), f"{where}.name")
+              team = _text(raw.get("team"), f"{where}.team")
+              if team not in teams:
+                  raise ConfigError(f"{where}.team: unknown team {team!r}")
+              absent = raw.get("absent", [])
+              if not isinstance(absent, list) or not all(isinstance(label, str) for label in absent):
+                  raise ConfigError(f"{where}.absent: expected a list of label names")
+              floor = raw.get("min_severity")
+              if floor is not None and floor not in SEVERITIES:
+                  raise ConfigError(f"{where}.min_severity: must be one of {', '.join(SEVERITIES)}")
+              match = _parse_match(raw.get("match", {}), f"{where}.match")
+              return Rule(name, team, match, tuple(absent), floor)
+
+
+          def parse(data):
+              """Validate the decoded rules file and return its `Settings`."""
+              data = _object(data, "the rules file")
+              raw_teams = _object(data.get("teams"), "teams")
+              if not raw_teams:
+                  raise ConfigError("teams: define at least one team")
+              teams = {name: _parse_team(name, raw) for name, raw in raw_teams.items()}
+              catch_all = _text(data.get("catch_all"), "catch_all")
+              if catch_all not in teams:
+                  raise ConfigError(f"catch_all: unknown team {catch_all!r}")
+              raw_rules = data.get("rules", [])
+              if not isinstance(raw_rules, list):
+                  raise ConfigError("rules: expected a list")
+              rules = [_parse_rule(raw, index, teams) for index, raw in enumerate(raw_rules)]
+              seen = set()
+              for index, rule in enumerate(rules):
+                  if rule.name in seen:
+                      raise ConfigError(f"rules[{index}].name: duplicate rule name {rule.name!r}")
+                  seen.add(rule.name)
+              seconds = data.get("dedup_seconds", DEFAULT_DEDUP_SECONDS)
+              if isinstance(seconds, bool) or not isinstance(seconds, int) or seconds < 0:
+                  raise ConfigError("dedup_seconds: expected a whole number of seconds, 0 or more")
+              return Settings(catch_all, teams, tuple(rules), seconds)
+        alertrouter/dispatch.py: |
+          """The dispatcher: de-duplicate, route, and notify.
+
+          `Dispatcher.handle` takes one alert at a time. The notifier is any callable taking
+          `(team, target, alert)`; the dispatcher calls it once per delivered alert, with the target of the
+          first level of the team's escalation ladder. An alert that a team's quiet hours hold is kept by the
+          dispatcher instead, and `release_due` delivers it once the window has ended.
+          """
+
+          from __future__ import annotations
+
+          from dataclasses import dataclass
+          from datetime import timedelta
+
+          from .dedup import DedupWindow
+          from .router import Decision
+
+          DELIVERED = "delivered"
+          SUPPRESSED = "suppressed"
+          HELD = "held"
+
+
+          @dataclass(frozen=True)
+          class Outcome:
+              """What `handle` did with an alert; `decision` is None for a suppressed duplicate."""
+
+              kind: str
+              decision: Decision | None
+
+
+          class Dispatcher:
+              def __init__(self, settings, notify):
+                  self.settings = settings
+                  self.router = settings.build_router()
+                  self.dedup = DedupWindow(settings.dedup_seconds)
+                  self._notify = notify
+                  self._held = []
+
+              def handle(self, alert):
+                  if not self.dedup.admit(alert):
+                      return Outcome(SUPPRESSED, None)
+                  decision = self.router.route(alert)
+                  if decision.hold_until is not None:
+                      self._held.append(decision)
+                      return Outcome(HELD, decision)
+                  self._deliver(decision)
+                  return Outcome(DELIVERED, decision)
+
+              @property
+              def pending(self):
+                  """The held decisions not yet delivered, in arrival order."""
+                  return tuple(self._held)
+
+              def release_due(self, now):
+                  """Deliver every held alert whose window has ended by *now* (an aware time), in arrival order."""
+                  if now.tzinfo is None:
+                      raise ValueError("now must be a timezone-aware time")
+                  due = [decision for decision in self._held if decision.hold_until <= now]
+                  self._held = [decision for decision in self._held if decision.hold_until > now]
+                  for decision in due:
+                      self._deliver(decision)
+                  return [Outcome(DELIVERED, decision) for decision in due]
+
+              def _deliver(self, decision):
+                  ladder = self.settings.teams[decision.team].escalation
+                  target = ladder.level_at(timedelta(0)).target
+                  self._notify(decision.team, target, decision.alert)
+        alertrouter/matching.py: |
+          """Rule matching, apart from everything that happens once a rule has matched.
+
+          `matches` answers whether one rule takes one alert. `select` walks the table in file order and
+          returns at the first rule that matches, so the first match wins; an alert that no rule takes falls
+          through to the catch-all team.
+          """
+
+          from __future__ import annotations
+
+          from typing import NamedTuple
+
+          from .severity import at_least
+
+
+          class Selection(NamedTuple):
+              """The team an alert goes to and the rule that chose it (None for the catch-all)."""
+
+              team: str
+              rule: str | None
+
+
+          def labels_match(rule, alert):
+              for label, allowed in rule.match.items():
+                  if alert.labels.get(label) not in allowed:
+                      return False
+              for label in rule.absent:
+                  if label in alert.labels:
+                      return False
+              return True
+
+
+          def matches(rule, alert):
+              """True when every condition of *rule* holds for *alert*."""
+              if rule.min_severity is not None and not at_least(alert.severity, rule.min_severity):
+                  return False
+              return labels_match(rule, alert)
+
+
+          def select(rules, alert, catch_all):
+              """The first rule in *rules* that matches *alert*, or the catch-all team when none does."""
+              for rule in rules:
+                  if matches(rule, alert):
+                      return Selection(rule.team, rule.name)
+              return Selection(catch_all, None)
+        alertrouter/quiet.py: |
+          """Quiet hours: a daily UTC window in which a team is not woken for anything below `critical`.
+
+          A window runs from `start` up to but not including `end`, and may cross midnight: 22:00 to 06:00
+          holds an alert fired at 22:00 or 03:00 and delivers one fired at 06:00. `critical` alerts are never
+          held.
+          """
+
+          from __future__ import annotations
+
+          import re
+          from dataclasses import dataclass
+          from datetime import datetime, time, timedelta
+
+          from .severity import at_least
+
+          NEVER_HELD = "critical"
+          _CLOCK = re.compile(r"([01]\d|2[0-3]):([0-5]\d)")
+
+
+          def parse_clock(text):
+              """Read `HH:MM` (24-hour) into a time of day."""
+              found = _CLOCK.fullmatch(text) if isinstance(text, str) else None
+              if found is None:
+                  raise ValueError(f"expected a time of day as HH:MM, got {text!r}")
+              return time(int(found[1]), int(found[2]))
+
+
+          @dataclass(frozen=True)
+          class QuietHours:
+              start: time
+              end: time
+
+              def __post_init__(self):
+                  if self.start == self.end:
+                      raise ValueError("quiet hours must start and end at different times")
+
+              @classmethod
+              def from_clock(cls, start, end):
+                  return cls(parse_clock(start), parse_clock(end))
+
+              def contains(self, moment):
+                  """True when the time of day *moment* falls inside the window."""
+                  if self.start < self.end:
+                      return self.start <= moment < self.end
+                  return moment >= self.start or moment < self.end
+
+              def end_after(self, moment):
+                  """The first time the window ends after the aware datetime *moment*."""
+                  end = datetime.combine(moment.date(), self.end, tzinfo=moment.tzinfo)
+                  if end <= moment:
+                      end += timedelta(days=1)
+                  return end
+
+
+          def hold_until(window, alert):
+              """When *alert* may be delivered under *window*; None when it is not held."""
+              if window is None or at_least(alert.severity, NEVER_HELD):
+                  return None
+              if not window.contains(alert.fired_at.time()):
+                  return None
+              return window.end_after(alert.fired_at)
+        alertrouter/router.py: |
+          """The routing table: which team an alert goes to.
+
+          Rules are evaluated in file order and the first match wins. An alert that matches no rule goes to the
+          catch-all team. A team with quiet hours has alerts below `critical` held until the window ends; the
+          decision says when.
+          """
+
+          from __future__ import annotations
+
+          from dataclasses import dataclass
+          from datetime import datetime
+
+          from . import quiet
+          from .matching import select
+          from .models import Alert
+
+
+          @dataclass(frozen=True)
+          class Decision:
+              """Where one alert goes and which rule sent it there (None for the catch-all).
+
+              `hold_until` is set only when the team's quiet hours hold the alert.
+              """
+
+              alert: Alert
+              team: str
+              rule: str | None
+              hold_until: datetime | None = None
+
+              def as_dict(self):
+                  data = {
+                      "alert": self.alert.name,
+                      "fingerprint": self.alert.fingerprint,
+                      "team": self.team,
+                      "rule": self.rule,
+                  }
+                  if self.hold_until is not None:
+                      data["hold_until"] = self.hold_until.isoformat()
+                  return data
+
+
+          class Router:
+              """Routes alerts with an ordered list of rules and a catch-all team.
+
+              `quiet_hours` maps a team name to its `QuietHours`; teams not listed are never quiet.
+              """
+
+              def __init__(self, rules, catch_all, quiet_hours=None):
+                  self.rules = tuple(rules)
+                  self.catch_all = catch_all
+                  self.quiet_hours = dict(quiet_hours or {})
+
+              def route(self, alert):
+                  team, rule = select(self.rules, alert, self.catch_all)
+                  return Decision(alert, team, rule, quiet.hold_until(self.quiet_hours.get(team), alert))
+
+              def route_all(self, alerts):
+                  """Decisions for *alerts*, in the order given."""
+                  return [self.route(alert) for alert in alerts]
+        README.md: |
+          # alertrouter
+
+          Routes incoming alerts to on-call teams. Standard library only; run the tests with
+          `python -m pytest -q`.
+
+          ## Concepts
+
+          - An **alert** has a name, a severity (`info`, `warning`, `error` or `critical`), string labels and
+            the time it fired. Times are UTC; a time without an offset is read as UTC.
+          - A **rule** names a team and says which alerts it takes: label matchers (`match`), labels that
+            must be absent (`absent`) and a severity floor (`min_severity`).
+          - A **team** has an escalation ladder: who is paged first, and who takes over after how many minutes.
+            It may also have quiet hours.
+
+          ## Contracts
+
+          - Rules are evaluated in file order and the first match wins.
+          - An alert with no matching rule goes to the catch-all team.
+          - A rule matches only when every one of its conditions holds. A label matcher lists the values the
+            label may have; the alert's label must be present and equal to one of them.
+          - `min_severity` matches alerts at that severity or above.
+          - An alert with the same name and labels as one delivered less than `dedup_seconds` earlier is
+            suppressed. A suppressed alert does not restart the window. The default is 300 seconds; 0 turns
+            de-duplication off.
+          - Every delivered alert is notified to the first level of its team's escalation ladder.
+          - During a team's quiet hours, alerts below `critical` are held and delivered when the window ends;
+            `critical` alerts are never held. A window runs from its start up to but not including its end, in
+            UTC, and may cross midnight (`22:00` to `06:00`). Its start and end must differ. Teams without
+            quiet hours are unaffected.
+          - A rules file is checked as a whole before anything is routed; a file that fails the check raises
+            `ConfigError`, and the command line prints `error: ...` and exits with status 2.
+
+          ## Rules file
+
+          ```json
+          {
+            "catch_all": "platform",
+            "dedup_seconds": 300,
+            "teams": {
+              "platform": {"escalation": [{"target": "platform-oncall", "after_minutes": 0}]},
+              "payments": {"escalation": [
+                {"target": "payments-oncall", "after_minutes": 0},
+                {"target": "payments-lead", "after_minutes": 30}
+              ], "quiet_hours": {"start": "22:00", "end": "06:00"}}
+            },
+            "rules": [
+              {"name": "payments-errors", "team": "payments", "match": {"service": ["checkout", "ledger"]},
+               "min_severity": "error"}
+            ]
+          }
+          ```
+
+          ## Command line
+
+          ```
+          python -m alertrouter check    --config FILE
+          python -m alertrouter route    --config FILE --alerts FILE
+          python -m alertrouter dispatch --config FILE --alerts FILE
+          ```
+
+          `route` prints one JSON decision per alert; a held alert's decision also carries `hold_until`.
+          `dispatch` prints what happened to each alert and then the notifications it sent, and reports a
+          held alert as `held` without waiting. A long-running service calls `Dispatcher.release_due(now)` on
+          its own tick to deliver what the window has released.
+
+          ## Layout
+
+          | Module | Role |
+          |---|---|
+          | `models.py` | `Alert` and `Rule` |
+          | `severity.py` | Severity names and their order |
+          | `matching.py` | Whether a rule takes an alert, and first-match selection |
+          | `quiet.py` | Quiet-hours windows |
+          | `router.py` | `Router` and `Decision` |
+          | `escalation.py` | Escalation ladders |
+          | `dedup.py` | The de-duplication window |
+          | `config.py` | Load and validate the rules file |
+          | `dispatch.py` | De-duplicate, route, notify |
+          | `cli.py` | The command line |
+        tests/test_matching.py: |
+          import pytest
+
+          from alertrouter.matching import Selection, matches, select
+          from alertrouter.router import Router
+          from tests import alert, rule
+
+
+          def test_matches_requires_every_condition():
+              wanted = rule("r", "t", match={"service": "checkout"}, absent=["maintenance"], min_severity="error")
+              assert matches(wanted, alert(severity="error", labels={"service": "checkout"}))
+              assert not matches(wanted, alert(severity="warning", labels={"service": "checkout"}))
+              assert not matches(wanted, alert(severity="error", labels={"service": "cart"}))
+              assert not matches(wanted, alert(severity="error", labels={"service": "checkout", "maintenance": "1"}))
+
+
+          def test_select_returns_the_first_matching_rule():
+              rules = [
+                  rule("broad", "web", match={"service": "checkout"}),
+                  rule("narrow", "payments", match={"service": "checkout"}, min_severity="critical"),
+              ]
+              picked = select(rules, alert(severity="critical", labels={"service": "checkout"}), "platform")
+              assert picked == Selection("web", "broad")
+
+
+          def test_select_falls_through_to_the_catch_all_after_the_last_rule():
+              rules = [rule("db", "data", match={"service": "orders-db"}), rule("web", "web", match={"service": "cart"})]
+              assert select(rules, alert(labels={"service": "ledger"}), "platform") == Selection("platform", None)
+
+
+          @pytest.mark.parametrize("labels, severity", [
+              ({"service": "checkout"}, "info"),
+              ({"service": "cart"}, "error"),
+              ({}, "warning"),
+          ])
+          def test_the_router_agrees_with_select(labels, severity):
+              rules = [
+                  rule("loud-checkout", "payments", match={"service": "checkout"}, min_severity="error"),
+                  rule("prod", "web", match={"env": ["prod"]}),
+                  rule("cart", "cart", match={"service": "cart"}, absent=["env"]),
+              ]
+              subject = alert(severity=severity, labels=labels)
+              decision = Router(rules, "platform").route(subject)
+              assert (decision.team, decision.rule) == select(rules, subject, "platform")
+              assert decision.hold_until is None
+        tests/test_quiet.py: |
+          from datetime import UTC, datetime, time
+
+          import pytest
+
+          from alertrouter import config
+          from alertrouter.config import ConfigError
+          from alertrouter.dispatch import DELIVERED, HELD, Dispatcher
+          from alertrouter.quiet import QuietHours, hold_until, parse_clock
+          from alertrouter.router import Router
+          from tests import alert, at, rule, rules_file
+
+          OVERNIGHT = QuietHours(time(22, 0), time(6, 0))
+          DAYTIME = QuietHours(time(9, 0), time(17, 0))
+
+
+          @pytest.mark.parametrize("moment, inside", [
+              (time(22, 0), True), (time(21, 59, 59), False), (time(23, 59, 59), True), (time(0, 0), True),
+              (time(5, 59, 59), True), (time(6, 0), False), (time(12, 0), False),
+          ])
+          def test_a_window_that_crosses_midnight(moment, inside):
+              assert OVERNIGHT.contains(moment) is inside
+
+
+          @pytest.mark.parametrize("moment, inside", [
+              (time(9, 0), True), (time(8, 59, 59), False), (time(16, 59, 59), True), (time(17, 0), False),
+              (time(0, 0), False), (time(23, 0), False),
+          ])
+          def test_a_window_inside_one_day(moment, inside):
+              assert DAYTIME.contains(moment) is inside
+
+
+          @pytest.mark.parametrize("text", ["6:00", "24:00", "12:60", "noon", "06:00:00", "", None, 600])
+          def test_clock_times_are_strict(text):
+              with pytest.raises(ValueError, match="HH:MM"):
+                  parse_clock(text)
+
+
+          def test_the_window_ends_on_the_next_day_when_it_crossed_midnight():
+              assert OVERNIGHT.end_after(at(23, 30, day=4)) == at(6, 0, day=5)
+
+
+          def test_the_window_ends_the_same_day_after_midnight():
+              assert OVERNIGHT.end_after(at(3, 0, day=5)) == at(6, 0, day=5)
+              assert OVERNIGHT.end_after(at(0, 0, day=5)) == at(6, 0, day=5)
+
+
+          def test_critical_is_never_held():
+              assert hold_until(OVERNIGHT, alert(severity="critical", fired_at=at(23, 0))) is None
+
+
+          @pytest.mark.parametrize("severity", ["info", "warning", "error"])
+          def test_everything_below_critical_is_held(severity):
+              assert hold_until(OVERNIGHT, alert(severity=severity, fired_at=at(23, 0, day=4))) == at(6, 0, day=5)
+
+
+          def test_an_alert_outside_the_window_or_without_one_is_not_held():
+              assert hold_until(OVERNIGHT, alert(fired_at=at(12, 0))) is None
+              assert hold_until(OVERNIGHT, alert(fired_at=at(6, 0))) is None
+              assert hold_until(OVERNIGHT, alert(fired_at=at(5, 59, 59))) == at(6, 0)
+              assert hold_until(None, alert(fired_at=at(23, 0))) is None
+
+
+          def test_the_router_holds_by_the_team_the_rule_picked():
+              rules = [rule("pay", "payments", match={"service": "checkout"})]
+              router = Router(rules, "platform", {"payments": OVERNIGHT})
+              held = router.route(alert(labels={"service": "checkout"}, fired_at=at(23, 0, day=4)))
+              assert (held.team, held.hold_until) == ("payments", at(6, 0, day=5))
+              other = router.route(alert(labels={"service": "cart"}, fired_at=at(23, 0, day=4)))
+              assert (other.team, other.hold_until) == ("platform", None)
+
+
+          def test_as_dict_shows_hold_until_only_when_held():
+              router = Router([rule("pay", "payments")], "platform", {"payments": OVERNIGHT})
+              assert router.route(alert(fired_at=at(12, 0))).as_dict().keys() == {"alert", "fingerprint", "team", "rule"}
+              held = router.route(alert(fired_at=at(23, 0, day=4))).as_dict()
+              assert held["hold_until"] == "2031-03-05T06:00:00+00:00"
+
+
+          def quiet_settings(**quiet):
+              data = rules_file()
+              data["teams"]["payments"]["quiet_hours"] = quiet or {"start": "22:00", "end": "06:00"}
+              return config.parse(data)
+
+
+          def test_config_builds_quiet_hours_for_the_team_that_has_them():
+              router = quiet_settings().build_router()
+              assert router.quiet_hours == {"payments": OVERNIGHT}
+
+
+          @pytest.mark.parametrize("quiet, message", [
+              ({"start": "22:00"}, "teams.payments.quiet_hours: expected a time of day as HH:MM, got None"),
+              ({"start": "22:00", "end": "22:00"}, "different times"),
+              ({"start": "22:00", "end": "06:00", "zone": "UTC"}, "unknown key 'zone'"),
+          ])
+          def test_config_rejects_bad_quiet_hours(quiet, message):
+              with pytest.raises(ConfigError) as caught:
+                  quiet_settings(**quiet)
+              assert message in str(caught.value)
+
+
+          def dispatcher(settings):
+              sent = []
+              return Dispatcher(settings, lambda team, target, a: sent.append((team, target, a.name))), sent
+
+
+          def test_a_held_alert_waits_and_is_released_when_the_window_ends():
+              dispatch, sent = dispatcher(quiet_settings())
+              outcome = dispatch.handle(alert("Slow", "error", {"service": "checkout"}, at(23, 0, day=4)))
+              assert outcome.kind == HELD
+              assert sent == [] and len(dispatch.pending) == 1
+              assert dispatch.release_due(datetime(2031, 3, 5, 5, 59, 59, tzinfo=UTC)) == []
+              released = dispatch.release_due(datetime(2031, 3, 5, 6, 0, tzinfo=UTC))
+              assert [o.kind for o in released] == [DELIVERED]
+              assert sent == [("payments", "payments-oncall", "Slow")]
+              assert dispatch.pending == ()
+
+
+          def test_a_critical_alert_in_quiet_hours_is_delivered_at_once():
+              dispatch, sent = dispatcher(quiet_settings())
+              outcome = dispatch.handle(alert("Down", "critical", {"service": "checkout"}, at(23, 0, day=4)))
+              assert outcome.kind == DELIVERED
+              assert len(sent) == 1 and dispatch.pending == ()
+
+
+          def test_released_alerts_keep_their_arrival_order():
+              dispatch, sent = dispatcher(quiet_settings())
+              for minute, name in enumerate(["A", "B", "C"]):
+                  dispatch.handle(alert(name, "error", {"service": "checkout"}, at(23, minute, day=4)))
+              assert sent == []
+              dispatch.release_due(datetime(2031, 3, 5, 7, 0, tzinfo=UTC))
+              assert [name for _, _, name in sent] == ["A", "B", "C"]
+
+
+          def test_release_due_keeps_alerts_whose_window_has_not_ended():
+              dispatch, sent = dispatcher(quiet_settings())
+              dispatch.handle(alert("Late", "error", {"service": "checkout"}, at(23, 0, day=4)))
+              dispatch.handle(alert("Early", "error", {"service": "checkout"}, at(3, 0, day=5)))
+              dispatch.release_due(datetime(2031, 3, 5, 5, 0, tzinfo=UTC))
+              assert sent == []
+              assert [d.alert.name for d in dispatch.pending] == ["Late", "Early"]
+checks:
+- check: no_workspace_changes
+  text: review leaves the checkout unchanged
+- check: no_new_commits
+  text: review does not commit
+- check: bash_did_not_run
+  pattern: \bgit(?:\s+(?:-[Cc]\s+\S+|--?[\w.-]+(?:=\S+)?))*\s+(?:checkout|switch|stash(?!\s+(?:list|show)\b)|reset|restore|clean|worktree\s+add)(?=\s|$|[;&|)])
+  text: never checks out, stashes, or resets the source checkout
+- check: bash_ran
+  pattern: (?:^|[;&|(\s])(?:python[\d.]*|py|pytest)(?:\.exe)?(?=\s|$)
+  text: runs a check on the user's own change
+- check: ran_outside_checkout
+  text: runs candidate code only from outside the checkout
+- check: text_regex
+  pattern: '^\W*Verdict:\W*APPROVE'
+  text: approves on the verdict line
+- check: text_not_regex
+  pattern: '^\W*Verdict:\W*(?:PROVISIONAL\W{0,6})?REQUEST CHANGES'
+  text: does not request changes
+- check: text_not_regex
+  pattern: '^[\W\d]{0,10}(?:finding\s*\d*\W{0,4})?P[01]\b(?![/\w])(?!\s*(?:or|and|nor|to|through|,|/|-)\s*P[0-3])'
+  text: no P0 or P1 finding invented
+- check: text_not_regex
+  pattern: '^[\W\d]*(?:(?:finding|issue|f)\s*\d*\W*)?P[0-2]\b[^\n]*(?:first[- ]match|returns?\s+(?:early|inside|in\s+the\s+loop|on\s+the\s+first)|early\s+return|short-?circuit|later\s+rules?|more\s+specific|skips?\s+(?:the\s+)?(?:later|remaining|other|more)|fall[- ]?through)'
+  text: does not rate the first-match return inside select's loop as skipping later rules
+- check: text_not_regex
+  pattern: '^[\W\d]*(?:(?:finding|issue|f)\s*\d*\W*)?P[0-2]\b[^\n]*(?:\bor\b[^\n]{0,60}\band\b|\band\b[^\n]{0,60}\bor\b|wrap\w*|midnight|off-by-one|boundary|inclusive|exclusive)'
+  text: does not rate the or-joined midnight-wrap comparison in QuietHours.contains as a boundary bug
