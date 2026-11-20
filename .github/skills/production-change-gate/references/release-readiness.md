@@ -6,8 +6,8 @@ using this record.
 
 | Item | Passes when |
 |---|---|
-| Merge verdict | `gate: merge`, `verdict: PASS` exists for the exact candidate commit. |
-| One immutable artifact | Version/release notes identify the candidate. Build once, promote the exact lower-environment-tested artifact; prove its byte identity and immutability using [distribution-specific evidence](#artifact-evidence). |
+| Reviewed source | Attach the merge PASS and its reviewed PR head. If the build uses a different commit, identify the integrated build revision and trace it to the reviewed change using trusted merge or queue records. Account for every source difference, including base updates and conflict resolutions, with applicable review and check evidence. Missing provenance or uncovered changes block release. |
+| One immutable artifact | Bind the build revision and relevant build inputs, including any embedded commit metadata, to the artifact digest. Promote the immutable bytes tested in the lower environment. Even equal Git trees leave the built artifact identity to verify. See [distribution-specific evidence](#artifact-evidence). |
 | Migrations | Schema/config stays compatible with supported consumers at each stage. Expand before dependent code; contract only after old consumers retire. Each stage has tested recovery preserving accepted writes/data. |
 | Consumer retirement | Confirm retirement before contraction. Then validate remaining consumers and versions needed for recovery, without requiring retired readers to remain compatible. Before retirement, old readers still need compatibility evidence. |
 | Flags | Risky behaviour is flag-gated with safe defaults and a tested transition. |

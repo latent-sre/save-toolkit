@@ -19,6 +19,10 @@ folder, and alert-rule writes and temporary silences under its
 
 ## Install (Claude Code)
 
+Use Claude Code 2.1.295 or later. Starting with that version, the plugin can block a Bash or
+PowerShell call if its guard hook fails to start, crashes, or times out.
+[Claude Code hook failure handling](https://code.claude.com/docs/en/hooks#block-the-action-when-a-hook-fails)
+
 ```sh
 claude plugin marketplace add latent-sre/save-toolkit
 claude plugin install save-toolkit@latent-sre

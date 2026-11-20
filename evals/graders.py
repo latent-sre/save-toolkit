@@ -24,6 +24,8 @@ if TYPE_CHECKING:
 
 INCIDENT_BOARD_ORACLE = Path(__file__).resolve().parent / "oracles/incident-closing-fields/probe_closing_fields.py"
 _incident_board_check: Callable[[str, str], tuple[bool, str]] = runpy.run_path(str(INCIDENT_BOARD_ORACLE))["check"]
+OBS_PROMQL_ORACLE = Path(__file__).resolve().parent / "oracles/obs-analysis/promql.py"
+obs_promql: Callable[[str], tuple[bool, str]] = runpy.run_path(str(OBS_PROMQL_ORACLE))["check"]
 
 
 def incident_board(response: str) -> tuple[bool, str]:
@@ -278,6 +280,7 @@ REGISTRY: dict[str, Callable[..., tuple[bool, str]]] = {
     "exact_json": exact_json,
     "rubric": rubric,
     "incident_board": incident_board,
+    "obs_promql": obs_promql,
 }
 
 

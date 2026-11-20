@@ -8,8 +8,11 @@
     "evals/test_wider_fleet_cases.py"
   ],
   "native_scenarios": [
+    "agent-direct-handoff-scribe-accepts-approved",
     "agent-direct-handoff-scribe-blocks-unapproved",
+    "agent-direct-handoff-software-engineer-accepts-approved",
     "agent-direct-handoff-software-engineer-blocks-unapproved",
+    "agent-direct-handoff-software-engineer-blocks-unbound",
     "agent-direct-handoff-sre-assistant-recommend-only",
     "agent-direct-reliability-engineer-resumes-after-helper-return",
     "agent-direct-software-engineer-resumes-after-helper-return",

@@ -13,6 +13,13 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
 
 ### Changed
 
+- Claude shell hooks now request a blocking failure policy. Grafana command reads by the SRE
+  investigator use the installed helper for organization verification and protected output.
+- Observability and agent decision evals distinguish incorrect queries, copied answers and
+  contradictory decisions from answers that satisfy the task.
+- Merge and release checks follow repository policy and trace reviewed changes to the tested artifact.
+- Frontend retries preserve the original request, and runbook imports keep nested rollback steps under recovery.
+- Database and PCF migration plans cover concurrent writers, replay and cutover reconciliation.
 - **Contributor guide:** Correct handoff and dependency guidance and shorten the CI, eval catalog,
   Copilot projection, and guard sections.
 - **Reviewer:** Drop the source-only fallback sentence that let it skip reproducing P0/P1 findings,

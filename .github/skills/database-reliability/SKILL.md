@@ -32,9 +32,17 @@ it safely, diagnosing it, and proving recovery.
   path that preserves writes and data: a demonstrably lossless backout, a roll-forward or
   compensating fix, restore/PITR, or an expand/contract transition. Never offer a destructive
   reversal merely to make a packet look reversible.
-- Use **expand → contract** when running code depends on the schema: expand with the compatible
-  shape; backfill in bounded batches; dual-write/read while both shapes coexist; switch only after
-  verification; contract in a later deploy after proving nothing reads the old shape.
+- When moving live data to a replacement representation, add the new shape while old clients
+  can still read and write. Inventory every writer, including old instances, jobs and direct clients.
+  Before the first copy, establish ordered change capture covering their inserts, updates and
+  deletes, or fence writes for the copy and switch within the agreed pause. Dual writes qualify
+  only when every writer participates and partial failures can be reconciled.
+- Backfill in bounded, restartable batches. Order snapshot writes and replay so retries cannot
+  overwrite newer values or resurrect deleted rows. Drain or redirect every old-only writer
+  and record its final write position. Before serving new reads, replay through that boundary
+  and reconcile keys and values. Keep subsequent writes visible to the active read path.
+  Rehearse recovery with writes accepted after cutover. Contract in a later deploy once all
+  readers and writers using the old shape have retired.
 - Never rename or drop a shape in the same deploy while currently running code still uses it.
 - Use the repository's migration tooling, not ad-hoc production SQL.
 - Freeze the exact engine, version/edition, topology, table size, traffic pattern, migration-tool

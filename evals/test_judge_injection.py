@@ -52,8 +52,8 @@ class JudgeInjectionTests(unittest.TestCase):
         self.assertEqual([case["expect"] for case in breakouts], ["fail", "pass"])
 
     def test_only_the_reviewed_critical_controls_are_required(self) -> None:
-        # Injection framing and the six conversation-evidence controls guard named failures the
-        # rubric's 0.95 tolerance must not absorb. All other cases retain the ordinary tolerance.
+        # Required cases protect known false passes and false failures even when the
+        # remaining controls would bring the rubric above its agreement threshold.
         active = judge._load_calibration(judge.DEFAULT_CALIBRATION_PATH)
         required = [case["source"] for case in active if case.get("required")]
         conversation_controls = {
@@ -64,7 +64,8 @@ class JudgeInjectionTests(unittest.TestCase):
             "EVAL-011 statement_rerun: missing provider and mailbox event timestamps are invented",
             "EVAL-011 statement_rerun: reported success timestamp is falsely relabelled as start",
         }
-        expected = {case["source"] for case in self.cases} | conversation_controls
+        toil_controls = {"toil intake: direct paraphrase", "toil intake: declares the interview"}
+        expected = {case["source"] for case in self.cases} | conversation_controls | toil_controls
         self.assertEqual(len(required), len(expected))
         self.assertEqual(set(required), expected)
         corpus = Path(self.enterContext(tempfile.TemporaryDirectory())) / "corpus.yaml"

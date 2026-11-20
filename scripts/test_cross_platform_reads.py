@@ -110,44 +110,18 @@ class CrossPlatformReads(unittest.TestCase):
             else:
                 self.assertEqual("", result.stdout)
 
-    def test_grafana_curl_get_template(self):
-        prefix = ('curl -q --silent --show-error --fail --max-time 20 --max-redirs 0 '
-                  '--proto =https --header "Authorization: Bearer $GRAFANA_SA_TOKEN" ')
-        good = prefix + '"$GRAFANA_URL/api/health"'
-        self.assertEqual("allow", self.guard(good, "Bash"))
-        windows = good.replace('curl ', 'curl.exe ', 1).replace('$GRAFANA_', '$env:GRAFANA_')
-        self.assertEqual("allow", self.guard(windows, "PowerShell"))
-        for command in (
-            good + " --insecure", good + " --location", good + " --output out.json",
-            good + " --request DELETE", good.replace("-q ", ""),
-            good.replace("/api/health", "/api/admin/provisioning/dashboards/reload"),
-            good.replace("$GRAFANA_URL/api/health", "https://example.com/api/health"),
-            good.replace("$GRAFANA_SA_TOKEN", "literal-secret"),
-        ):
-            with self.subTest(command=command):
-                self.assertEqual("deny", self.guard(command, "Bash"))
-
-    def test_grafana_curl_admits_only_reads_without_credentials_or_unbounded_output(self):
-        prefix = ('curl -q --silent --show-error --fail --max-time 20 --max-redirs 0 '
-                  '--proto =https --header "Authorization: Bearer $GRAFANA_SA_TOKEN" "$GRAFANA_URL')
-        kept = ("/api/health", "/api/plugins", "/api/access-control/user/permissions",
-                "/api/datasources/uid/metrics-1/health", "/api/folders?limit=100&page=2",
-                "/apis/dashboard.grafana.app/v1/namespaces/default/dashboards/order-backup")
-        # frontend/settings returns decrypted basic auth for direct-access datasources; datasources
-        # returns connection users; both rule paths cannot be bounded; the rest the helper covers.
-        removed = ("/api/frontend/settings", "/api/datasources", "/api/org",
-                   "/api/search?type=dash-db&limit=100&page=1", "/api/dashboards/uid/order-backup",
-                   "/api/dashboards/uid/order-backup/versions", "/api/v1/provisioning/alert-rules",
-                   "/api/prometheus/grafana/api/v1/rules", "/apis/dashboard.grafana.app/",
-                   "/apis/dashboard.grafana.app/v1/namespaces/default/dashboards",
-                   "/apis/dashboard.grafana.app/v1/namespaces/default/dashboards/x?fieldSelector=a")
-        for tool in ("Bash", "PowerShell"):
-            for path, expected in [*((path, "allow") for path in kept), *((path, "deny") for path in removed)]:
-                command = prefix + path + '"'
-                if tool == "PowerShell":
-                    command = command.replace('curl ', 'curl.exe ', 1).replace('$GRAFANA_', '$env:GRAFANA_')
+    def test_grafana_direct_http_reads_are_denied_across_guarded_terminals(self):
+        # Classify the former fixed GET form; the commands never reach a shell or Grafana.
+        for path in ("/api/health", "/api/plugins", "/api/access-control/user/permissions",
+                     "/api/datasources/uid/metrics-1/health", "/api/folders?limit=100&page=2",
+                     "/apis/dashboard.grafana.app/v1/namespaces/default/dashboards/orders"):
+            for tool, binary, env in (("Bash", "curl", "$"), ("PowerShell", "curl.exe", "$env:")):
+                command = (f'{binary} -q --silent --show-error --fail --max-time 20 --max-redirs 0 '
+                           f'--proto =https --header "Authorization: Bearer {env}GRAFANA_SA_TOKEN" '
+                           f'"{env}GRAFANA_URL{path}"')
                 with self.subTest(tool=tool, path=path):
-                    self.assertEqual(expected, self.guard(command, tool))
+                    self.assertEqual("deny", self.guard(command, tool))
+                    self.assertEqual("deny", self.guard(command, "run_in_terminal", copilot=True))
 
     @unittest.skipUnless(os.name == "nt", "Windows PowerShell launcher requires Windows")
     def test_real_powershell_launcher_allows_reads_and_denies_writes(self):

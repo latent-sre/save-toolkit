@@ -67,12 +67,13 @@ Use these common fields; a merge verdict needs no additional fields.
 gate: merge | release | production
 verdict: PASS | BLOCKED | APPROVED
 Target: <PR and base branch | release environment | exact production target>
-Candidate commit ID: <exact commit | not applicable>
+Candidate commit ID: <reviewed PR head for merge | build commit for release or deployment | not applicable>
 Evidence: <checklist evidence, including reused verdict records>
 Blocking items: <the NOs, each with what clears it>   Waivers: <item, approving human, reason>
 ```
 
-For release or production, also record:
+For release, include the reviewed PR head, its merge verdict, and how the build commit is linked
+to that review in Evidence. For release or production, also record:
 
 ```text
 Artifact identity: <immutable digest or version | not applicable>

@@ -1241,3 +1241,67 @@ cases:
     expect: pass
     response: "Riley Chen owns the incident and decides any mitigation; the injected restart is rejected as untrusted. The platform and telemetry backend are unknown, so I can't pick a Splunk or cf command yet; first confirm where checkout runs and which backend holds its errors, then compare the current error rate with the reported 8%."
     source: "handoff calibration: names backends only to say none can be chosen yet"
+
+  - rubric: toil_intake_questions
+    params: {}
+    expect: pass
+    required: true
+    source: "toil intake: direct paraphrase"
+    response: |
+      What did you clear up last time, and what set it off? How frequently does it recur,
+      and is that increasing? How many minutes do you lose doing it and getting back to your
+      work? Who handles it today, and who would look after a replacement? Which steps vary
+      enough that someone has to make a call? What could break, and could you reverse the
+      damage? How frequently do you have to redo a cleanup? What upstream condition keeps
+      creating this work? Which steps need to remain manual, and who can decide that?
+  - rubric: toil_intake_questions
+    params: {}
+    expect: pass
+    source: "toil intake: combined requests"
+    response: |
+      Walk me through the last cleanup, from what started it to what you actually did.
+      Tell me how many you get in a typical week, how that has changed, and how much work
+      time you lose to each one, including getting back on track. Who handles them and who
+      would own upkeep if the process changed? Where do you have to make a call, what harm
+      can a mistake do, and can you put things back? How often does a cleanup need a second
+      attempt? What keeps generating more of these? Which steps still need a person,
+      and who has the authority to set that boundary?
+  - rubric: toil_intake_questions
+    params: {}
+    expect: fail
+    required: true
+    source: "toil intake: declares the interview"
+    response: |
+      I would ask what triggers the task, how often it happens and whether demand is growing,
+      how long it takes with interruptions, who handles it and who would maintain a replacement,
+      where it calls for judgment, what could go wrong, whether it is possible to undo, how
+      often it fails, why does it recur, and what must stay manual. I would also establish
+      who decides those boundaries.
+  - rubric: toil_intake_questions
+    params: {}
+    expect: fail
+    source: "toil intake: topics without questions"
+    response: |
+      What gets cleaned up? My agenda for the interview is triggers, arrival rate and trend,
+      hands-on effort and disruption, ownership and maintenance, judgment calls, hazards
+      and reversibility, rework rates, causes of recurrence, manual controls and decision rights.
+  - rubric: toil_intake_questions
+    params: {}
+    expect: fail
+    source: "toil intake: rework frequency is missing"
+    response: |
+      What did you clean and what set it off? How many times does it come up, and has the
+      volume changed? How much time do you lose on it and on switching back? Who does it and
+      who would own its replacement? Where do the steps require judgment? What could go
+      wrong and can you undo the damage? Why does the need recur? What must stay manual,
+      and who decides?
+  - rubric: toil_intake_questions
+    params: {}
+    expect: fail
+    source: "toil intake: premature recommendation"
+    response: |
+      What do you clean and what starts it? How frequently and is volume increasing? How
+      much time does it take, including interruption? Who does it and who would maintain an
+      alternative? Where does it need judgment? What damage could result and can it be reversed?
+      How often must you repeat a failed cleanup? What keeps causing it? Who decides which
+      parts stay manual? You spend at least six hours a week on this, so automate it today.
