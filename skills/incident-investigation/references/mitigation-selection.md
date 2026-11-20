@@ -16,7 +16,7 @@ and follow the human security incident owner's exact direction instead.
 ## Pick the fastest safe, reversible action
 
 Start in Apps Manager: open the app from its foundation, org, and space, and match that identity to
-the approved packet. The human paths below are conditional navigation from the TAS 2.12 guide;
+the approved packet. The human paths below are conditional navigation from the current Apps Manager guide;
 controls, permissions, and revision support on this foundation remain unconfirmed. If a control
 is absent or its effect is unclear, give the release owner the same target, action, backout, and
 readback request for their approved pipeline or CLI. The responder need not install `cf`.
@@ -113,9 +113,8 @@ retain confirmed parts and name the specific missing evidence. Judge user recove
 rule 3 above. Missing action readback stays a history or causality gap; it does
 not erase a supplied recovery receipt or prove that readback never occurred.
 
-Navigation source: VMware's [TAS 2.12 guide, pp. 1145–1157](https://manuals.plus/m/f716ea2ede1f52c2fb9c9496bd199abbede3c0aa1727dab518af606551e1b71f)
-(2023 manual; target-foundation UI unverified). Command semantics: Cloud Foundry
-[rolling deployments](https://docs.cloudfoundry.org/devguide/deploy-apps/rolling-deploy.html),
-[cancel-deployment](https://cli.cloudfoundry.org/en-US/v8/cancel-deployment.html), and
-[process scaling](https://cli.cloudfoundry.org/en-US/v8/scale.html).
-[Instance restart](https://cli.cloudfoundry.org/en-US/v8/restart-app-instance.html) also defaults to `web`.
+Navigation source: Broadcom's [Elastic Application Runtime 10.4 Apps Manager guide](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/elastic-application-runtime/10-4/eart/manage-apps.html)
+(target-foundation version and UI unverified). Command semantics: Cloud Foundry
+[rolling deployments](https://docs.cloudfoundry.org/devguide/deploy-apps/rolling-deploy.html) and
+`cf <command> --help` on the installed v8 CLI for `cancel-deployment`, `scale` and
+`restart-app-instance`, which also defaults to `web`; the published v8 command pages describe 8.0.0.

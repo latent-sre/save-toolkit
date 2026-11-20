@@ -27,6 +27,10 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
 - **gcp-ops, obs-analysis:** Correct GCP facts against current Google documentation: the below-max 500,
   billing spend caps, ephemeral disk, GKE 401 and network pull errors, the trace-sink removal date,
   the Observability Analytics backfill gap, and Cloud Run instances for singleton work.
+- **pcf-ops, pcf-deploy, incident-investigation:** Send responders to app events on the Apps Manager
+  Overview page and to Observability > Logs, complete the Gorouter error table, replace the
+  end-of-support TAS 2.12 citation, use the current product name, and record what a revision and a
+  deployment's sizing options cover.
 
 ## [0.52.10] - 2026-11-19
 

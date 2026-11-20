@@ -10,7 +10,8 @@ argument-hint: "[the app or platform symptom]"
 
 # PCF / TAS application-side triage (cf CLI v8)
 
-Our apps run on PCF (VMware Tanzu Application Service, now Elastic Application Runtime). This skill stays on the application side:
+Our apps run on PCF (VMware Tanzu Application Service, later Tanzu Platform for Cloud Foundry, now
+Elastic Application Runtime for VMware Tanzu Platform). This skill stays on the application side:
 observe the app and assemble evidence; never operate the foundation. State-changing commands belong
 to a human release owner with exact approval evidence.
 
@@ -20,8 +21,8 @@ to a human release owner with exact approval evidence.
 > |---|---|---|
 > | Right foundation/org/space? | foundation URL, then the org/space picker | `cf target` |
 > | Running, how many instances? | **Overview** instance table: state, CPU, memory each | `cf app <app>` |
-> | What changed, and who? | **Events**: crash, restart, scale, update, with times | `cf events <app>` |
-> | What do recent logs say? | the **Logs** pane | `cf logs <app> --recent` |
+> | What changed, and who? | the app **Overview** page's events: crash, restart, scale, update, with times | `cf events <app>` |
+> | What do recent logs say? | **Observability > Logs**, without pressing Play (Play starts a live stream) | `cf logs <app> --recent` |
 
 >
 > Work the rows in that order, and confirm the foundation, org, and space against the expected ones
@@ -77,7 +78,7 @@ Do not substitute singular `cf revision`, which can print environment variables.
 
 ## "What changed?" — the highest-value read
 
-A crash/OOM, restage, scale, or `audit.app.update`/`...droplet.create` in **Events** at the incident
+A crash/OOM, restage, scale, or `audit.app.update`/`...droplet.create` in the **Overview** events at the incident
 start is the prime suspect. Correlate it with the release pipeline and repository history; temporal
 alignment alone is not proof.
 
@@ -85,7 +86,7 @@ alignment alone is not proof.
 
 `cf logs` without `--recent` is a live tail and is outside the SRE grant. `cf logs --recent` asks for
 the newest 1000 log lines, and Log Cache prunes by memory and a per-source cap, so the window covered
-varies with log volume; the **Logs** pane has no guaranteed window either. For history go to
+varies with log volume; Apps Manager's **Logs** view has no guaranteed window either. For history go to
 **Splunk** (`obs-analysis` has the query shapes) with the timestamp and correlation ID.
 
 ## Read only the detail the symptom needs

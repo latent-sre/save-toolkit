@@ -541,10 +541,12 @@ work there.
 **Outcome:** Where Apps Manager offers an equivalent, `pcf-deploy` plans state that path beside the
 `cf` command, and name the steps that still need the CLI.
 **Next action:** None until the owner schedules it. Then confirm which steps Apps Manager supports
-on the team's foundation version before writing them. Also confirm whether Apps Manager has an
-Events view: `pcf-ops` and `helper-exchange.md` send responders to one, and Broadcom's page may
-not list it.
-**Evidence:** none yet.
+on the team's foundation version before writing them. Also confirm on the team's foundation that
+app events appear on the app **Overview** page, as Broadcom documents; `pcf-ops` now sends
+responders there instead of to a separate Events view.
+**Evidence:** [sourced] Broadcom's [Elastic Application Runtime 10.4 Apps Manager guide](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/elastic-application-runtime/10-4/eart/manage-apps.html)
+places app events on the Overview page and logs under Observability > Logs, and documents no
+separate Events view; the 11.0 guide matches. The team's console is unverified.
 **SRE task:** Plan and verify a PCF change from Apps Manager when the `cf` CLI is not installed.
 
 ### GRAPH-007 — promote or retire the sandbox workflow-graph skill
