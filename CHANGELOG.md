@@ -33,6 +33,8 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
   cache access and `cache-mode`, which events satisfy a required check, the checkout fork-PR refusal
   on floating major tags, lockfile limits, hosted-runner clouds and RHEL images, the 63-day runner
   update window, installation-token length, `actions/attest`, and the dispatch run receipt.
+- **Software engineer:** Route requests to submit or rerun CI checks to the bounded validation
+  procedure so downstream effects are checked before submission.
 - **agent-authoring:** Correct Claude Code and VS Code/Copilot host facts against current documentation.
 - **stack-profile:** Record that the team's GitHub is Enterprise Cloud at github.com, and drop the
   Enterprise Server and lower-plan hedges from `cicd-github`.

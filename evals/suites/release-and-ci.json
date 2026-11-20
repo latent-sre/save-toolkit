@@ -13,6 +13,7 @@
     "build-production-change-gate-classifies-restart-and-restage",
     "build-software-engineer-adds-pcf-deploy-job",
     "build-software-engineer-deploy-stays-with-release-owner",
+    "build-software-engineer-reruns-failed-checks",
     "ci-actions-optimization-preserves-contract",
     "discovery-ci-actions-defers-live-incident",
     "discovery-ci-actions-harden-workflow",
