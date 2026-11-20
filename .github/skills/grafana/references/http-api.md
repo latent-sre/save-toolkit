@@ -25,7 +25,8 @@ records it; the SRE assistant reads through the [command-access](./command-acces
 Classic/V1 write: it saves with `overwrite: true`, defeating concurrency checks (its V2 writes carry
 `resourceVersion`).
 
-Read `$GRAFANA_URL`/`$GRAFANA_SA_TOKEN` at call time; never use `curl -v` (echoes Authorization).
+For an authorized dashboard or folder change, use `$GRAFANA_URL`/`$GRAFANA_SA_TOKEN` at call time
+and keep Authorization headers out of logs.
 Check `GET /api/access-control/user/permissions` before trusting search or writing:
 - Empty search without `dashboards:read` does not establish an empty instance.
 - Create grants do not guarantee readback or rollback, and legacy vs app-platform grants can differ.

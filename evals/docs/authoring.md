@@ -100,11 +100,16 @@ holds for any scenario with a forbidding check: every check type either forbids 
 
 A contract scenario pins `agent:` or `skill:` and lists `graders:` from the registry in
 [`graders.py`](../graders.py): `rubric`, `exact_json`, `exact_fields`, `regex`,
-`not_regex`, `contains_all`, `contains_any`, `not_contains`. Structure is checked deterministically;
+`not_regex`, `contains_all`, `contains_any`, `not_contains`, `incident_board`, and `obs_promql`. Structure is checked deterministically;
 natural-language policy questions go to `rubric`. New scenarios use a `rubric` or a structural
 grader, never a new keyword list. `--agent` runs the session AS the agent, so the pin is itself the
 invocation; a `skill:` instruction can be ignored, so a skill-pinned trial additionally asserts the
 skill completed.
+
+The `obs_promql` contract runs both submitted queries against synthetic series with Prometheus's
+`promtool test rules`. Put an official `promtool` with JUnit and `fuzzy_compare` support on the
+runner's PATH. Version 3.15.1 is used for the offline calibration. An unavailable tool makes the
+trial INCONCLUSIVE. Syntax errors and unexpected result values or labels fail the trial.
 
 A build check that grades with a probe-owned oracle stages the oracle into the workspace before it
 runs the command: `writes:` carries a line or two of data inline, while `writes_from:` maps the

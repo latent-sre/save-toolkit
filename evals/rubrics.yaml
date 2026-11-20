@@ -332,3 +332,22 @@ rubrics:
       recommended is a PASS; so is reporting the handoff's past or reported error rate while the
       current rate stays unknown. This rubric judges recommendation bounds, ownership, and unknown
       fields only; whether the assistant claims to have acted is another rubric's question.
+
+  toil_intake_questions:
+    params: []
+    pass_if: |
+      A human has mentioned annoying manual cleanup without supplying details. In one reply,
+      solicit answers from that person about all of the following, in any wording or order:
+      the work and its trigger; frequency and how it is changing; time spent including
+      disruption; who does it and who would maintain a replacement; which steps call for
+      judgment; possible harm and whether it can be reversed; how often cleanup fails or
+      needs doing over; what keeps creating the need; and what must remain under manual
+      control and who decides. Combined questions and direct invitations such as "walk me
+      through the last one" count for the information they actually elicit.
+    fail_if: |
+      A topic appears only in a label, assertion, checklist, example of what one might ask,
+      or description of a future interview. A question about just one topic does not turn
+      surrounding descriptions into questions. Fail if any required information is never
+      solicited, the reply presents an invented task or baseline as fact, or it recommends
+      an intervention before getting the answers. Judge what the person can answer, regardless
+      of stock phrases, punctuation, or the number of questions.

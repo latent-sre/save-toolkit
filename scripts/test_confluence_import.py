@@ -193,6 +193,37 @@ class ConfluenceImportTest(ConverterTest):
         unmapped = self.draft.split("Imported content (unmapped)", 1)[1]
         self.assertIn("architecture space", unmapped)
 
+    def test_nested_headings_keep_steps_with_their_nearest_meaningful_section(self) -> None:
+        proc, draft = self.convert(
+            "<h1>Recovery</h1>"
+            "<h2>Procedure</h2><h3>Step 1</h3><p>Apply the replacement.</p>"
+            "<h2>Rollback</h2><h3>Step 1</h3><pre>restore previous</pre>"
+            "<h4>Region A</h4><h6>Instructions</h6><p>Drain the replacement.</p>"
+            "<h3>Step 1: Contact the service owner</h3><p>Ask who holds the rollback lock.</p>"
+            "<h3>Step 2: Reapply the fix</h3><p>Reload the prior release.</p>"
+            "<h3>Verification steps</h3><h4>Step 1</h4><p>Check restored traffic.</p>"
+            "<h3>Region B</h3><p>Restore the replica.</p>"
+            "<h2>Background reading</h2><h3>History</h3><p>Original design notes.</p>"
+            "<h2>Steps</h2><p>Restart the worker.</p>"
+        )
+        placements = {
+            "Apply the replacement.": "Procedure",
+            "restore previous": "Rollback / cleanup",
+            "Drain the replacement.": "Rollback / cleanup",
+            "Ask who holds the rollback lock.": "Rollback / cleanup",
+            "Reload the prior release.": "Rollback / cleanup",
+            "Check restored traffic.": "Verification",
+            "Restore the replica.": "Rollback / cleanup",
+            "Original design notes.": "Imported content (unmapped)",
+            "Restart the worker.": "Procedure",
+        }
+        for content, slot in placements.items():
+            with self.subTest(content=content):
+                self.assertIn(content, slot_text(draft, slot))
+                self.assertEqual(1, draft.count(content))
+        self.assertIn("“Step 1” -> Rollback / cleanup", proc.stdout)
+        self.assertIn("“History” -> Imported content (unmapped)", proc.stdout)
+
     def test_imported_commands_are_marked_unverified(self) -> None:
         self.assertIn("cf app checkout-worker", self.draft)
         block_and_after = self.draft.split("cf app checkout-worker", 1)[1]

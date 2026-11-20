@@ -1,13 +1,14 @@
 # Merge readiness
 
-Use the [parent verdict](../SKILL.md#verdict); later gates consume it without re-running it.
-`HEAD` is the PR head commit, never the local checkout. Any NO blocks. P0/P1 cannot be waived;
-other waivers require a recorded human decision.
+Record the PR, target branch and reviewed PR head in the [merge verdict](../SKILL.md#verdict).
+Determine required checks from active branch protections and repository policy for this change.
+An unmet or unverified requirement blocks. P0/P1 findings cannot be waived. Other waivers need
+a recorded decision from an authorized human and must be permitted by the applicable policy.
 
 | Item | Passes when |
 |---|---|
-| CI | Build, lint and full suite are green in trusted CI at the exact PR head, read from the CI record. Assertions alone are `[unverified]` and a NO. |
-| Behaviour tested | Changed behaviour has a regression failing without the change, run at `HEAD`; stale evidence re-runs. |
+| Required checks | Each required hosted check has a successful trusted run for the current PR head or the integration revision the provider associates with that head and target base. Record the check, tested revision and result. Where policy assigns checks locally, attach a trusted receipt identifying the tested content, scope and result. A local pass cannot satisfy a required hosted check. |
+| Behaviour tested | The checks cover the changed behaviour and its material failure cases. For a bug fix, show the regression distinguishes the broken and fixed behaviour. Recheck affected evidence when the head, base or relevant inputs change. |
 | Findings disposed | Every current P0/P1 finding, security included, is fixed or rejected with evidence; no credentials, tokens or keys in code, fixtures, artifacts or logs; ordinary merges need no independent re-review per push. |
 | Compatible | Migration, API and UI-state contract changes use expand-then-contract. Web GUI changes check keyboard/WCAG behaviour or record a waiver. |
 | Scoped | Split only when size or mixed concerns prevent reliable review. |

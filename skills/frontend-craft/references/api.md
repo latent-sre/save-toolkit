@@ -36,8 +36,10 @@ Follow the service's write contract: native idempotence, preconditions (`If-Matc
 replay keys. For the [idempotent-write helper](../assets/idempotent-write.ts) (`422` payload
 mismatch, `409` in-flight with `Retry-After`): mint one `newIntentKey()` per user intent, reuse it
 with `sendIdempotent()` on every retry of the unchanged payload, and mint a new key when the user
-edits the payload. Pass replayable, non-stream bodies (`ReadableStream` is rejected). Disable
-pending controls and automatic mutation retries. Honor `Retry-After` up to `maxWaitMs`; if
+edits the payload. Pass replayable, non-stream bodies. The helper snapshots mutable bodies for
+retries within one call. For manual retries of multipart uploads against a byte-comparing service,
+encode the form once and retain the encoded body and its boundary-bearing Content-Type across calls.
+Disable pending controls and automatic mutation retries. Honor `Retry-After` up to `maxWaitMs`; if
 exceeded, keep pending state and reconcile without a fresh key.
 
 For `202`, poll the status resource with backoff, show progress and allow navigation away.

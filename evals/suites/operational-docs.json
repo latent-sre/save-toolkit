@@ -10,6 +10,7 @@
     "scripts/test_runbook_schema.py"
   ],
   "native_scenarios": [
+    "agent-direct-handoff-scribe-accepts-approved",
     "agent-direct-handoff-scribe-blocks-unapproved",
     "agent-direct-scribe-command-evidence",
     "agent-direct-scribe-contradictory-record",

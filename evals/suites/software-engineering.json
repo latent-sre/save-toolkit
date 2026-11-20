@@ -29,7 +29,9 @@
     "scripts/test_frontend_craft_assets.py"
   ],
   "native_scenarios": [
+    "agent-direct-handoff-software-engineer-accepts-approved",
     "agent-direct-handoff-software-engineer-blocks-unapproved",
+    "agent-direct-handoff-software-engineer-blocks-unbound",
     "agent-direct-software-engineer-bounded-ci-validation",
     "agent-direct-software-engineer-capped-return",
     "agent-direct-software-engineer-deploy-stays-with-release-owner",

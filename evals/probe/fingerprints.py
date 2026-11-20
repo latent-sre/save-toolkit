@@ -45,6 +45,7 @@ HARNESS_FILES = tuple(
         windows_job.__file__,
         EVALS_DIR / "swebench_adapter" / "__init__.py",
         fleet_graders.INCIDENT_BOARD_ORACLE,
+        fleet_graders.OBS_PROMQL_ORACLE,
         itbench_submission.__file__,
     )
 )
