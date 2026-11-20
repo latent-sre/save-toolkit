@@ -40,10 +40,15 @@ and secret mappings over a universal workflow with unrelated switches.
 
 ## Read the detail the change needs
 
+GitHub changes this platform faster than model memory tracks it. Cache access, concurrency queues,
+required-check evaluation, fork checkout, action lockfiles, hosted and self-hosted runner rules and
+token formats have all changed: read the matching reference before answering from memory, and
+check the current workflow-syntax documentation for a key neither covers.
+
 | Task | Reference |
 |---|---|
-| Timing, matrices, caching, concurrency, filters, artifacts or runners | [Execution and optimization](./references/execution-and-runners.md) |
-| Permissions, untrusted events, action versions, credentials, supply-chain evidence or a Python package release | [Security and provenance](./references/security-and-provenance.md) |
+| Timing, matrices, cache access, concurrency, required checks, filters or runners | [Execution and optimization](./references/execution-and-runners.md) |
+| Permissions, untrusted events, action versions and lockfiles, credentials, tokens or supply-chain evidence | [Security and provenance](./references/security-and-provenance.md) |
 | Submitting or rerunning remote validation | [Bounded CI runs](./references/validation-runs.md) |
 | A PCF deployment job, foundation authentication or rollback | [PCF deployment example](./references/pcf-deploy-job.md) |
 

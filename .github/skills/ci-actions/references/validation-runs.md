@@ -31,10 +31,14 @@ request covering the run; local edit/test permission alone does not authorize re
    this permission does not authorize creating refs or changing protection settings to obtain them.
    The skill grants no tool or host permission.
 4. **Submit once and reconcile.** Record run ID/attempt; verify the actual commit, jobs and result
-   before claiming candidate success. A mismatched commit does not verify the candidate. A timeout
+   before claiming candidate success. The REST dispatch call answers with the run ID and URLs:
+   keep that response as the receipt. A client or server that returns none leaves the run to be
+   matched from history by workflow, ref, actor and time. A mismatched commit does not verify the candidate. A timeout
    without a receipt leaves submission UNKNOWN: reconcile run history before retrying and return
    the gap if the outcome cannot be established. Keep retries within the authorized scope.
 
 Report execution separately from required-check eligibility: a green `workflow_dispatch` does not
 satisfy a required status check, even on the PR head commit. Check event and actual PR/ruleset result before claiming passage. CI validation
 is not deployment evidence; the human release owner retains deployment/publication execution.
+On github.com, checks, workflow runs and statuses are deleted with artifacts and logs at the
+repository's retention period: copy the run evidence a later claim depends on into its record.

@@ -13,41 +13,50 @@ warm-cache run.
 When optimizing, keep the history version/diff tools need, shard tests without losing coverage or
 isolation, and keep required-check identities and failure/recovery uploads.
 
-## Jobs, matrices and failure behavior
+## Matrix and cache decisions
 
-- `needs` represents a consumed result or intentional early-failure gate; each extra job repeats setup.
-- Derive axes from supported runtimes/platforms, exceptions with `include`/`exclude`, pressure with
-  `max-parallel`. Collapse only invariant checks: type checking may depend on Python/OS even if lint does not.
-- Choose `fail-fast` for cancellation versus remaining compatibility evidence. Only agreed experimental
-  legs are non-blocking; ordinary failures stay visible.
-- Base job timeouts on slow-run evidence. Preserve exit codes through wrappers/pipes. Retry bounded
-  known-transient operations, never the whole suite until green; track flakes explicitly.
+- Collapse only checks proven invariant across the matrix: type checking may depend on Python/OS
+  even if lint does not. Only agreed experimental legs are non-blocking; a flaky required test
+  stays visible and diagnosed, never retried until green.
+- A cache key carries OS/architecture, toolchain, lock and configuration identity, and a hit never
+  skips the lock-enforcing install/sync. A tool-supported build cache with complete input keys is
+  eligible; measure it cold and warm. A cache is never the release artifact.
 
-## Caches are accelerators, artifacts are outputs
-
-Cache package downloads or tool-supported build outputs with input-aware invalidation. Keys include
-relevant OS/architecture, runtime/toolchain, lock and configuration identity. Do not duplicate setup-action
-caches. Restore prefixes require compatible states; always perform the lock-enforcing install/sync.
-Whole environments/workspaces need proven relocation/invalidation. Measure hit rate, size and transfer
-cost; a miss must still build correctly, and a cache is never the release artifact.
+## Cache access is scoped by trigger
 
 No credentials, auth homes or private data in caches. Fork PRs can read eligible base caches;
-ordinary PR-created caches belong to the merge ref. Analyze privileged-event/custom-cache readers
-and writers separately; untrusted output must not poison privileged consumers. Preserve setup-action
-security defaults unless event/cache scope is reviewed. Where supported, caller `cache-mode: read`
-bounds reusable-workflow callee access; low-trust defaults alone do not. Do not grant write to silence
-a warning: use a trusted producer. Check server support for newer syntax; `actionlint` 1.7.12 reports
-`cache-mode:` as an unexpected key, so that failure alone does not make the syntax invalid.
+ordinary PR-created caches belong to the merge ref.
 
-Give matrix artifacts unique names and fail on a missing required release artifact.
+Without `cache-mode`, a run from a trusted trigger gets read-write cache access, and a run from a
+low-trust trigger (one an outside actor can cause, such as `pull_request_target`, `issue_comment`
+or `workflow_run`) gets read-only access to the default-branch scope. Such a workflow restores but
+no longer saves: produce the cache from a trusted workflow such as `push`. Do not grant write, or
+use the repository's bypass of that restriction, to silence a warning.
+
+`cache-mode` is set at workflow or job level, the job value winning, and takes `read`, `write`,
+`write-only` or `none`. On a job that calls a reusable workflow it caps the callee: a callee that
+declares more than the cap, or `write-only` against `read`, stops the run at validation. With no
+explicit caller value a callee can still request `write` under a low-trust trigger, so caller
+`cache-mode: read` is what bounds it; low-trust defaults alone do not. Analyze privileged-event and
+custom-cache readers and writers separately; untrusted output must not poison privileged consumers.
+Preserve setup-action security defaults unless event/cache scope is reviewed. Check server support
+for newer syntax; `actionlint` 1.7.12 reports `cache-mode:` as an unexpected key, so that failure
+alone does not make the syntax invalid.
 
 ## Events, required checks and cancellation
 
 Avoid duplicate push/PR runs without losing default-branch/release coverage; include `merge_group`
-for merge-queue checks. Path-filtered required workflows can remain pending, while skipped jobs can
-report success. A stable summary job must explicitly check every required dependency, tolerating
-only intended skips and rejecting failure/cancellation/missing coverage. Test changed/unchanged paths
-and a failed dependency.
+for merge-queue checks. Path-filtered required workflows can remain pending, while skipped jobs
+report success: `success`, `skipped` and `neutral` all satisfy a required check, and a job skipped
+because a `needs` dependency failed may not block merging. A stable summary job therefore runs
+under `always()` and explicitly checks every required dependency, tolerating only intended skips
+and rejecting failure/cancellation/missing coverage. Test changed/unchanged paths and a failed
+dependency.
+
+Checks from workflow jobs count toward a pull request only when the run was triggered by `push`,
+`pull_request`, `pull_request_review`, `pull_request_target`, `deployment` or `deployment_status`.
+A run from any other event does not satisfy a required check, even when it passes on the head
+commit; checks reported by an external GitHub App are not limited this way.
 
 Workflow-level cancellation is for validation-only workflows; mixed workflows cancel validation jobs
 only. Keys need workflow/ref and relevant job/matrix dimensions; reusable calls need a caller-job/target
@@ -63,7 +72,13 @@ before promotion: concurrency is not a deployment ledger.
 This fleet's new GitHub-hosted Linux jobs use **`ubuntu-latest`** under `stack-profile`; preserve
 existing labels rather than substituting fixed OS versions as routine hardening. Diagnose with the
 resolved image; labels are mutable. A reviewed container digest can fix userspace. Larger/self-hosted
-runners need measured benefit or a network/hardware requirement.
+runners need measured benefit or a network/hardware requirement. GitHub-hosted larger runners offer
+RHEL 9 and 10 images on Team and Enterprise Cloud plans; matching the deployment OS that way is a
+`stack-profile` decision, not a routine substitution.
+
+Standard GitHub-hosted Linux jobs may run on AWS as well as Azure: automatically on Free, Pro and
+Team, by opt-in on Enterprise Cloud. An allowlist or conditional-access policy that admits only
+Azure ranges can block those jobs; use every published GitHub Actions range.
 
 For self-hosting, confirm stack boundary, owner/network scope, restricted groups and least privilege.
 Keep untrusted jobs off persistent runners with credentials/internal reach. Ephemeral registration
@@ -71,5 +86,7 @@ does not erase files: require cleanup/replacement after completion, forced cance
 before reuse. Check minimum runner compatibility when upgrading actions. On github.com and
 data-residency Enterprise Cloud (not Enterprise Server), a runner that has not updated within 63
 days of a newer version becoming available stops receiving jobs, and a critical security update can
-stop them sooner; that availability date can differ from the release date. With auto-update off or
-no route to the update service, schedule manual upgrades.
+stop them sooner; that availability date can differ from the release date. Registration needs
+runner 2.329.0 or later, which is not a floor for running jobs: the effective minimum advances with
+each release, and the REST runner-version end-of-life schedule gives the dates. With auto-update
+off or no route to the update service, schedule manual upgrades.

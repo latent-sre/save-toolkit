@@ -192,6 +192,9 @@ The [CAPI app list](https://v3-apidocs.cloudfoundry.org/#list-apps) and
 supply the machine contract; [cf CLI v8 curl](https://cli.cloudfoundry.org/en-US/v8/curl.html)
 provides `--fail` for HTTP errors. This is an observation before the push, not a remote lock;
 exclude concurrent deployments to this app through other jobs or humans during the approved window.
+The published cf CLI v8 command pages describe 8.0.0 and omit later behavior: read `cf help
+<command>` on the runner's pinned CLI. Current v8 `cf push` and `cf rollback` also accept
+`--strategy canary` with `--max-in-flight` and `--instance-steps`.
 `cf rollback <app> --version <n>` requires the version and prompts unless `-f`.
 `cf cancel-deployment <app>` resets the droplet but not environment-variable or binding changes, and
 does not guarantee zero downtime. Revision retention limits the rollback; see

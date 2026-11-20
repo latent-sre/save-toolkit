@@ -17,6 +17,11 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
   and add `-c diff.autoRefreshIndex=false` to its Git prefix so a working-tree diff leaves the index alone.
 - **Reviewer evals:** The Git-prefix check grades only `status` and `diff`, the calls that can rewrite
   the source index; object reads such as `show` and `log` pass with any prefix.
+- **ci-actions:** Replace common GitHub Actions practice with current platform behavior: trigger-scoped
+  cache access and `cache-mode`, which events satisfy a required check, the checkout fork-PR refusal
+  on floating major tags, lockfile limits, hosted-runner clouds and RHEL images, the 63-day runner
+  update window, installation-token length, `actions/attest`, and the dispatch run receipt.
+- **agent-authoring:** Correct Claude Code and VS Code/Copilot host facts against current documentation.
 
 ## [0.52.10] - 2026-11-19
 
