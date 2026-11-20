@@ -73,12 +73,13 @@ This fleet's new GitHub-hosted Linux jobs use **`ubuntu-latest`** under `stack-p
 existing labels rather than substituting fixed OS versions as routine hardening. Diagnose with the
 resolved image; labels are mutable. A reviewed container digest can fix userspace. Larger/self-hosted
 runners need measured benefit or a network/hardware requirement. GitHub-hosted larger runners offer
-RHEL 9 and 10 images on Team and Enterprise Cloud plans; matching the deployment OS that way is a
-`stack-profile` decision, not a routine substitution.
+RHEL 9 and 10 images; matching the deployment OS that way is a `stack-profile` decision, not a
+routine substitution.
 
-Standard GitHub-hosted Linux jobs may run on AWS as well as Azure: automatically on Free, Pro and
-Team, by opt-in on Enterprise Cloud. An allowlist or conditional-access policy that admits only
-Azure ranges can block those jobs; use every published GitHub Actions range.
+On Enterprise Cloud, eligible standard hosted Linux jobs run on AWS as well as Azure once an
+enterprise owner enables AWS under the enterprise's Actions hosted-compute cloud-provider policy.
+After that, an allowlist or conditional-access policy that admits only Azure ranges can block those
+jobs; use every published GitHub Actions range, and check the policy before blaming the job.
 
 For self-hosting, confirm stack boundary, owner/network scope, restricted groups and least
 privilege. Keep untrusted jobs off persistent runners with credentials/internal reach. Ephemeral

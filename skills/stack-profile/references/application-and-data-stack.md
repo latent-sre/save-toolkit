@@ -6,10 +6,10 @@ authority nor evidence of a target's exact version.
 ## Languages and CI
 
 Services in the stack use **Java/JVM, Python, JavaScript/TypeScript, and Go**. Bash and PowerShell are
-glue and automation, not service languages. GitHub + GitHub Actions on **github.com**, not GitHub
-Enterprise Server: Server-only limits and Server-unavailable features do not apply. The GitHub plan
-is unrecorded, so plan-gated features (environment reviewers on private repositories, larger-runner
-images, hosted-compute opt-ins) stay unverified until the owner records it. Bamboo is legacy.
+glue and automation, not service languages. GitHub + GitHub Actions on **GitHub Enterprise Cloud
+at github.com**, not Enterprise Server or a data-residency `ghe.com` tenant: Enterprise Cloud
+features such as environment reviewers on private repositories exist, but whether a repository or
+enterprise policy has enabled one is a per-target check. Bamboo is legacy.
 
 **Java/JVM is support-only:** operate/troubleshoot Java/Spring Boot, but do not write, build, test
 or run Java locally. Return source changes to the application owner; service inventory does not

@@ -49,7 +49,7 @@ Scope secrets to jobs/environments instead of broad reusable-workflow inheritanc
 not authorize use on another target. GitHub App installation tokens keep the `ghs_` prefix but are
 now about 520 characters, not 40: never validate, mask or store one by a fixed length.
 
-Verify plan/visibility and actual environment reviewers, branch restrictions, self-review and bypass
+Verify actual environment reviewers, branch restrictions, self-review and bypass
 settings; an environment name alone is no approval gate. Missing controls need a named gap/existing
 alternative, never invented enforcement or weakened protection to make YAML run.
 

@@ -22,7 +22,8 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
   on floating major tags, lockfile limits, hosted-runner clouds and RHEL images, the 63-day runner
   update window, installation-token length, `actions/attest`, and the dispatch run receipt.
 - **agent-authoring:** Correct Claude Code and VS Code/Copilot host facts against current documentation.
-- **stack-profile:** Record that the team's GitHub is github.com, not Enterprise Server; the plan stays unrecorded.
+- **stack-profile:** Record that the team's GitHub is Enterprise Cloud at github.com, and drop the
+  Enterprise Server and lower-plan hedges from `cicd-github`.
 
 ## [0.52.10] - 2026-11-19
 

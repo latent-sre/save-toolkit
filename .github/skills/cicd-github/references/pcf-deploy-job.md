@@ -16,12 +16,11 @@ infrastructure, runtime or identity recommendations.
   pinned `python3` with pinned PyYAML in its managed environment. `python3 -I` ignores user-site
   packages and `PYTHONPATH`; discovery itself uses only stdlib.
 - A GitHub environment whose required reviewers and environment-scoped credentials for a
-  least-privilege PCF service account are configured and available on this repository's plan.
+  least-privilege PCF service account are configured on this repository.
   Naming the environment in YAML does not establish that protection.
 - A deployment-branch rule on that environment limiting deploys to the reviewed branch or tags,
-  verified in the repository settings. GitHub's default is no restriction, and on Free, Pro, or Team
-  plans required reviewers exist only for public repositories, so without the rule and the job's
-  `if:` guard a pull-request run can deploy unmerged code with production credentials.
+  verified in the repository settings. GitHub's default is no restriction, so without the rule and
+  the job's `if:` guard a pull-request run can deploy unmerged code with production credentials.
 - A trusted `build` job that uploads `app-build` with `app.zip` and a reviewed single-app
   `manifest.yml`, and exposes their SHA-256 digests as `app_sha256` and `manifest_sha256` outputs.
   The manifest must be self-contained, without credentials or a Docker-image deployment path.
