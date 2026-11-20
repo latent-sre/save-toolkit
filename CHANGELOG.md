@@ -24,6 +24,9 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
 - **agent-authoring:** Correct Claude Code and VS Code/Copilot host facts against current documentation.
 - **stack-profile:** Record that the team's GitHub is Enterprise Cloud at github.com, and drop the
   Enterprise Server and lower-plan hedges from `cicd-github`.
+- **gcp-ops, obs-analysis:** Correct GCP facts against current Google documentation: the below-max 500,
+  billing spend caps, ephemeral disk, GKE 401 and network pull errors, the trace-sink removal date,
+  the Observability Analytics backfill gap, and Cloud Run instances for singleton work.
 
 ## [0.52.10] - 2026-11-19
 

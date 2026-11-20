@@ -91,10 +91,14 @@ configured):
 |---|---|---|
 | Start fails | "Container failed to start. Failed to start and then listen on the port defined by the PORT environment variable." (search `listen on the port`) | The app must listen on `0.0.0.0:$PORT`, not `127.0.0.1`; the PCF `$PORT` discipline transfers exactly |
 | 429 | "…aborted because there was no available instance." | Instance count against max instances (Metrics). Below max does not clear scaling: a traffic spike, slow startup, or long requests also produce this. A raise is a change to recommend |
-| 500 | "…no available instance", or "…instance could not start successfully" | The first reads as the 429 row; the second is often a failed Secret Manager access or startup error, so read the container's startup logs |
+| 500 | "…no available instance", or "…instance could not start successfully" | The first occurs below max instances: a burst arrived faster than new instances could start, so check minimum instances, startup time and client retry/backoff; the second is often a failed Secret Manager access or startup error, so read the container's startup logs |
 | 503 | "…the HTTP response was malformed or connection to the instance had an error." | In order: an [OOM](#oom-evidence) line; `LIVENESS HTTP probe failed` if configured; a framework timeout shorter than the request (Node `server.setTimeout`, Gunicorn `WORKER TIMEOUT`); VPC connector throughput. Over 800 requests/s per instance might exhaust TCP sockets; confirm evidence of that bottleneck and container support for [HTTP/2 cleartext (`h2c`)](https://docs.cloud.google.com/run/docs/configuring/http2#before_you_configure) before recommending HTTP/2 |
 | 503 | "…probably has reached its maximum container instance limit." | Instance count against max instances, and CPU load (Metrics). Raising max instances or lowering concurrency is a change to recommend |
 | 504 | "…reached the maximum request timeout." | Compare the revision's request timeout with the slow downstream call. A [504 can leave application work running](https://docs.cloud.google.com/run/docs/configuring/request-timeout); check completion/effects and retry safety before recommending a retry or timeout increase |
+
+If several of these appear at once across services, jobs or worker pools, check for a billing
+spend cap first: a reached cap pauses Cloud Run, returning 5xx and failing job and worker-pool
+starts, and shows a console banner. Resuming can take up to 30 minutes after the cap is lifted.
 
 - **Concurrency/saturation** — exact defaults vary by deploy path: read them from
   the affected revision and service configuration, don't quote memory.
@@ -102,9 +106,11 @@ configured):
 ### OOM evidence
 
 Cloud Logging example: *"While handling this request, the container instance was found to be
-using too much memory and was terminated."* (HTTP 500/503; exact target wording is unconfirmed).
+using too much memory and was terminated."* (HTTP 500/503).
 **No exit code to grep.** Writes to the default writable container filesystem count toward memory,
-including logs outside `/var/log/*` and `/dev/log`. For a leak after PCF migration, check these writes first;
+including logs outside `/var/log/*` and `/dev/log`; an ephemeral-disk volume can hold such writes
+outside memory, but each project's regional ephemeral-disk allocation starts at 0 GiB until quota is
+requested. For a leak after PCF migration, check these writes first;
 take `resource.labels.revision_name` from the failing log, select that revision in **Revision
 history**, or use the target-bound `revisions describe` command above. Read its container memory
 limit before recommending a bump; the current service template may describe a later revision.
@@ -128,7 +134,8 @@ observation and who can read it from Cloud Monitoring; do not infer the cause fr
 For `ImagePullBackOff` or `ErrImagePull` on GKE, establish that the referenced image address and tag
 exist in the referenced registry, from the build's push record or the registry itself, before
 attributing the failure to access: a missing image and a denied pull both back off. The pull event's
-message separates them (`not found` versus `403 Forbidden`); when that message is unavailable, the
+message separates them (`not found` versus `401 Unauthorized` or `403 Forbidden`; a DNS or `i/o timeout`
+message points to the network path); when that message is unavailable, the
 push record is the next deciding read.
 
 ## Mitigation you recommend (never run): traffic rollback
