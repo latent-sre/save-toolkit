@@ -2,13 +2,11 @@
 
 For an SRE agent with terminal tools; no write authority is granted.
 
-## Selected gcx migration
+## `gcx`
 
-The owner selected `gcx` for read-only Grafana investigation access, but the existing guard does not
-admit `gcx` yet (protected execution, redirect/destination enforcement, and installed-client
-acceptance remain pending). Keep using the bundled read helper below until fixed CLI commands and
-their execution boundary are verified and granted. Do not install `gcx`, change contexts, expose
-credentials, enable HTTP payload logging, or install vendor skills as an incident workaround.
+The guard does not admit `gcx`; use the bundled read helper below. Do not install `gcx`, change
+contexts, expose credentials, enable HTTP payload logging, or install vendor skills as an incident
+workaround.
 
 ## Bundled read helper
 
@@ -54,7 +52,7 @@ On **Windows PowerShell 5.1/7**, raw `--expr` is denied; use the wrapper or `--e
 Reading results:
 - Exit 0 means the read succeeded, not that the investigation is complete; exit 2 returns a static error code. Query errors under HTTP 200 count as failures.
 - Keep `coverage`, `truncated`, and `limits` with the evidence. `permission_scoped` means absent results reflect this identity's visibility, not proof of absence.
-- Pair `alerts --uid` (config only) with `alerts --folder-uid` (evaluation state). `silences` inspects only the built-in Grafana Alertmanager. Open rendered PNGs before describing them.
+- Pair `alerts --uid` (config only) with `alerts --folder-uid` (evaluation state). `silences` inspects only the built-in Grafana Alertmanager.
 
 ### Copilot command-preview queries
 

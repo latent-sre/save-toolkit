@@ -33,7 +33,8 @@ cf rollback order-router --version <n>
 ```
 
 Confirm revision/rollback support for the installed CLI and foundation before using this command.
-A revision captures a droplet, start command, and environment variables.
+A revision captures a droplet, environment variables, each process type's start command, and the
+sidecars those processes run.
 
 Default retention differs: five staged droplets versus up to 100 CAPI revisions. A revision without
 its droplet cannot restore code; confirm the intended artifact is retained before approval.

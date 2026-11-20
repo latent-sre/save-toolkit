@@ -24,6 +24,9 @@ spans and discards the trace downstream (before 3.0 it refused them at ingest wi
 compaction partially drops, and **search silently skips** oversized traces. Discard reasons are
 observable as the `reason` label on `tempo_discarded_spans_total`:
 `rate_limited` (`rate_limit_bytes`), `live_traces_exceeded` (`max_traces_per_user`),
-`trace_too_large`, and `invalid_trace_id`/`invalid_span_id`. Record the exact error or discard
+`trace_too_large`, `trace_too_large_to_compact`, `invalid_trace_id`/`invalid_span_id`, and
+`unknown_error`. Tempo 3.1's configuration reference still says oversized traces are refused at
+ingestion; its troubleshooting page and the discard behavior above say otherwise, so judge by the
+discard metric, not that comment. Record the exact error or discard
 reason verbatim; write-side pressure is a pipeline finding for the `obs-pipeline` skill. Which
 limits bind this tenant is unknown until read from the deployed overrides.

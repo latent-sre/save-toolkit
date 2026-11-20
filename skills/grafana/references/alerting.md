@@ -1,6 +1,6 @@
 # Grafana alerting — rules, provisioning, and evaluation
 
-Console: Alerts & IRM → Alerting → Alert rules. For a missing notification, trace: evaluation →
+Console: Alerts & IRM → Alert rules. For a missing notification, trace: evaluation →
 instance state → selected Alertmanager → matching route → silence/mute/inhibition → grouping/timers
 → delivery evidence. Reading a contact point does not prove delivery; never validate by sending a
 test notification to production. Alert/SLO design belongs to `obs-alerting`; temporary suppression
@@ -39,9 +39,12 @@ rules, omit it for API-owned rules, and never change provenance as a side effect
 
 Where the target serves `rules.alerting.grafana.app/v1beta1` (`alertrules`, `recordingrules`; OSS
 13.3.0+), discover it with `GET /apis/rules.alerting.grafana.app/` and prefer it over the deprecated
-legacy endpoints below. On 13.3.0, the legacy-backed `alertrules` store does **not** enforce
-`metadata.resourceVersion` as compare-and-swap (and legacy provisioning has none): establish a
-coordinated single-writer window, re-read immediately before writing, and stop on drift.
+legacy endpoints below. In `v1beta1`, an alert rule's `notificationSettings` must carry `type`
+(`SimplifiedRouting` with a `receiver`, or `NamedRoutingTree` with a `routingTree`). Through
+13.3.1 the legacy-backed `alertrules` store does **not** compare `metadata.resourceVersion` on
+update, although the 13.3 API docs say passing it prevents concurrent overwrites, and legacy
+provisioning has no token either: establish a coordinated single-writer window, re-read
+immediately before writing, and stop on drift.
 
 | Operation | Legacy rule provisioning API |
 |---|---|
@@ -63,10 +66,10 @@ coordinated single-writer window, re-read immediately before writing, and stop o
    deadline, and owner (use a silence for temporary suppression). Resume can notify immediately.
 2. **Capture prior state** (existing rule, group, route; for create, prove UID absence and existing
    group, and name the recovery owner).
-3. **Prepare and validate.** Establish owner, severity, and `runbook_url` (required for paging);
-   never put secrets in rules, labels, annotations, or provider files. Convert dashboard variables
-   and macros to explicit alert-compatible expressions. Backtest on bounded healthy/bad windows
-   where available and show full diff, notification/route impact, and recovery.
+3. **Prepare and validate.** Convert dashboard variables and macros to explicit alert-compatible
+   expressions; `obs-alerting` owns paging fields such as owner and `runbook_url`. Backtest on
+   bounded healthy/bad windows where available and show full diff, notification/route impact, and
+   recovery.
 4. **Write once, read back, verify evaluation.** On `409` (rule provenance/lock/UID conflict) or
    `403` (notification provenance conflict), stop and re-read; do not retry. Read back into a fresh
    result to confirm fields, UID, folder/group, provenance, and pause state; wait one evaluation

@@ -7,7 +7,7 @@ prompt: |
   timings. Help improve the workflow while keeping the same compatibility coverage.
 target:
   kind: skill
-  name: ci-actions
+  name: cicd-github
 routing:
   expect: fire
 success_criteria:

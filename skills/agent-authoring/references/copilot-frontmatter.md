@@ -41,6 +41,7 @@ requires its projection and checks; copying it into a canonical header does not 
 | `deferred-tool-loading` | Recognized but not forwarded. It cannot establish a discovery mechanism in the converted agent |
 | `github` | Recognized MCP toolsets/permissions object, not forwarded. Configure required tools through the host |
 | `mcp-servers` | Recognized agent-scoped configuration, not forwarded. Configure servers through the host and verify exact tool IDs |
+| `agents`, `handoffs`, `argument-hint`, `advancedOptions` | Accepted only by the deprecated Local harness; the Copilot harness does not accept them. Fleet emits none, and `agents` is not a per-parent child allowlist here |
 
 VS Code also does not forward `model-policy`; its selected-chat enforcement is an editor feature.
 Measure repository-instruction delivery in both selected and delegated execution paths. Carry
@@ -63,7 +64,9 @@ capability gap. Keep expected omissions explicit: `Skill` is handled through hos
 `EnterWorktree` and `ExitWorktree` have no Copilot alias and must not become `execute`. Standard
 SRE deliberately omits terminal execution. The renderer rejects an empty mapped list before
 replacing generated outputs: the VS Code converter turns an empty or missing list into all
-session-configured tools. This is not a zero-tool profile. Unknown runtime names can also leave a
+session-configured tools. This is not a zero-tool profile, although GitHub's own configuration
+reference documents `tools: []` as disabling every tool: the same header means opposite things
+across Copilot surfaces. Unknown runtime names can also leave a
 nonempty authored list without the intended capabilities; verify resolution separately.
 
 Use qualified client references such as `browser/readPage`, `browser/clickElement`, or an
@@ -132,8 +135,8 @@ not access checks. `user-invocable` stays unset so every skill remains human-inv
 | Field | Disposition here |
 |---|---|
 | `disable-model-invocation` | Used by `pcf-deploy` for manual-only invocation. Combining it with `user-invocable: false` disables both entry paths |
-| `allowed-tools` | Portable experimental tool preapproval with host-dependent support; it is not a restricting allowlist. Fleet does not use it |
-| `context` | Forked skill execution is separate from agent preloading. Fleet leaves it unset; adopt only after checking execution ownership and returned evidence on the intended host |
+| `allowed-tools` | Portable experimental tool preapproval with host-dependent support; it is not a restricting allowlist. VS Code does not recognize it on a skill and reports it as unsupported. Fleet does not use it |
+| `context` | Forked skill execution is separate from agent preloading, and experimental in VS Code behind `github.copilot.chat.skillTool.enabled`. Fleet leaves it unset; adopt only after checking execution ownership and returned evidence on the intended host |
 
 ## Host acceptance
 
@@ -145,8 +148,9 @@ continuation. Test instruction delivery and any preloads and references from the
 For hooks, cover malformed input, missing interpreter, crash and timeout as well as ordinary denial.
 
 Keep generator tests, source inspection, and installed-host results distinct. Record unavailable
-checks as unverified in the maintainer's report. The standalone Copilot CLI is a separate surface;
-its successful test does not qualify VS Code's default Copilot harness. A missing host does not
+checks as unverified in the maintainer's report. The standalone Copilot CLI shares the Copilot
+harness and hook format with VS Code, but its client-provided tools, settings and host
+configuration differ; its successful test does not qualify VS Code. A missing host does not
 justify inventing tool identifiers, weakening a boundary, or treating schema acceptance as release
 acceptance. COPILOT-HARNESS-001 and RELEASE-001 retain their respective native gates.
 

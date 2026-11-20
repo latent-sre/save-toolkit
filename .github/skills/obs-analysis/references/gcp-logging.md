@@ -55,7 +55,7 @@ gcloud logging read 'resource.type=cloud_run_revision AND resource.labels.servic
 
 ## Observability Analytics (SQL over logs)
 
-Observability Analytics (formerly Log Analytics): check that the selected log bucket is upgraded before promising SQL aggregation or gap filling.
+Observability Analytics (formerly Log Analytics): check that the selected log bucket is upgraded before promising SQL aggregation or gap filling. Entries written before the upgrade are queryable only after a backfill that can take days, and automatic backfill is currently paused (manual backfill goes through Cloud Customer Care): a recent upgrade can leave the incident window missing from SQL.
 
 ## Tips & gotchas
 

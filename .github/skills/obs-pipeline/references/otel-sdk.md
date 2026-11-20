@@ -43,8 +43,9 @@ Apply only changed-path steps for scoped fixes; service-wide work uses the full 
      `decision_cache` is off by default (both sizes 0); once sized, it can preserve an earlier keep
      decision for late spans, not guarantee it.
      Size capacity/cache and monitor drops rather than promising every error trace.
-     Since contrib v0.149.0: `sampling_strategy` (default `trace-complete`; `span-ingest` changes how
-     `decision_wait` applies) and the `traces_dropped_too_large` drop metric.
+     Since contrib v0.145.0: `maximum_trace_size_bytes` and the `traces_dropped_too_large` drop
+     metric. Since v0.149.0: `sampling_strategy` (default `trace-complete`; `span-ingest` changes how
+     `decision_wait` applies).
 
 4. **Correlation:** emit structured logs with approved trace/span fields; verify actual exemplar
    metric→trace and shared-ID trace→log links, not merely signal coexistence.

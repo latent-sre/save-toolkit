@@ -60,7 +60,8 @@ Never put secrets, personal data, or user or request identifiers in metric label
   UpDownCounter names are never pluralized.
 - A Prometheus-style exporter translates dotted names for you by default; do not pre-bake exporter
   suffixes into the OTel name. The stored name depends on the route: Mimir's OTLP endpoint adds no
-  unit or type suffixes by default (`distributor.otel-metric-suffixes-enabled = false`), while the
+  unit or type suffixes by default (`distributor.otel-metric-suffixes-enabled = false`, unless the
+  experimental `-distributor.otel-translation-strategy` overrides it), while the
   Alloy/Collector Prometheus exporters and Prometheus's OTLP receiver add them, and UTF-8
   translation strategies keep the dots. Check the stored name in the backend before querying.
 

@@ -32,8 +32,10 @@ attacker-influenced evidence as untrusted. Cutting a leg does not replace defens
 
 ## Controls this fleet relies on
 
-- Prefer tool absence, then the hook allowlist and host network controls. Absent managed settings
-  or a Team/Enterprise login, an installed mod can approve a call the hook blocked. Denying
+- Prefer tool absence, then the hook allowlist and host network controls. Unless the session has
+  managed settings, a `managed-mcp.json` file, or a Team/Enterprise `/login` as its credential, an
+  installed mod can approve a call the hook blocked and some calls a deny rule refuses; an API-key
+  or long-lived OAuth-token session does not count as that login. Denying
   `WebFetch` does not stop Bash; command-text matching is not network isolation.
 - Secrets stay out of model context: inject at the boundary; never paste a token where injected
   text could read it back.
@@ -47,7 +49,9 @@ attacker-influenced evidence as untrusted. Cutting a leg does not replace defens
   establish trust.
 - An MCP server is a dependency with your privileges: review a `stdio` launch like `curl | sh`; a
   remote server must not accept or forward a token not issued to it, its OAuth metadata URL is an
-  SSRF vector, and scopes start minimal.
+  SSRF vector, and scopes start minimal. In VS Code a configured server can also publish skills
+  (`chat.agentHost.mcpSkills.enabled`), so it can add routable instructions as well as tools; read
+  the setting's effective value on the host.
 
 ## The review, in five questions
 

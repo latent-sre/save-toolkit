@@ -2,8 +2,10 @@
 
 ## Reading traces here
 
-- Cloud Trace uses Trace explorer filters and Observability Analytics SQL, not TraceQL; trace sinks
-  are deprecated, so do not design analysis around sink export. `obs-pipeline` owns ingestion.
+- Cloud Trace uses Trace explorer filters and Observability Analytics SQL, not TraceQL. Trace sinks
+  are deprecated, can no longer be created or modified, and are removed on or after 2027-02-18: do
+  not design analysis around sink export, and treat an existing sink as a migration item.
+  `obs-pipeline` owns ingestion.
 - Cloud Run's sampled platform request spans land in Cloud Trace; application spans follow the
   SDK/collector route to Tempo, Cloud Trace or both. For a log trace ID, check platform spans here
   and application spans in their recorded destinations; unknown routes remain gaps. Platform-only

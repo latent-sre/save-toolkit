@@ -1,10 +1,10 @@
 id: ci-actions-optimization-preserves-contract
 max_turns: 17
 split: regression
-skill: ci-actions
+skill: cicd-github
 tools: [Skill, Read]
 references:
-  - skills/ci-actions/references/execution-and-runners.md
+  - skills/cicd-github/references/execution-and-runners.md
 prompt: |
   Read the execution-and-runners reference. Assess this supplied-state workflow optimization;
   do not edit files, run commands, or submit CI. The owner wants lower elapsed time and runner

@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class SkillAssetTests(unittest.TestCase):
     def test_pcf_example_pushes_only_the_downloaded_release_paths(self) -> None:
-        text = (ROOT / "skills/ci-actions/references/pcf-deploy-job.md").read_text(encoding="utf-8")
+        text = (ROOT / "skills/cicd-github/references/pcf-deploy-job.md").read_text(encoding="utf-8")
         job = yaml.safe_load(re.search(r"```yaml\n(.*?)\n```", text, re.DOTALL)[1])["deploy-prod"]
         download = next(step for step in job["steps"]
                         if step.get("uses", "").startswith("actions/download-artifact@"))
