@@ -133,39 +133,23 @@ limits:
    when results conflict. Runbooks guide the choice but do not limit in-scope leads. Say briefly why
    a check matters.
 
-Choose retrieval by the supplied representation:
+**Indexed exports.** Start at the root index. Use any matching input descriptor's navigation
+for reads already in scope. Search across the full relevant directory when a search scope is
+provided and follow continuation links for the pages and records you need. Match namespace,
+kind, name and UID where reported. Keep different resource incarnations separate and use object
+records for specifications.
 
-**A structured index with resource histories and content locators:**
+Use field histories, when present, to find original observations for status, configuration and
+event-message comparisons. Keep grouped values tied to their individual records, distinguish
+typed values, absence, null and unavailable decodes, and preserve exact literals when using a
+decoded view. Otherwise use inventory and catalogs to find the full records. Read locator-only
+payloads with all fragments. Use the complete relevant catalogs for alerts and logs, preserving
+activation, collection and event times separately.
 
-Start with the root index. When a resource field-history view is supplied, use it for object
-status/configuration and event-message comparisons:
-
-1. Use resources_search when supplied; otherwise follow the resource directory's table and
-   continuations. Search a bare name or resource path across the whole directory, not its first
-   page. Match namespace/kind/name/UID; do not merge incarnations. Events do not supply specifications.
-2. Use fields_search for a whole-directory field-name search when supplied; otherwise follow all
-   field-index continuations. Read the complete inline values list or every values_table page;
-   older views link each field's values table. Follow all occurrence continuations. Typed values,
-   absence, null and decode-unavailable states differ. A decoded JSON-string view permits field
-   comparison across formatting changes; the original literal remains the source. A value group
-   summarizes repeated observations, not a single event or the resource's current state.
-3. Follow occurrence positions to the stream's observation ledger. Read the actual before/after
-   and later records, including contrary outcomes, with their source spans, role and clocks.
-   Source position is not event-time order. Only comparable timestamps establish chronology;
-   keep an unknown collector zone distinct from an explicitly zoned event timestamp.
-4. Before an absence, latest-state or causal claim, reconcile counts with coverage actually read.
-   An unread page or payload is remaining work. Perform an identified permitted discriminator
-   before returning; if a limit blocks it, name that limit and leave the comparison open.
-
-Without field histories, follow resource inventory entries through metadata history and full
-payload locators. Catalog rows locate observations; preserve their identity and clocks. A
-locator-only row requires the linked content and every fragment. Search display lines differ
-from source/payload spans. Metadata, an opening brace or match counts do not establish coverage.
-
-For alerts and logs, use their complete catalogs, keeping activation, collection and event clocks
-separate. Compare earlier and later evidence before causal ranking. Raw files serve exact-byte
-checks or a named representation gap; raw formatting searches cannot establish absent fields or
-later records.
+Read earlier and later records, including contrary outcomes. Keep each record's source span and
+role. Use only comparable timestamps to establish order and keep unknown-zone clocks separate.
+Reconcile totals against the pages and payloads read before making an absence, latest-state or
+causal claim. Use raw records for exact-byte checks or gaps in the index.
 
 **Raw structured exports without an adequate index:** inspect the header and record format first.
 Use simple literal resource searches to locate records, then read their complete source spans.
