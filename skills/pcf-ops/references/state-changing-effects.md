@@ -13,7 +13,7 @@ human execution and exact approval; these effects determine blast radius and art
 | `cf restart <app>` / `cf restage <app>` | stops every instance, then starts them: whole-app outage for the start-up window | restage always; restart when the newest package is unstaged |
 | the same with `--strategy rolling` | replaces `web` instances `--max-in-flight` at a time (default 1; needs quota for the extras); every non-web process then restarts all at once | as the row above |
 | `cf restart-app-instance <app> <i> --process <type>` | that one instance | no |
-| Proposed no-downtime `web` memory/disk resize | candidate to prove: `POST /v3/deployments` with `options.memory_in_mb` / `options.disk_in_mb`; verify the target API, droplet reuse and effects below before proposing a command | unconfirmed until existing-droplet reuse is established |
+| Proposed no-downtime `web` memory/disk resize | candidate to prove: `POST /v3/deployments` with `options.memory_in_mb` / `options.disk_in_mb`, which current CAPI documents; verify the target API, droplet reuse and effects below before proposing a command | unconfirmed until existing-droplet reuse is established |
 | `cf push`, including `--strategy rolling -m/-k` | stages a new droplet: a deployment under the full release gates, never a resize | yes |
 
 ## App Autoscaler
@@ -24,13 +24,20 @@ manual scaling; check the binding afterwards and record the re-bind as a follow-
 
 ## Existing-droplet resize prerequisites
 
-The candidate to prove is `POST /v3/deployments` naming no droplet or revision, with
-`options.memory_in_mb` / `options.disk_in_mb`; it is not an established procedure here.
-Rolling-deployment support does not imply those options. Obtain the target API schema and a
-platform-owner-supported procedure reusing the current droplet; establish web/non-web effects, capacity/quota, verification
-and rollback before handing the exact proposal to the human release owner. Missing support/impact
-blocks a no-downtime claim. `cf scale -m/-k/-l` remains whole-app; substituting `cf push` creates a
-new artifact requiring full release gates.
+Current CAPI documents `options.memory_in_mb` / `options.disk_in_mb` on `POST /v3/deployments` (null
+keeps the previous web process's value; the droplet defaults to the app's current one). The minimum
+CAPI version and the target foundation's support are unverified, and rolling-deployment support does
+not imply them. Before proposing it, obtain the target API schema and a platform-owner-supported
+procedure, and establish web/non-web effects, capacity/quota, verification and rollback; without
+them there is no no-downtime claim.
+
+## Revision evidence for a rollback recommendation
+
+`cf revisions <app>` lists revision number, description, deployability, revision GUID and creation
+time; `cf events <app>` supplies recorded event times and actors, subject to output sanitization.
+Neither alone establishes the prior droplet or environment configuration: obtain a credential-free
+authoritative deployment/configuration record, and keep a missing binding `[unverified]`. These
+reads do not authorize a rollback.
 
 ## Deployment lock
 

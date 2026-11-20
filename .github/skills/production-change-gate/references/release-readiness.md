@@ -14,7 +14,7 @@ using this record.
 | Backout / recovery | Exact rollback where feasible; otherwise identify non-reversible effects and evidenced recovery preserving accepted writes/data. Record commands, verification and stops. PCF method/foundation behaviour stays `[unverified]` until foundation evidence is attached. |
 | Monitoring and comms | Define success/failure signals and abort criteria before release. `observability-engineer` supplies coverage evidence for new behaviour, including operator guidance for new paging alerts. Stakeholders/on-call know the window and update cadence. |
 
-Missing recovery evidence or uncovered migration stages block release. `ci-actions` owns artifact
+Missing recovery evidence or uncovered migration stages block release. `cicd-github` owns artifact
 production; this checklist consumes provenance without invoking that workflow.
 
 ## Artifact evidence

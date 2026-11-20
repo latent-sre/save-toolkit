@@ -16,12 +16,11 @@ infrastructure, runtime or identity recommendations.
   pinned `python3` with pinned PyYAML in its managed environment. `python3 -I` ignores user-site
   packages and `PYTHONPATH`; discovery itself uses only stdlib.
 - A GitHub environment whose required reviewers and environment-scoped credentials for a
-  least-privilege PCF service account are configured and available on this repository's plan.
+  least-privilege PCF service account are configured on this repository.
   Naming the environment in YAML does not establish that protection.
 - A deployment-branch rule on that environment limiting deploys to the reviewed branch or tags,
-  verified in the repository settings. GitHub's default is no restriction, and on Free, Pro, or Team
-  plans required reviewers exist only for public repositories, so without the rule and the job's
-  `if:` guard a pull-request run can deploy unmerged code with production credentials.
+  verified in the repository settings. GitHub's default is no restriction, so without the rule and
+  the job's `if:` guard a pull-request run can deploy unmerged code with production credentials.
 - A trusted `build` job that uploads `app-build` with `app.zip` and a reviewed single-app
   `manifest.yml`, and exposes their SHA-256 digests as `app_sha256` and `manifest_sha256` outputs.
   The manifest must be self-contained, without credentials or a Docker-image deployment path.
@@ -192,6 +191,9 @@ The [CAPI app list](https://v3-apidocs.cloudfoundry.org/#list-apps) and
 supply the machine contract; [cf CLI v8 curl](https://cli.cloudfoundry.org/en-US/v8/curl.html)
 provides `--fail` for HTTP errors. This is an observation before the push, not a remote lock;
 exclude concurrent deployments to this app through other jobs or humans during the approved window.
+The published cf CLI v8 command pages describe 8.0.0 and omit later behavior: read `cf help
+<command>` on the runner's pinned CLI. Current v8 `cf push` and `cf rollback` also accept
+`--strategy canary` with `--max-in-flight` and `--instance-steps`.
 `cf rollback <app> --version <n>` requires the version and prompts unless `-f`.
 `cf cancel-deployment <app>` resets the droplet but not environment-variable or binding changes, and
 does not guarantee zero downtime. Revision retention limits the rollback; see

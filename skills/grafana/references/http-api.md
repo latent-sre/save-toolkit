@@ -3,8 +3,7 @@
 The parent's [authority rules](../SKILL.md#access-and-authority) govern every operation.
 `stack-profile` owns version and recovery-copy facts; reviews use
 [read-only checks](./dashboard-reading.md#read-only-review-and-static-hygiene) without the edit
-loop. Grafana 13 deprecates `/api` in favour of `/apis` but still serves both. Scripted dashboards
-are disabled by default and removed in Grafana 14 (their 410 is frontend-only).
+loop. Grafana 13 deprecates `/api` in favour of `/apis` but still serves both.
 
 ## Dashboard change loop
 
@@ -20,9 +19,8 @@ are disabled by default and removed in Grafana 14 (their 410 is frontend-only).
 
 ## Credentials and effective scope
 
-`stack-profile` records any adopted Grafana CLI, MCP server, vendor skill package, or SDK; an
-installed or selected tool grants no new commands or write authority until adopted there. The SRE
-assistant's admitted read path is the [command-access](./command-access.md) helper. If
+An installed Grafana CLI, MCP server, vendor skill or SDK grants nothing until `stack-profile`
+records it; the SRE assistant reads through the [command-access](./command-access.md) helper. If
 `grafana/mcp-grafana` is present, never use its patch-mode `update_dashboard` for a live
 Classic/V1 write: it saves with `overwrite: true`, defeating concurrency checks (its V2 writes carry
 `resourceVersion`).
@@ -108,7 +106,8 @@ Run the bundled stdlib-only [dashboard_hygiene.py](../scripts/dashboard_hygiene.
 "<resolved helper path>" <file>`; see
 [dashboard reading and review](./dashboard-reading.md#read-only-review-and-static-hygiene) for
 output format and exit codes). It maps V2 onto Classic for static checks without validating the V2
-schema itself; use `dashboard-linter` v0.5.2+ for V2/PromQL/LogQL validation when installed. On an
+schema itself; `dashboard-linter` v0.5.2+, when installed, adds PromQL/LogQL rules and basic V2
+checks (required fields, element references), not full V2 schema validation. On an
 edit, check the live model first and block only confirmed defects this diff introduces.
 
 ## Create, import, update
@@ -116,7 +115,8 @@ edit, check the live model first and block only confirmed defects this diff intr
 - **Create:** App platform `POST …/namespaces/<ns>/dashboards` (collection path, never item path)
   with pinned `apiVersion`, `metadata.name` = chosen UID, `grafana.app/folder`, `grafana.app/message`,
   and no `resourceVersion`/`generation` (`201`). Legacy `POST /api/dashboards/db` with `id: null`,
-  `folderUid`, `message`, `overwrite: false` (`200`). `409` = UID taken; stop and reconcile, never
+  `folderUid`, `message`, `overwrite: false` (`200`). `412 version-mismatch` = UID already taken
+  (or a stale version), `400` = `id` and `uid` name different dashboards; stop and reconcile, never
   switch to `overwrite: true`. Name the human/protected recovery owner before dispatch.
 - **Import:** Use `POST /api/dashboards/import` (`overwrite: false`, `folderUid`, `inputs[]`) to
   bind `__inputs` and `${DS_*}` placeholders; raw `POST /api/dashboards/db` leaves broken literal
@@ -128,7 +128,7 @@ edit, check the live model first and block only confirmed defects this diff intr
 | Family | Token | Stale response |
 |---|---|---|
 | App-platform `PUT` | `metadata.resourceVersion` (strip `status` first) | `409 Conflict` |
-| Legacy `POST /api/dashboards/db` | `dashboard.version`, `overwrite: false` | `409` ("already exists") or `412 version-mismatch` |
+| Legacy `POST /api/dashboards/db` | `dashboard.version`, `overwrite: false` | `412 version-mismatch` (UID taken or stale); `400` when `id` and `uid` disagree |
 
 On conflict, fresh-read, re-diff, and reconcile; never bypass with `overwrite: true`. On timeout or
 dropped response after dispatch, follow the parent's [UNKNOWN rule](../SKILL.md#return-the-result)
@@ -158,7 +158,7 @@ fresh UID readback (and parent listing on UNKNOWN). Deletion is outside the dash
 4. **Confirm save message in version history:** App-platform history is served only at an enabled
    stable version such as `v1` (never alpha/beta):
    `GET /apis/dashboard.grafana.app/v1/namespaces/<ns>/dashboards?labelSelector=grafana.app/get-history=true&fieldSelector=metadata.name=<uid>`,
-   or legacy `GET /api/dashboards/uid/<uid>/versions?limit=20` (requires `dashboards:write`; 403
+   or the deprecated legacy `GET /api/dashboards/uid/<uid>/versions?limit=20` (requires `dashboards:write`; 403
    does not prove absence of versions).
 
 ## Rollback

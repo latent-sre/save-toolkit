@@ -20,7 +20,7 @@ import yaml
 from testkit import require_shell
 
 ROOT = Path(__file__).resolve().parents[1]
-REFERENCE = ROOT / "skills/ci-actions/references/pcf-deploy-job.md"
+REFERENCE = ROOT / "skills/cicd-github/references/pcf-deploy-job.md"
 CF_FIXTURE = r'''
 import json
 import os

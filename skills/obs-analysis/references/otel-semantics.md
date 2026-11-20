@@ -35,8 +35,10 @@ modes. Record the active convention and emitted fields; this trace-reading skill
 In semconv v1.45.0, `service.instance.id`, `server.address`, `http.route`, and
 `db.collection.name` are Stable; `messaging.destination.name` is Development. A valid name does
 not imply stable maturity. The spec forbids credentials in `url.full`, but older or
-non-compliant instrumentation may still emit them, and sensitive query parameters remain; redact
-before copying it.
+non-compliant instrumentation may still emit them. The spec's default query redaction covers only
+named signing keys (`AWSAccessKeyId`, `Signature`, `sig`, `X-Goog-Signature` and the `X-Amz-*`
+signature, credential and security-token keys), keeping each key with a `REDACTED` value; every
+other sensitive parameter remains, so redact before copying it.
 
 ## Sampling makes absence weak evidence
 

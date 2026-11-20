@@ -7,28 +7,23 @@ not authorize writes.
 
 ## Reading and interpreting panels
 
-- Bind observations to an absolute UTC window, timezone, variables, datasource UIDs, refresh time,
-  and panel time overrides; compare equivalent windows.
-- Panel thresholds do not prove an alert rule exists or evaluates the same expression.
+- Panel thresholds do not prove an alert rule exists or evaluates the same expression, and panel
+  time overrides change the window a panel shows.
 - The helper's `dashboard --uid <uid> --panel <id>` isolates a Classic or V2 panel with its dashboard
-  version and variable/time context (`coverage: configuration_only`). Expand library-panel
-  dependencies through available reads and resolve saved selections against the actual view.
-- Inspect per-query errors even under HTTP 200. Use `obs-analysis` for rate, percentile, and
-  missing-data logic. The SRE helper permits bounded Prometheus/Loki query POSTs; other backends
-  require returning the missing read, never bypassing the restriction.
+  version and variable/time context (`coverage: configuration_only`). Library panels and saved
+  selections must be resolved against the actual view.
+- Inspect per-query errors even under HTTP 200; `obs-analysis` owns rate, percentile and missing-data
+  logic. The SRE helper queries only Prometheus and Loki; for another backend, return the missing read.
 - Bind [visual verification](./visual-verification.md) to the same query window and variables.
-- With only a model, explain what it measures and mark current health unverified. Return observations
-  and panel links preserving time and variables.
 
 ## Sharing, access, and editor changes
 
-Confirm actual grants; documented Viewer/Editor capabilities do not establish target permissions.
+Documented Viewer/Editor capabilities do not establish target permissions; confirm actual grants,
+and prepare permission or role changes for the human under [access authority](../SKILL.md#access-and-authority).
 
-- Prepare exact permission/role changes for the human under
-  `production-change-gate` and [access authority](../SKILL.md#access-and-authority); never apply them.
-- Prefer an access-controlled live link preserving time range, `var-<name>` values, and timezone.
-  Screenshots freeze data and may expose more than the recipient can query. Snapshots embed queried
-  data outside normal dashboard access: scrub them, set expiry, and treat sharing as data egress.
+- Snapshots embed queried data outside normal dashboard access: scrub them, set expiry, and treat
+  sharing as data egress. Prefer an access-controlled live link with time range, `var-<name>`
+  values and timezone.
 - Inventory every library-panel consumer before editing: changes propagate to all consumers.
 - A version-history restore is durable only for unmanaged dashboards. Provisioned or tool-managed
   resources must change through their owner or reconciliation replaces the UI/API edit.
@@ -56,8 +51,9 @@ Confirm actual grants; documented Viewer/Editor capabilities do not establish ta
    `panel_count`, `findings` (`rule`, `where`, `detail`, `severity`), `query_analysis`, and `errors`.
    Severity is `advisory` (presentation/portability) or `review` (query/missing-target). Exit 0 means
    no review-required findings, 1 requires review, 2 means uncheckable (including `unsupported_v2`).
-   Fixed UIDs are portability advice; `_total` is a name heuristic, not type evidence. For V2 schema
-   validation, use `dashboard-linter` v0.5.2+ or record the gap.
+   Fixed UIDs are portability advice; `_total` is a name heuristic, not type evidence. For V2,
+   `dashboard-linter` v0.5.2+ adds only basic checks (required fields, element references); full
+   schema validation remains a recorded gap.
 4. **Sample queries and presentation.** Exercise a bounded query sample (`POST /api/ds/query` with
    real variables, window, and step) and follow [visual verification](./visual-verification.md) where
    available. Do not save, import, restore, create snapshots/test resources, trigger alerts, or alter

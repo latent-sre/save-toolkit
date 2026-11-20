@@ -30,7 +30,7 @@ Use Application Default Credentials with the writer's `roles/telemetry.writer`, 
 Consumer role and quota project. An OTLP/HTTP exporter uses the root URL
 `https://telemetry.googleapis.com`; do not reuse the gRPC `host:port` shape for it.
 
-`otelcol.auth.google` is **public preview** in Alloy v1.21.3 and requires Alloy to start with
+`otelcol.auth.google` is **public preview** through Alloy v1.22.0 and requires Alloy to start with
 `--stability.level=public-preview` (or a lower stability level).
 
 ## Discipline that stays regardless of syntax
@@ -45,10 +45,12 @@ Consumer role and quota project. An OTLP/HTTP exporter uses the root URL
 
 ## Debugging a running Alloy
 
-- Validate before `/-/reload`. In v1.21.3, `alloy validate <config>` checks static shape/registers
-  import namespaces without resolving or validating imported contents; success cannot prove remote
-  modules work. The SRE guard denies it, as well as `alloy fmt -w`, `alloy run` and `alloy tools`.
-  Request a human or an authorized isolated, networkless runner.
+- Validate before `/-/reload`, passing the same `--stability.level` and
+  `--feature.community-components.enabled` values the run uses. In v1.21.3,
+  `alloy validate <config>` checks static shape/registers import namespaces without resolving or
+  validating imported contents; success cannot prove remote modules work. The SRE guard denies it,
+  as well as `alloy fmt -w`, `alloy run` and `alloy tools`. Request a human or an authorized
+  isolated, networkless runner.
 - Without local Alloy, an authorized lane can validate the exact self-contained config through
   local Docker. Pin the deployed version, never `latest`, mount only the config read-only and
   disable networking. A PowerShell text pipe can alter encoding/line endings:
@@ -61,7 +63,8 @@ Consumer role and quota project. An OTLP/HTTP exporter uses the root URL
   Omit the preview flag only when no configured component needs it. No credentials, Docker socket
   mounts or relaxed isolation to make imports pass; use a controlled runner for trusted imports.
   Keep input unchanged and record hash, image, `alloy --version`, command, exit and diagnostics.
-  Static validation checks syntax/components/references/types, not DNS, TCP, TLS, authentication
+  Static validation checks syntax, missing components, name conflicts, required and unknown
+  properties, and `foreach`/`declare` blocks, not DNS, TCP, TLS, authentication
   or delivery. Only an actual run establishes execution of that image/config.
 ## Backpressure and loss — where data quietly dies
 

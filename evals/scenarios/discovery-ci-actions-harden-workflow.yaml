@@ -15,12 +15,12 @@ prompt: |
         - run: echo "Reviewing ${{ github.event.pull_request.title }}"
   ```
 success_criteria:
-- Fires ci-actions on an unlabelled workflow review that never names the skill
+- Fires cicd-github on an unlabelled workflow review that never names the skill
 - Names the missing least-privilege permissions block
 - Accepts the published major action tag under team policy and requires explicit least-privilege permissions
 - Names the PR title interpolated into shell source as an injection surface
 target:
   kind: skill
-  name: ci-actions
+  name: cicd-github
 routing:
   expect: fire

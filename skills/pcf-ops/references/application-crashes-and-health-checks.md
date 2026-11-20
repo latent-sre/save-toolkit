@@ -53,13 +53,10 @@ Health-check changes require the parent's exact approved-change packet and human
 
 ### Supporting Spring Boot services
 
-A separate management port can stay healthy while the app listener fails; check the main port.
-Liveness governs restart, so a dependency check in it turns a dependency outage into a restart loop.
-
-For interrupted requests during shutdown, compare the app's
-`spring.lifecycle.timeout-per-shutdown-phase` with the platform's stop grace period; a shorter
-platform deadline can terminate draining requests. Gather the configuration and failure evidence
-for the human release owner; Java source changes belong to the application's development owner.
+A separate management port can stay healthy while the app listener fails; check the main port. A
+dependency check inside liveness turns a dependency outage into a restart loop. For requests cut off
+at shutdown, compare `spring.lifecycle.timeout-per-shutdown-phase` with the platform's stop grace
+period. Java source changes belong to the application's development owner.
 
 ## JVM memory sizing (Java buildpack)
 
@@ -70,16 +67,12 @@ for the human release owner; Java source changes belong to the application's dev
   2. A pinned `-Xmx` still must fit with non-heap or startup fails:
      `required memory … is greater than … available for allocation`. If non-heap alone exceeds
      memory, lowering heap cannot fix it; check pool/thread estimates and container limit.
-     If non-heap fits but the heap pin makes the total too large, propose reducing/removing it.
-     Recalculate the full budget and check workload demand/headroom before a human changes it;
-     arithmetic fit alone is not readiness.
+     If non-heap fits but the heap pin makes the total too large, propose reducing or removing it.
   3. The staging log line `Loaded Classes: <n>, Threads: <n>` is the calculator's input; tune
      `stack_threads` via `JBP_CONFIG_OPEN_JDK_JRE` rather than hand-setting `-Xss`.
 
-  Container OOM identifies total pressure, not the responsible JVM pool; calculated heap does not
-  prove a later kill was non-heap. Compare effective JVM limits, heap/native use, class/thread
-  estimates and OS/cgroup limits. More container memory may mainly enlarge heap without changing
-  a fixed metaspace cap or thread limit. Diagnose the pool before sizing.
+  A container OOM shows total pressure, not which JVM pool caused it, and more container memory
+  mostly enlarges heap: diagnose the pool before sizing.
 - **The buildpack picks the JRE from its own config** (`JBP_CONFIG_OPEN_JDK_JRE`), not from the
   build file — check the two agree before blaming the code for a `ClassFormatError`. On Java
   buildpack v5, `BP_JAVA_VERSION` takes precedence and the default JRE is 17, not v4's 8; confirm

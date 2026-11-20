@@ -21,7 +21,7 @@ never retail ones. Most incidents trace to dependencies, most often order manage
 apps, and the quote plant.
 
 ## Runtime
-On-prem servers + PCF (VMware Tanzu Application Service, now Elastic Application Runtime for Tanzu Platform); this is what runs today. **The team
+On-prem servers + PCF (VMware Tanzu Application Service, now Elastic Application Runtime for VMware Tanzu Platform); this is what runs today. **The team
 operates PCF through Apps Manager**, not the command line: many SREs do not have the `cf` CLI
 installed. Skills give first checks as Apps Manager views with the `cf` v8 (CAPI V3) equivalent as
 a fallback; without a protected output path, the `sre-assistant` agent runs no raw `cf` command and

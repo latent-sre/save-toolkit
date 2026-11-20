@@ -1,4 +1,4 @@
-"""Probe-owned oracle for a GitHub Actions PCF deploy job written with the ci-actions skill.
+"""Probe-owned oracle for a GitHub Actions PCF deploy job written with the cicd-github skill.
 
 Usage: python probe_ci_workflow.py <case>
 Reads every workflow under .github/workflows/ of the current directory. Exit 0 when the case holds,

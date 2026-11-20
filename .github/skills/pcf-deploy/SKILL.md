@@ -42,9 +42,9 @@ A human release owner executes only after approving the exact completed plan bel
 ## Rollback truth — always account for it
 
 A route rollback restores traffic to a retained app; it does not restore that app's configuration.
-`cf rollback` restores revision-scoped code, start command, and environment, not routes, bindings,
-scale, or app features outside the revision. This is unconfirmed for the target foundation and
-retained artifacts. Neither reverses:
+`cf rollback` restores revision-scoped code, per-process start commands, sidecars and environment,
+not routes, bindings, scale, or app features outside the revision. This is unconfirmed for the
+target foundation and retained artifacts. Neither reverses:
 
 - data or schema migrations, rows already written, or consumed sequence values;
 - messages, webhooks, files, or any other external effect a consumer already performed.

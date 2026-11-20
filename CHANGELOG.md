@@ -26,6 +26,28 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
   and add `-c diff.autoRefreshIndex=false` to its Git prefix so a working-tree diff leaves the index alone.
 - **Reviewer evals:** The Git-prefix check grades only `status` and `diff`, the calls that can rewrite
   the source index; object reads such as `show` and `log` pass with any prefix.
+- **cicd-github (renamed from ci-actions):** Replace common GitHub Actions practice with current platform behavior: trigger-scoped
+  cache access and `cache-mode`, which events satisfy a required check, the checkout fork-PR refusal
+  on floating major tags, lockfile limits, hosted-runner clouds and RHEL images, the 63-day runner
+  update window, installation-token length, `actions/attest`, and the dispatch run receipt.
+- **agent-authoring:** Correct Claude Code and VS Code/Copilot host facts against current documentation.
+- **stack-profile:** Record that the team's GitHub is Enterprise Cloud at github.com, and drop the
+  Enterprise Server and lower-plan hedges from `cicd-github`.
+- **gcp-ops, obs-analysis:** Correct GCP facts against current Google documentation: the below-max 500,
+  billing spend caps, ephemeral disk, GKE 401 and network pull errors, the trace-sink removal date,
+  the Observability Analytics backfill gap, and Cloud Run instances for singleton work.
+- **pcf-ops, pcf-deploy, incident-investigation:** Send responders to app events on the Apps Manager
+  Overview page and to Observability > Logs, complete the Gorouter error table, replace the
+  end-of-support TAS 2.12 citation, use the current product name, and record what a revision and a
+  deployment's sizing options cover.
+- **grafana, obs-analysis, obs-pipeline, obs-alerting:** Correct Grafana 13.3, Tempo, Mimir, Alloy,
+  OpenTelemetry, Splunk and Moogsoft facts against current releases and source.
+- **stack-profile:** Record Grafana 13.3.x, matching the `grafana` references' 13.3 API shapes.
+- **pcf-ops, grafana:** Trim always-loaded `pcf-ops` text by moving rollback revision evidence into its
+  state-changing reference and folding the database tunnel tip into the `cf ssh` rule; reduce the
+  `gcx` migration narrative to its rule.
+- **pcf-ops, grafana:** Second trim on merit: drop general practice, restated authority lists and
+  duplicated rules (Grafana prose about 5,760 to 5,310 words; `pcf-ops` about 2,970 to 2,660).
 - **Agents:** Reply headers drop `Returning to`, `Parent objective` and `Human owner` in the eight agents
   that carried them, keeping `Assignment` and `Caller next step`; checks on the dropped lines are removed.
 

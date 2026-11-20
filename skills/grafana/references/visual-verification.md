@@ -18,18 +18,7 @@ screenshots; true does not prove a render works). The SRE agent must not read
 
 ## SRE browser investigation
 
-The Copilot projection has no shell, so the browser is its only visual path. Claude Code grants the
-Playwright MCP column; Copilot grants both columns.
-
-| Capability | Playwright MCP | Native VS Code |
-|---|---|---|
-| Open/navigate | `browser_navigate` | `openBrowserPage`, `navigatePage` |
-| Read/capture | `browser_snapshot`, `browser_take_screenshot` | `readPage`, `screenshotPage` |
-| Inspect/select | `browser_click`, `browser_hover`, `browser_select_option` | `clickElement`, `hoverElement` |
-| Time/variable inputs and scroll | `browser_type`, `browser_press_key` | `typeInPage` |
-| Bounded loading wait | `browser_wait_for` | Read updated page when ready |
-
-Never pass `filename` to Playwright capture tools (can overwrite a repo file). Read a fresh snapshot
+Use the browser tools the lane grants. Never pass `filename` to Playwright capture tools (can overwrite a repo file). Read a fresh snapshot
 after each interaction; graphs require image inspection, not text snapshots alone.
 
 1. Reuse the authenticated page (native VS Code requires the human's **Share with Agent** page).
