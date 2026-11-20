@@ -34,6 +34,9 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
 - **grafana, obs-analysis, obs-pipeline, obs-alerting:** Correct Grafana 13.3, Tempo, Mimir, Alloy,
   OpenTelemetry, Splunk and Moogsoft facts against current releases and source.
 - **stack-profile:** Record Grafana 13.3.x, matching the `grafana` references' 13.3 API shapes.
+- **pcf-ops, grafana:** Trim always-loaded `pcf-ops` text by moving rollback revision evidence into its
+  state-changing reference and folding the database tunnel tip into the `cf ssh` rule; reduce the
+  `gcx` migration narrative to its rule.
 
 ## [0.52.10] - 2026-11-19
 

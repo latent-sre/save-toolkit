@@ -41,20 +41,6 @@ agent's own rules and caller-supplied evidence, and without them the agent asks 
 view or a sanitized observation. An absent or unauthenticated CLI is an access gap, never an
 observed platform failure.
 
-## Change and revision evidence
-
-In Apps Manager, **Application > Revisions** is the primary view and lists current and stopped
-revisions. Expanding a row shows that revision's environment variables, the same exposure as singular
-`cf revision`: a human reads it, and only a sanitized excerpt reaches an agent. Its **Redeploy** button
-is a rollback, so it is state-changing.
-
-`cf revisions <app>` lists revision number, description, deployability, revision GUID and creation
-time; `cf events <app>` supplies recorded event times and actors, subject to output sanitization.
-Neither alone establishes the prior droplet or environment configuration. For a rollback
-recommendation, obtain a credential-free authoritative deployment/configuration record; missing
-binding stays `[unverified]`. These reads do not authorize a rollback.
-Do not substitute singular `cf revision`, which can print environment variables.
-
 ## App-side vs platform-side (know your lane)
 
 - **One app / route / instance affected ⇒ likely app-side** (ours to investigate).
@@ -78,9 +64,10 @@ Do not substitute singular `cf revision`, which can print environment variables.
 
 ## "What changed?" — the highest-value read
 
-A crash/OOM, restage, scale, or `audit.app.update`/`...droplet.create` in the **Overview** events at the incident
-start is the prime suspect. Correlate it with the release pipeline and repository history; temporal
-alignment alone is not proof.
+A crash/OOM, restage, scale, or `audit.app.update`/`...droplet.create` in the **Overview** events at
+the incident start is the prime suspect. **Application > Revisions** (`cf revisions <app>`) lists
+current and stopped revisions. Correlate them with the release pipeline and repository history;
+temporal alignment alone is not proof.
 
 ## Logs
 
@@ -99,7 +86,7 @@ evidence gathered so far in this triage, and no others.
 |---|---|
 | App crashes, status 137, OOM evidence, JVM memory sizing, `$PORT`, or liveness/readiness health checks | [Application crashes and health checks](./references/application-crashes-and-health-checks.md) |
 | `X-Cf-RouterError`, 404/502/503 interpretation, keep-alive failures, connection limits, route services, or certificate/clock-skew symptoms | [Router errors](./references/router-errors.md) |
-| Recommending or classifying a restart, restage, scale, push, or rollback, or a memory/disk resize | [State-changing command effects](./references/state-changing-effects.md) |
+| Recommending or classifying a restart, restage, scale, push, or rollback (including its revision evidence), or a memory/disk resize | [State-changing command effects](./references/state-changing-effects.md) |
 
 These references supply interpretation only. They do not widen the application-side lane or
 authorize a state-changing command.
@@ -121,23 +108,17 @@ CPU or memory **over time**, use PCF App Metrics or Grafana.
 Fleet agents never run `cf env`, `cf service-key`, or `CF_TRACE`; the guard denies them. A human
 runs them, and if raw environment data is required, captures and sanitizes the smallest excerpt
 outside the agent context, preserving its evidence label and content hash through handoff. The same
-applies to an expanded row in Apps Manager **Application > Revisions**.
+applies to singular `cf revision` and to an expanded row in Apps Manager **Application > Revisions**,
+which both show environment variables; never substitute them for `cf revisions`.
 
-Treat `cf ssh` as privileged shell access, not read-only triage: recommend it only when necessary,
-and hand the human release owner the exact target, purpose, and rollback/exit plan.
+Treat `cf ssh`, including database port-forwarding through an app container, as privileged shell
+access, not read-only triage: recommend it only when necessary and hand the human release owner the
+exact target, purpose, and rollback/exit plan. Port-forwarding needs an already-approved Tier-2/3
+evidence packet and authorizes no state-changing database query.
 
 ## State-changing — human execution only
 
-Every `cf` verb outside the read rows above is human-run. Read
-[State-changing command effects](./references/state-changing-effects.md) before recommending or
-classifying any of them; several stop the whole app.
-
-`incident-investigation` advises the responder on mitigation choice for ITO's approval, the
-human-invoked `/save-toolkit:pcf-deploy` workflow owns the deployment plan the human release owner
-executes, and `production-change-gate` owns the approved evidence packet a state-changing command
-needs; this read-only skill stops and hands off.
-
-## Tips
-
-- Database port-forwarding through an app container is privileged human-run work. It requires an
-  already-approved Tier-2/3 evidence packet and does not authorize state-changing database queries.
+Every `cf` verb outside the read rows above, and the Revisions **Redeploy** button (a rollback), is
+human-run under `production-change-gate`'s approved evidence packet; several stop the whole app.
+Deployment plans use the human-invoked `/save-toolkit:pcf-deploy`. This read-only skill stops and
+hands off.

@@ -118,7 +118,7 @@ edit, check the live model first and block only confirmed defects this diff intr
   with pinned `apiVersion`, `metadata.name` = chosen UID, `grafana.app/folder`, `grafana.app/message`,
   and no `resourceVersion`/`generation` (`201`). Legacy `POST /api/dashboards/db` with `id: null`,
   `folderUid`, `message`, `overwrite: false` (`200`). `412 version-mismatch` = UID already taken
-(or a stale version), `400` = `id` and `uid` name different dashboards; stop and reconcile, never
+  (or a stale version), `400` = `id` and `uid` name different dashboards; stop and reconcile, never
   switch to `overwrite: true`. Name the human/protected recovery owner before dispatch.
 - **Import:** Use `POST /api/dashboards/import` (`overwrite: false`, `folderUid`, `inputs[]`) to
   bind `__inputs` and `${DS_*}` placeholders; raw `POST /api/dashboards/db` leaves broken literal

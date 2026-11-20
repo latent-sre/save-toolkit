@@ -2,13 +2,11 @@
 
 For an SRE agent with terminal tools; no write authority is granted.
 
-## Selected gcx migration
+## `gcx`
 
-The owner selected `gcx` for read-only Grafana investigation access, but the existing guard does not
-admit `gcx` yet (protected execution, redirect/destination enforcement, and installed-client
-acceptance remain pending). Keep using the bundled read helper below until fixed CLI commands and
-their execution boundary are verified and granted. Do not install `gcx`, change contexts, expose
-credentials, enable HTTP payload logging, or install vendor skills as an incident workaround.
+The guard does not admit `gcx`; use the bundled read helper below. Do not install `gcx`, change
+contexts, expose credentials, enable HTTP payload logging, or install vendor skills as an incident
+workaround.
 
 ## Bundled read helper
 
