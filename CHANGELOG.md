@@ -53,6 +53,8 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
   duplicated rules (Grafana prose about 5,760 to 5,310 words; `pcf-ops` about 2,970 to 2,660).
 - **Agents:** Reply headers drop `Returning to`, `Parent objective` and `Human owner` in the eight agents
   that carried them, keeping `Assignment` and `Caller next step`; checks on the dropped lines are removed.
+- **SRE assistant:** Use format-specific navigation when an indexed export supplies it. Keep ordinary
+  lookups focused on resource identity, event times, and coverage.
 
 ## [0.52.10] - 2026-11-19
 
