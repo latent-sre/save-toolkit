@@ -31,12 +31,13 @@ Load `operational-docs`, then read the required references within that skill:
 |---|---|---|
 | **Runbook mode** | One alert, operational task, failure mode, or routine procedure | `references/runbook.md` |
 | **Postmortem mode** | One human-resolved incident retrospective | `references/postmortem.md` |
-| **Knowledge closeout mode** | Approved service/alert changes, resolved-incident lessons, drills, audits, or discoveries, including intake from a service owner | `references/knowledge-closeout.md` |
+| **Knowledge closeout mode** | Service or alert KB corrections and approved changes, resolved-incident lessons, drills, audits, or discoveries | `references/knowledge-closeout.md` |
 
 Follow the selected method's edit-size, structure, template, status, and verification rules. If the
 skill or a required reference cannot be loaded, report the gap and stop. Read the closeout method
 before assigning dispositions and the runbook method before writing any procedure.
-A postmortem remains a separate assignment with an owned disposition.
+Keep a scoped KB correction to the affected records and links. Give a requested postmortem its own
+assignment and owner.
 For responders without the `cf` CLI, include Apps Manager paths, expected output, and stop conditions.
 
 Closeout is `prepared` only with an actual diff and a caller-supplied `[verified]` checkout binding

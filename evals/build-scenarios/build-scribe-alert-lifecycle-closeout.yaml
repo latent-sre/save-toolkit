@@ -1,0 +1,101 @@
+id: build-scribe-alert-lifecycle-closeout
+max_turns: 36
+agent: software-engineer
+tools: [Read, Edit, Write, Grep, Glob, Bash, Skill, Task]
+references:
+  - skills/operational-docs/references/knowledge-closeout.md
+prompt: |
+  I'm Morgan, the Checkout Operations owner. We retired Checkout Legacy last night. Our first
+  CheckoutQueueBacklog page also pointed to a runbook nobody could open. The responders are
+  finished. Please have scribe bring our KB up to date using evidence/change.md. I approve only
+  this documentation closeout. Read the local checkout revision and status for the handoff,
+  then review scribe's diff. No platform calls, operational changes, or commits.
+fixture:
+  files:
+    README.md: "# Checkout KB\nOperational knowledge lives in operations/ and runbooks/.\n"
+    evidence/change.md: |
+      [sourced] CHG-75: Morgan approved Checkout Legacy retirement at 2026-11-19T23:00Z.
+      Checkout is still serving traffic and uses CheckoutAvailability and runbooks/checkout.md.
+      [sourced] RULE-75: Grafana org 7 readback at 2026-11-20T00:05Z showed the API-owned rule
+      CheckoutQueueBacklog present and enabled (UID checkout-queue-backlog, version 9).
+      [sourced] PAGE-75: Morgan received a page from that rule at 2026-11-20T00:07Z.
+      The records contain no later rule readback or proof of current notification routing.
+      [sourced] DOC-75: runbooks/checkout-queue.md is missing and no replacement is approved.
+      FUP-75 tracks the readiness gap with Checkout Operations. No approved procedure is available.
+    operations/index.md: |
+      # Operations index
+
+      ## Services
+      | Service | Lifecycle | Owner | Service card | Lifecycle since / record |
+      | --- | --- | --- | --- | --- |
+      | checkout | active | Checkout Operations | [Checkout](services/checkout.md) | |
+      | checkout-legacy | active | Checkout Operations | [Checkout Legacy](services/checkout-legacy.md) | |
+
+      ## Alerts
+      | Exact alert name | Status | Service | Page/ticket | Alert card | Runbook | Definition |
+      | --- | --- | --- | --- | --- | --- | --- |
+      | CheckoutAvailability | active | checkout | page | [Availability](alerts/checkout-availability.md) | ../runbooks/checkout.md | uid:checkout-availability |
+      | CheckoutQueueBacklog | active | checkout | page | [Queue backlog](alerts/checkout-queue-backlog.md) | ../runbooks/checkout-queue.md | uid:checkout-queue-backlog |
+
+      ## Open knowledge gaps
+      | Gap | Artifact | Status | Owner | Tracking link | Evidence label |
+      | --- | --- | --- | --- | --- | --- |
+    operations/services/checkout.md: |
+      ---
+      service_id: checkout
+      lifecycle: active
+      owner: Checkout Operations
+      ---
+      # Checkout
+      Uses [CheckoutAvailability](../alerts/checkout-availability.md) and [its runbook](../../runbooks/checkout.md).
+    operations/services/checkout-legacy.md: |
+      ---
+      service_id: checkout-legacy
+      lifecycle: active
+      owner: Checkout Operations
+      ---
+      # Checkout Legacy
+      Uses [CheckoutAvailability](../alerts/checkout-availability.md) and [its runbook](../../runbooks/checkout.md).
+    operations/alerts/checkout-availability.md: |
+      ---
+      alert_id: checkout-availability
+      service_id: checkout
+      status: active
+      runbook: ../../runbooks/checkout.md
+      ---
+      # CheckoutAvailability
+      Covers [Checkout](../services/checkout.md).
+    operations/alerts/checkout-queue-backlog.md: |
+      ---
+      alert_id: checkout-queue-backlog
+      service_id: checkout
+      status: active
+      source_definition: https://grafana.example.invalid/alerting/grafana/checkout-queue-backlog/view?orgId=7
+      runbook: ../../runbooks/checkout-queue.md
+      last_reviewed: null
+      ---
+      # CheckoutQueueBacklog
+      Owner: Checkout Operations.
+    runbooks/checkout.md: |
+      ---
+      status: active
+      last_verified: null
+      ---
+      # Checkout availability
+      Read the Checkout availability dashboard for the affected window.
+checks:
+  - {check: task_completed, target: scribe, text: "scribe completes the documentation assignment"}
+  - {check: changes_within, allowed: [operations/index.md, operations/services/checkout-legacy.md, operations/alerts/checkout-queue-backlog.md], text: "shared alert and runbook, evidence, and all operational artifacts remain untouched"}
+  - {check: file_contains, path: operations/services/checkout-legacy.md, needle: "lifecycle: retired", text: "the retired component card records its lifecycle"}
+  - {check: file_contains, path: operations/index.md, needle: "| checkout-legacy | retired |", text: "the index agrees with the retired component card"}
+  - {check: file_contains, path: operations/alerts/checkout-queue-backlog.md, needle: "status: proposed", text: "the pager card records the missing readiness prerequisite"}
+  - {check: file_contains, path: operations/index.md, needle: "| CheckoutQueueBacklog | proposed |", text: "the existing Status column agrees with the pager card"}
+  - {check: file_contains, path: operations/index.md, needle: "| CheckoutAvailability | active | checkout |", text: "the shared alert index status stays active for Checkout"}
+  - {check: file_contains, path: operations/index.md, needle: "FUP-75", text: "the index retains the existing tracker for the readiness gap"}
+  - {check: file_contains, path: operations/index.md, needle: "RULE-75", text: "the index preserves the rule readback record"}
+  - {check: file_contains, path: operations/index.md, needle: "PAGE-75", text: "the index preserves the delivery record"}
+  - {check: no_new_commits, text: "the documentation diff is returned for review"}
+success_criteria:
+  - Review the Open knowledge gaps entry for dated provisioning and delivery from RULE-75 and PAGE-75, later state unknown, and an owned next check using FUP-75.
+  - Confirm that the readiness status leaves the recorded delivery intact, and that the shared alert and runbook still serve Checkout after Checkout Legacy retires.
+  - Check the handoff and session trace for evidence-bound documentation only, without any new backend read or production action.

@@ -1,0 +1,26 @@
+id: incident-closeout-pager-correction
+max_turns: 8
+split: regression
+skill: incident-investigation
+tools: [Skill, Read]
+prompt: |
+  We hit the full 15-minute recovery window for checkout in INC-75 and I closed the incident
+  at 00:30 UTC. Before I sign off, can you get the stale pager in our KB fixed? The owning
+  card is operations/alerts/checkout-queue-backlog.md. The on-call owner approved changing
+  the contact listed there to Checkout Operations on-call in record DOC-75. I don't have
+  this checkout's revision handy. Give me the handoff I can send to the docs queue.
+
+  The docs queue accepts a JSON object with an `assignments` array. Each item has `mode`
+  (`postmortem` or `knowledge_closeout`), `target` (repository-relative path),
+  `change` (approved value for the field being corrected) and `evidence_record` (record ID).
+  Return that JSON object only.
+success_criteria:
+  - Routes the pager contact correction as one knowledge closeout assignment and preserves the approved scope and evidence identity.
+graders:
+  - type: exact_json
+    fields:
+      assignments:
+        - mode: knowledge_closeout
+          target: operations/alerts/checkout-queue-backlog.md
+          change: Checkout Operations on-call
+          evidence_record: DOC-75

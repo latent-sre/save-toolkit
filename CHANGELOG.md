@@ -27,7 +27,12 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
   contradictory decisions from answers that satisfy the task.
 - Merge and release checks follow repository policy and trace reviewed changes to the tested artifact.
 - Frontend retries preserve the original request, and runbook imports keep nested rollback steps under recovery.
+- **Operational docs:** Record documentation status independently of observed alert behavior. Keep
+  scoped knowledge corrections focused on the requested change.
 - Database and PCF migration plans cover concurrent writers, replay and cutover reconciliation.
+- **agent-authoring:** Fix missed instructions at the layer that failed and enforce fixed authority
+  boundaries where actions run.
+- **akamai-edge:** Interpret cache status by hop and confirm an origin forward before attributing load.
 - **Contributor guide:** Correct handoff and dependency guidance and shorten the CI, eval catalog,
   Copilot projection, and guard sections.
 - **Reviewer:** Drop the source-only fallback sentence that let it skip reproducing P0/P1 findings,
@@ -41,6 +46,8 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
   cache access and `cache-mode`, which events satisfy a required check, the checkout fork-PR refusal
   on floating major tags, lockfile limits, hosted-runner clouds and RHEL images, the 63-day runner
   update window, installation-token length, `actions/attest`, and the dispatch run receipt.
+- **Software engineer:** Route requests to submit or rerun CI checks to the bounded validation
+  procedure so downstream effects are checked before submission.
 - **agent-authoring:** Correct Claude Code and VS Code/Copilot host facts against current documentation.
 - **stack-profile:** Record that the team's GitHub is Enterprise Cloud at github.com, and drop the
   Enterprise Server and lower-plan hedges from `cicd-github`.
@@ -51,6 +58,8 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
   Overview page and to Observability > Logs, complete the Gorouter error table, replace the
   end-of-support TAS 2.12 citation, use the current product name, and record what a revision and a
   deployment's sizing options cover.
+- **Incident investigation:** Use the advisor for decisions. Route standalone telemetry explanations
+  and owner or pager lookups to their existing bounded workflows.
 - **grafana, obs-analysis, obs-pipeline, obs-alerting:** Correct Grafana 13.3, Tempo, Mimir, Alloy,
   OpenTelemetry, Splunk and Moogsoft facts against current releases and source.
 - **stack-profile:** Record Grafana 13.3.x, matching the `grafana` references' 13.3 API shapes.
@@ -61,6 +70,8 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
   duplicated rules (Grafana prose about 5,760 to 5,310 words; `pcf-ops` about 2,970 to 2,660).
 - **Agents:** Reply headers drop `Returning to`, `Parent objective` and `Human owner` in the eight agents
   that carried them, keeping `Assignment` and `Caller next step`; checks on the dropped lines are removed.
+- **SRE assistant:** Use format-specific navigation when an indexed export supplies it. Keep ordinary
+  lookups focused on resource identity, event times, and coverage.
 
 ## [0.52.10] - 2026-11-19
 

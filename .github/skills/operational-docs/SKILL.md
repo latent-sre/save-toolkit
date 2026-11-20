@@ -3,24 +3,25 @@ name: operational-docs
 description: >-
   Apply repository templates and evidence rules to resolved-incident retrospective intake and
   postmortem drafting, runbook creation or edits, and durable service or alert knowledge.
-  Also covers Confluence runbook imports and ownership or dependency lookup from existing cards.
+  Also covers Confluence runbook imports and bounded owner, pager, or dependency lookup from
+  existing cards, including when an incident is open.
   Triggers: 'draft the retro for the outage', 'update the runbook from this incident',
   'capture durable operational lessons', 'which team owns payments and how do I page them'.
-  Direct operational-document writing belongs to scribe. Active incidents use incident-investigation,
+  Direct operational-document writing belongs to scribe. Incident decisions use incident-investigation,
   alert design uses observability-engineer, and fleet prompt failures use agent-authoring.
 argument-hint: "[document, component, alert, or resolved incident]"
 ---
 
 # Operational documents
 
-Select the requested work and read its method before writing. A summary or explanation request
+Select the requested work and read its method before proceeding. A summary or explanation request
 gets that answer; it does not imply a document, closeout, or additional artifacts.
 
 | Requested work | Read | Resources when the method needs them |
 |---|---|---|
-| New runbook, procedure revision, or bounded contact/link correction | [Runbook method](./references/runbook.md) | [Template](./assets/runbook-template.md), [example](./assets/runbook-example.md) |
+| New runbook or edit to a runbook, including a contact or link | [Runbook method](./references/runbook.md) | [Template](./assets/runbook-template.md), [example](./assets/runbook-example.md) |
 | Retrospective for a resolved incident | [Postmortem method](./references/postmortem.md) | [Template](./assets/postmortem-template.md) |
-| Knowledge closeout after a resolved incident, drill, audit, or approved component/alert change | [Knowledge closeout](./references/knowledge-closeout.md) | [Service card](./assets/service-card-template.md), [alert card](./assets/alert-card-template.md), [index](./assets/knowledge-index-template.md) |
+| Service or alert KB correction, or knowledge closeout after a resolved incident, drill, audit, or approved component/alert change | [Knowledge closeout](./references/knowledge-closeout.md) | [Service card](./assets/service-card-template.md), [alert card](./assets/alert-card-template.md), [index](./assets/knowledge-index-template.md) |
 | Owner, paging, or dependency lookup from existing records | [Ownership lookup](./references/ownership-lookup.md) | Existing records |
 | Import a supplied Confluence runbook | Runbook method and [Confluence import](./references/confluence-import.md) | [Offline converter](./scripts/confluence_to_runbook.py) |
 

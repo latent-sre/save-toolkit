@@ -1,8 +1,8 @@
 # Closeout packet
 
 Use the known facts below; retain material unknowns without padding optional empty slots.
-This supplies the postmortem and knowledge closeout. Return it to the invoking caller
-(the human requester for direct use), who arranges the next handoff; this skill authors neither artifact.
+Return the packet to the invoking caller (the human requester for direct use), who arranges the
+handoffs. Include only requested assignments under Next owners.
 The UTC fields below are the receiving contract, not a change to the Eastern conversation display.
 Convert only dated, zoned source times; retain an unresolved source time with its gap rather than
 inventing a UTC value.

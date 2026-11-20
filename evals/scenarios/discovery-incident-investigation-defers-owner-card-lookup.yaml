@@ -1,0 +1,34 @@
+id: discovery-incident-investigation-defers-owner-card-lookup
+max_turns: 8
+split: regression
+tools: [Skill, Read, Grep, Glob, Task]
+prompt: |
+  INC-441 is active. Read operations/services/payments.md in this checkout and give me just
+  the owner and pager recorded there. I only need the contact details from that card.
+fixture:
+  files:
+    operations/services/payments.md: |
+      ---
+      service_id: payments
+      owner: Payments Platform
+      last_reviewed: 2026-10-15
+      evidence_status: sourced
+      ---
+
+      # Service: payments
+
+      ## Ownership and escalation
+
+      | Responsibility | Owner | Contact / escalation path |
+      |---|---|---|
+      | Service | Payments Platform | |
+      | On-call | Payments Platform | payments-primary |
+success_criteria:
+  - Returns the recorded owner and pager with the card path and review status.
+  - Keeps the read bounded to the card and does not page anyone or start incident advice.
+target: {kind: skill, name: incident-investigation}
+routing:
+  expect: not_fire
+  expected_alternative:
+    - {kind: skill, name: operational-docs}
+    - {kind: agent, name: repository-investigator}
