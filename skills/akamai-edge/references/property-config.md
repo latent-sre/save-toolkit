@@ -57,9 +57,9 @@ During an origin brownout, verify the property is configured to serve stale cont
 on it, and avoid deletion while that remains acceptable. If content must no longer be served, give
 the responsible human/security owner a narrowly scoped deletion for approval through the change
 gate, with the availability consequence explicit; invalidation can keep serving that content.
-Verify with a debug request; inferred from the X-Cache definitions
-and not yet confirmed: after invalidate, a server that held the object answers `TCP_REFRESH_HIT` or
-`TCP_REFRESH_MISS`; after delete, `TCP_MISS`.
+Have the human verify with a debug request. Expect a refresh at a hop that held an invalidated
+copy, or a miss at a hop where the copy was deleted. Use [edge triage](./edge-triage.md) to
+identify which hop served the next request before attributing load to origin.
 
 ## Config-as-code paths
 

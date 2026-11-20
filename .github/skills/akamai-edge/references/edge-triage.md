@@ -43,34 +43,35 @@ Legacy support on other properties remains unconfirmed; check the actual propert
 - Staging responses carry `X-Akamai-Staging` (e.g. `ESSL`) — the header that proves you hit
   staging, not production.
 
-**X-Cache values**:
+**Read each cache code at its own hop.** `X-Cache` describes the edge that served the client.
+`X-Cache-Remote`, when present, describes the parent in Tiered Distribution or SiteShield.
+`Akamai-Cache-Status` can describe both hops in one header.
 
 | Value | Means |
 |---|---|
-| `TCP_HIT` | served from edge disk cache |
-| `TCP_MEM_HIT` | served from edge memory — hot object |
-| `TCP_MISS` | not in cache — fetched from origin |
-| `TCP_REFRESH_HIT` | stale in cache; origin returned 304, served refreshed copy |
-| `TCP_REFRESH_MISS` | stale in cache; the refresh got a new object from origin |
-| `TCP_REFRESH_FAIL_HIT` | stale in cache and origin unreachable, so the stale object was served |
+| `TCP_HIT` | served from the reporting hop's disk cache |
+| `TCP_MEM_HIT` | served from the reporting hop's memory cache |
+| `TCP_MISS` | the reporting hop had no usable cached copy |
+| `TCP_REFRESH_HIT` | a stale object was revalidated upstream and the cached copy was served |
+| `TCP_REFRESH_MISS` | the upstream refresh returned a replacement object |
+| `TCP_REFRESH_FAIL_HIT` | the upstream refresh failed and the hop served its stale copy |
 | `TCP_IMS_HIT` | client sent `If-Modified-Since`; object fresh in cache and served |
 | `TCP_NEGATIVE_HIT` | a cached negative response (e.g. Not found) served again |
 
-`TCP_REFRESH_FAIL_HIT` on a debug request means the origin is unreachable while the edge serves
-stale content — an origin-leg finding, not a healthy edge; a delete purge removes that stale copy.
-
-`akamai-x-cache-remote-on` adds `X-Cache-Remote` for tiered distribution / SiteShield: child-miss +
-parent-hit reads as a miss on `X-Cache` and a hit on `X-Cache-Remote` — offload is working even
-though the child missed.
+A child `TCP_MISS` with a parent `TCP_HIT` shows that the parent cache served the response.
+A child miss alone leaves the serving hop unknown. If both hops miss, check where the request
+went next. Match the request to an origin-bound forward in Edge Diagnostics or the corresponding
+origin log entry before counting an origin fetch. For a failed refresh, locate the failing
+upstream leg. Attribute latency to origin only when origin-side or per-hop timing accounts for it.
 
 ## DataStream 2 — the sustained/fleet-wide evidence
 
 Resolve the destination from `stack-profile`'s edge row; do not invent an index. `obs-analysis`'s
 query catalog supplies hostname/region error and cache-share shapes. Relevant DataStream 2 fields:
 
-- `cacheStatus` — `0` means the object was absent from cache; `1` means present. Cached negative
-  responses or stale objects can still be served from upstream, so presence alone does not prove
-  origin offload; correlate cacheability and breadcrumbs when needed.
+- `cacheStatus` — `0` means the object was absent from the reporting cache; `1` means present.
+  Use `breadcrumbs`, where enabled, to identify upstream hops (`c` for cache parent, `o` for
+  origin). Stale or negatively cached content can still involve upstream requests.
 - `turnAroundTimeMSec` — milliseconds from the edge receiving the final request header until it
   writes the first response byte to the client. This interval can include edge and upstream work;
   it does not isolate origin latency. Compare cache status, breadcrumbs, and origin-side timing
