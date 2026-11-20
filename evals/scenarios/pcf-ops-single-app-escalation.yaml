@@ -1,0 +1,36 @@
+id: pcf-ops-single-app-escalation
+max_turns: 6
+split: regression
+skill: pcf-ops
+tools: [Skill, Read]
+prompt: |
+  Two separate on-call shifts supplied sanitized incident packets for the quotes app. In each
+  case the responder can see only this app in the confirmed TAS target. Use the packets as given.
+
+  A. At 09:04 UTC a cell-health alert reported Diego cell c17 failing. The supplied placement
+  record puts quotes/web/1 on c17, and the app's events show that instance lost at 09:04.
+  No observations from other apps were supplied.
+
+  B. At 15:12 UTC a new quotes release failed its startup check on both new instances. The
+  release's startup log shows its listener bound to 9000 while its assigned PORT was 8080.
+  The previous release started on its assigned port. No cell or router alert was supplied.
+
+  Which owner should act next for each case, and what broader impact can the responder report?
+  Return one JSON object with keys A and B, each containing these fields:
+  - next_step: continue_app_release_investigation | hand_off_to_platform_now | wait_for_second_app
+  - cross_app_impact: confirmed | ruled_out | unknown
+  - who_checks_other_apps: platform_owner | app_responder | no_cross_app_check_needed_now
+success_criteria:
+  - Hands the correlated cell failure to the platform owner to verify wider impact from their scope.
+  - Keeps the release-specific listener failure with the app owner and leaves other apps' status unknown.
+graders:
+  - type: exact_json
+    fields:
+      A:
+        next_step: hand_off_to_platform_now
+        cross_app_impact: unknown
+        who_checks_other_apps: platform_owner
+      B:
+        next_step: continue_app_release_investigation
+        cross_app_impact: unknown
+        who_checks_other_apps: no_cross_app_check_needed_now

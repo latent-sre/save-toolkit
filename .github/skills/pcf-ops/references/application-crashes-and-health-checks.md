@@ -35,10 +35,10 @@ access or change authority. Foundation-specific behavior remains unconfirmed unt
   within manifest `timeout` / `cf push -t` (default 60 s; foundation
   `cc.maximum_health_check_timeout` caps it, default 180 s). Older Diego logs say "readiness health
   check". Startup reuses liveness type, endpoint and invocation timeout.
-  1. Rule out the look-alikes from the same evidence: an OOM kill reads `Exited with status 137`,
-     not "never healthy"; a `$PORT` mismatch keeps failing however long the app is given, and the
-     app's own log names another port; a platform fault reaches other apps too (the parent skill's
-     boundary check).
+  1. Check the same instance's evidence for look-alikes. An OOM kill can show
+     `Exited with status 137 (out of memory)`. A listener on a different port from `$PORT`
+     keeps failing however long the app is given. For a platform signal, use the parent skill's
+     escalation criteria.
   2. In Apps Manager Logs (`cf logs <app> --recent`), compare start-to-listening time on current
      and previous droplets; check Events (`cf events <app>`). Investigate changed dependency
      warm-up, boot migration or classpath before proposing a timeout that hides the regression.

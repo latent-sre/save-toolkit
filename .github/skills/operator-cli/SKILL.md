@@ -62,14 +62,17 @@ For Go implementation, load `go-craft` alongside this command contract.
   and without it exits 2 before any effect when non-interactive. Check `$LASTEXITCODE` after
   native commands (or set `$PSNativeCommandUseErrorActionPreference` on 7.4+), end with
   `exit <code>`, and schedule `pwsh -File` so the code propagates.
-- Re-running after partial failure must converge safely or refuse with a useful recovery step. A
-  disconnected, interrupted, or error-status effect may have happened: keep it `unknown` and read
-  back target state before classifying or retrying.
-- Assume crashes: SIGKILL, OOM and grace-period kills, and Windows `TerminateProcess` run no
-  handler. Write a per-item receipt (JSON lines: target, item, operation id, outcome, UTC time,
-  actor) to a named path or in `--json` output; a path receipt records intent before each effect,
-  so a re-run skips succeeded items and reconciles an intent without an outcome as `unknown`.
-  Locks carry an owner and an expiry; take over a stale lock only once its owner is gone.
+- A hard kill can leave stdout empty after the target commits an effect. For consequential
+  effects, commit a per-item intent to durable storage before issuing the request, then record its
+  outcome. Include target, item, stable operation ID, actor and UTC time. A local journal is
+  optional when a restarted command can identify the same operation and read its outcome from
+  the authoritative target.
+- On restart, skip confirmed successes. Treat an unfinished intent, lost response or error
+  that may follow a committed effect as `unknown`. Reconcile before retrying. A retry is safe
+  when the original request definitively had no effect or the target still guarantees
+  deduplication for that operation ID. If the outcome remains uncertain, report the item as
+  `unknown`, exit with an operational failure and name the next recovery step.
+- Locks carry an owner and an expiry. Take over a stale lock only once its owner is gone.
 - On SIGINT or SIGTERM, stop scheduling work, release owned locks/temp resources, report
   completed, failed, and `unknown` items, then exit 128+N. Cleanup is time-bounded; a second SIGINT or SIGTERM skips it. In Python,
   one flag-setting handler for both signals, checked between effects, replaces
@@ -90,4 +93,5 @@ lock. Exercise effects against disposable targets or controlled clients.
 | State changes | Dry run makes zero effect calls; apply uses the shown target set or refuses drift |
 | Destructive actions | Piped input never confirms; missing non-interactive confirmation exits 2 before any effect |
 | Re-runs and locks | No blind replay of succeeded or `unknown` items; competing runs cannot violate the protected invariant; another owner's lock remains intact |
+| Consequential effects | Hard-kill the CLI after the target commits an item and before the final report. Restart the same operation and verify the target saw one effect. If readback is unavailable and deduplication cannot be guaranteed, report `unknown` and send no further request for that item. |
 | Interruptible work | Signal exit status and owned-resource cleanup; completed effects reported and unresolved effects `unknown` |
