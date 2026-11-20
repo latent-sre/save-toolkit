@@ -10,7 +10,7 @@ signal/product inventory, not a platform-selection decision.
 | Logs | Splunk (SPL) | Loki (LogQL) |
 | Metrics | **PCF App Metrics** (the live metrics UI for PCF applications today) | Mimir / Prometheus (PromQL) |
 | Traces | — (new capability) | Tempo (TraceQL) |
-| Dashboards | Grafana 13.2.x self-managed | same instance |
+| Dashboards | Grafana 13.3.x self-managed | same instance |
 | Alerting / correlation | Moogsoft Onprem v9.x (Dell; 9.2 is the supported line, confirm the target's minor); ThousandEyes synthetics | Grafana unified alerting |
 | Pipeline | — | Alloy + OTel collectors |
 | Edge / CDN / WAF / RUM | Akamai (Property Manager delivery, App & API Protector, DataStream 2 logs, mPulse RUM); DataStream 2 destination: not yet confirmed by the owner | — |
