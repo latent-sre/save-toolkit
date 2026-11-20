@@ -13,6 +13,8 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
 
 ### Changed
 
+- **Contributor guide:** Correct handoff and dependency guidance and shorten the CI, eval catalog,
+  Copilot projection, and guard sections.
 - **Reviewer:** Drop the source-only fallback sentence that let it skip reproducing P0/P1 findings,
   and add `-c diff.autoRefreshIndex=false` to its Git prefix so a working-tree diff leaves the index alone.
 - **Reviewer evals:** The Git-prefix check grades only `status` and `diff`, the calls that can rewrite
