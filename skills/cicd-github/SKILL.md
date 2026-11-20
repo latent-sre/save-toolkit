@@ -1,5 +1,5 @@
 ---
-name: ci-actions
+name: cicd-github
 description: >-
   Review, design, troubleshoot, and optimize GitHub Actions workflows: fast feedback, caching, test
   matrices, reusable jobs, reproducible artifacts, and secure delivery. Includes advice-only

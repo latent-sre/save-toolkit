@@ -80,13 +80,13 @@ Standard GitHub-hosted Linux jobs may run on AWS as well as Azure: automatically
 Team, by opt-in on Enterprise Cloud. An allowlist or conditional-access policy that admits only
 Azure ranges can block those jobs; use every published GitHub Actions range.
 
-For self-hosting, confirm stack boundary, owner/network scope, restricted groups and least privilege.
-Keep untrusted jobs off persistent runners with credentials/internal reach. Ephemeral registration
-does not erase files: require cleanup/replacement after completion, forced cancellation and host loss
-before reuse. Check minimum runner compatibility when upgrading actions. On github.com and
-data-residency Enterprise Cloud (not Enterprise Server), a runner that has not updated within 63
-days of a newer version becoming available stops receiving jobs, and a critical security update can
-stop them sooner; that availability date can differ from the release date. Registration needs
-runner 2.329.0 or later, which is not a floor for running jobs: the effective minimum advances with
-each release, and the REST runner-version end-of-life schedule gives the dates. With auto-update
-off or no route to the update service, schedule manual upgrades.
+For self-hosting, confirm stack boundary, owner/network scope, restricted groups and least
+privilege. Keep untrusted jobs off persistent runners with credentials/internal reach. Ephemeral
+registration does not erase files: require cleanup/replacement after completion, forced cancellation
+and host loss before reuse. Check minimum runner compatibility when upgrading actions. On
+github.com, a runner that has not updated within 63 days of a newer version becoming available stops
+receiving jobs, and a critical security update can stop them sooner; that availability date can
+differ from the release date. Registration needs runner 2.329.0 or later, which is not a floor for
+running jobs: the effective minimum advances with each release, and the REST runner-version
+end-of-life schedule gives the dates. With auto-update off or no route to the update service,
+schedule manual upgrades.

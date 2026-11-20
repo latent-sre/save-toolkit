@@ -1,7 +1,7 @@
 id: build-software-engineer-adds-pcf-deploy-job
 max_turns: 35
 agent: software-engineer
-# The ci-actions skill's always-on contract, graded by what the authored workflow is rather than
+# The cicd-github skill's always-on contract, graded by what the authored workflow is rather than
 # what the agent says about it: the pinned actionlint accepts it, and a probe-owned oracle written
 # after the agent has finished checks the deploy job's shape against the contract's own sentences.
 # The fixture is a real repository convention set (a reviewed pin list, a self-hosted runner label,
