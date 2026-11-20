@@ -1,9 +1,9 @@
 # Build, configure and serve
 
-Use PCF guidance only for PCF delivery. Run the [serving contract](../assets/serving-contract.mjs)
-against a production build behind the production server configuration, locally or on a
-non-production route; `vite preview` fails its missing-file check by design. When neither is
-available, report the contract as unverified.
+When [verification calls for a served build](../SKILL.md#verify-before-handing-off), run the
+[serving contract](../assets/serving-contract.mjs) against a production build behind the production
+server configuration, locally or on a non-production route. If neither is available, report the
+contract as unverified. `vite preview` fails its missing-file check by design.
 
 ## Localhost and runtime configuration
 
@@ -17,7 +17,7 @@ destructive confirms. Never put secrets in `config.json` or `VITE_*`.
 
 ## PCF
 
-Assemble a CI deploy directory with `dist/` and these files (never push the source tree):
+For PCF delivery, assemble a CI deploy directory with `dist/` and these files (never push the source tree):
 
 | File | Contract |
 |---|---|
@@ -66,7 +66,7 @@ Hashed assets cache `immutable` for a year;
 missing assets return uncached `404`. Retain prior chunks during rollout or handle
 `vite:preloadError` with bounded recovery that preserves unsaved input (never reload in a loop).
 
-Verify the served build locally and after deploy:
+Set `BASE_URL` to the served build. Supply the API and runtime config paths when the app uses them.
 
 ```sh
 BASE_URL=https://orders-console.apps.example.internal API_PREFIX=/v1/ RUNTIME_CONFIG_PATH=/config.json node --test serving-contract.mjs

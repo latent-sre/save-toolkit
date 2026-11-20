@@ -14,8 +14,8 @@ Deliver the caller's requested UI change or application with runnable code, veri
 workflows and the real backend integration they need. Use the caller's requirements and repository
 facts first; defaults fill open decisions.
 
-In an existing app, keep its framework, kit, router, libraries and conventions; never migrate them
-as a side effect. Write a [design brief](./references/design.md) for a new app, a new area, or a
+Keep an existing app's framework, kit, router, libraries and locked toolchain. Follow its
+conventions. Write a [design brief](./references/design.md) for a new app, a new area, or a
 visual change larger than one component; ask one round with recommended defaults only for
 consequential unsettled choices. Choose an app identity, density and motion budget that fit the
 work, with visible actions and keyboard and screen-reader parity.
@@ -26,7 +26,7 @@ work, with visible actions and keyboard and screen-reader parity.
 |---|---|
 | Framework and kit | [Stack](./references/stack.md) (React default) or [Vue](./references/vue.md) |
 | Backend integration, caching, live data or sessions | [API](./references/api.md) |
-| Localhost proxy, runtime config or PCF serving | [Serving](./references/serving.md) |
+| Production serving, route fallback, HTTP caching, runtime config or localhost proxy | [Serving](./references/serving.md) |
 
 Load `stack-profile` before recommending runtime, tooling or infrastructure choices. Use
 [starting code](#starting-code) selectively: equivalent app or library facilities satisfy the
@@ -34,11 +34,11 @@ contract.
 
 ## Build the complete workflows
 
-Get one working end-to-end path through the running backend early, then complete every required
-workflow and its loading, empty, success, error and stale states. Use a typed client for the
-backend's actual contract (generate from OpenAPI when available); coordinate backend changes
-through `api-craft`. Mocks and labelled sample data support development and tests; any integration
-they replace remains an explicit gap.
+When the work needs backend integration, get one end-to-end path through the running backend
+early. Complete every required workflow and its loading, empty, success, error and stale states.
+Use a typed client for the backend's actual contract (generate from OpenAPI when available).
+Coordinate backend changes through `api-craft`. Mocks and labelled sample data support development
+and tests; any integration they replace remains an explicit gap.
 
 - **Recoverable failures.** Route and independent-panel error boundaries contain failures in place
   without dropping the page heading. Every async path ends in a rendered state. Show an actionable
@@ -66,26 +66,28 @@ they replace remains an explicit gap.
 
 ## Verify before handing off
 
-Run typecheck, lint, component tests and a production build. Adapt helper assertions to the app's
-existing runner: the `.test.ts` assets use `node:test` and must not be copied raw into Vitest.
-Do not add a second test runner. Cover applicable [API cases](./references/api.md#contract-tests).
+Run the repository's required checks. Select typecheck, lint, component tests and a production
+build for the changed code. Port helper assertions to the existing runner. The `.test.ts` assets
+use `node:test` and must not be copied raw into Vitest. Cover applicable
+[API cases](./references/api.md#contract-tests).
 
 Choose browser verification scope from the change:
 
 - **New app:** every required workflow, view and state in light and dark at desktop width and 320 px.
 - **Existing app:** affected workflows, views and relevant states in its supported themes and
-  viewports. Shared-component changes cover their consuming workflows; global styling, routing or
-  other application-wide changes expand verification across the app.
+  viewports. Cover shared components in their consuming workflows and global changes across the app.
+  For a changed route, check navigation, direct load, reload and focus on the destination.
 
-Within that scope, exercise workflows against the running backend and use the host's Playwright
-MCP server (or ask the caller when unavailable) to inspect the UI, test keyboard navigation,
-and check the console for CSP violations and missing styles. It has no axe tool: load the `axe-core`
-dev dependency same-origin and call `axe.run()` through `browser_evaluate`, or report axe as not
-run. For both new and existing apps, run the serving contract against a production build behind
-the production server configuration, locally or on a non-production route; report it as unverified
-when neither is available. Do not install Playwright packages or download
-browsers for MCP verification. Report the brief when required, workflows, added dependencies/licences,
-verification scope and results, screenshots and any unverified gaps.
+Use repository browser tests when they cover that scope, including keyboard, focus, accessible
+feedback and axe for affected interactions. Check the console for CSP violations and missing
+styles. Exercise changed backend integrations against the running service. Fill browser coverage
+gaps with available tools such as host Playwright MCP. With MCP, run same-origin `axe-core` through
+`browser_evaluate`; report any unavailable checks. Do not install Playwright packages or
+download browsers for MCP verification.
+
+Run the [serving contract](./references/serving.md) for a new app or changes to serving, routing,
+runtime configuration or HTTP caching. Report the brief when required, workflows, added
+dependencies/licences, verification scope and results, screenshots and any unverified gaps.
 
 ## Starting code
 

@@ -41,16 +41,19 @@ observed platform failure.
 
 ## App-side vs platform-side (know your lane)
 
-- **One app / route / instance affected ⇒ likely app-side** (ours to investigate).
-- **Many apps failing at once, or failing/evacuating cells ⇒ broaden and escalate**—bring in the
-  platform and relevant dependency owners. Shared databases, networks, or releases can affect many
-  apps; broad impact alone does not establish platform fault.
+- If the evidence points to an app release or configuration, continue app-side triage with the
+  application owner.
+- Escalate a credible platform signal even when only one app is visible. For example, hand off a
+  Diego cell evacuation that coincides with loss of an instance on that cell. Ask the platform
+  owner to verify cell health and whether other apps were affected. Keep wider impact unknown
+  until verified.
+- When several apps fail together, involve the platform and relevant dependency owners. A shared
+  database, network or release can also explain broad impact.
 
-**Escalation packet** for the platform team: symptom, UTC window and trend (confirmed onset versus
-first observation); the affected apps, routes, orgs and spaces showing it is not just ours; our
-instance states, events, log window and recent changes; the hypotheses checked and still open; and
-any platform signals (evacuating or failing Diego cells, foundation-wide 502s, cert/NTP symptoms,
-`cf ssh` timeouts to port 2222). An unconfirmed cause does not block escalation.
+Give the platform owner the observed foundation, org, space, app and affected routes or instances,
+symptom, UTC window and trend (first observation or confirmed onset), relevant events, logs and
+recent changes. Include the signal prompting escalation, such as a cell failure, widespread 502s,
+certificate or clock errors, or reported SSH timeouts on port 2222, and which hypotheses remain open.
 
 ## "What changed?" — the highest-value read
 

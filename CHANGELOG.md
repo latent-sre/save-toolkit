@@ -13,6 +13,10 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
 
 ### Changed
 
+- Operator CLI guidance covers recovery when a process dies after an effect and before reporting its outcome.
+- PCF escalation guidance accepts scoped platform evidence from a responder who can see only one app.
+- Frontend guidance scopes browser and serving checks to the change and gives Vue tooling one compatibility policy.
+- Claude's repository entrypoint follows the contributor verification policy and the fleet's operational closeout rule.
 - Akamai edge-rate queries report classification coverage for HTTP status and cache outcomes.
 - Incident guidance checks caller and dependency evidence and selects mitigation for the confirmed runtime.
 - The software engineer hands requested runbook updates to scribe with the code change and verification evidence.

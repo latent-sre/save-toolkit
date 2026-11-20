@@ -4,23 +4,29 @@ split: regression
 skill: frontend-craft
 tools: [Skill, Read]
 prompt: |
-  Choose the verification scope for four independent UI requests. This is a supplied-state
+  Choose the verification scope for five independent UI requests. This is a supplied-state
   planning exercise: do not build, run commands, install tools, or edit files. Each repository
   has working typecheck, lint, component tests, a production build, a real backend and production
-  serving checks. Host Playwright MCP is available.
+  serving checks. The existing app has browser tests with axe and console checks covering the
+  changed workflows. The implementation role has no host Playwright MCP.
 
   A. An existing Vue app supports light theme at desktop and tablet widths (768 px and wider).
-  Change one Orders form's validation message and inline retry control. Its loading, success,
-  validation-error and retry states can be affected. Nothing shared with another view changes.
-  The caller requests only that form change and has not asked for another theme or framework.
+  Change one Orders form's inline validation message and how focus returns to its invalid field.
+  Validation happens before any request. No shared view, API, route or serving behavior changes.
+  Its locked compiler and linter predate the new-app defaults.
 
   B. In the same app, change a shared async-status component used in Orders and Exports. The
   component owns loading, stale and error displays; unrelated views do not consume it.
 
   C. In the same app, change global typography, focus styles and layout rules used by all views.
 
-  D. Build a new app with Orders and Exports workflows, light and dark themes, desktop and mobile
-  use. Every required workflow and its loading, empty, success, error and stale states must work.
+  D. Build a new Vue app with Orders and Exports workflows backed by a real API, light and dark
+  themes, desktop and mobile use. Its create-vue scaffold pairs TypeScript 6.0.x with vue-tsc 3.3
+  and typed ESLint. The neighbouring React project uses TypeScript 7 and type-aware oxlint.
+  Every required workflow and state must work.
+
+  E. In the existing app, move Order Details to a new nested client-side route. Users open it from
+  Orders and from bookmarks. The server must serve the app when users refresh the new URL.
 
   Return one line per field as <field>: <choice>, with no extra prose. Select from each pair:
   - a_deliverable: REQUESTED_FORM_CHANGE | REBUILD_COMPLETE_APPLICATION
@@ -31,14 +37,23 @@ prompt: |
   - c_workflows: APPLICATION_WIDE | ONE_SAMPLE_VIEW
   - d_workflows: EVERY_REQUIRED_WORKFLOW_VIEW_AND_STATE | ONE_HAPPY_PATH
   - d_presentations: LIGHT_DARK_DESKTOP_AND_320PX | DESKTOP_LIGHT_ONLY
-  - backend_checks: RUNNING_BACKEND_FOR_SCOPED_WORKFLOWS | MOCKS_SUFFICE
-  - serving_checks: SERVED_PRODUCTION_BUILD | DEV_SERVER_ONLY
+  - a_tooling: KEEP_LOCKED_TOOLS | APPLY_NEW_APP_TOOLCHAIN
+  - a_browser: REQUIRE_HOST_PLAYWRIGHT_MCP | USE_COVERING_REPO_BROWSER_TEST
+  - a_backend: LOCAL_VALIDATION_ONLY | REQUIRE_RUNNING_BACKEND
+  - a_serving: REQUIRE_SERVED_BUILD | NO_SERVING_CHECK
+  - d_tooling: TS7_TYPE_AWARE_OXLINT | TS6_VUE_TSC_TYPED_ESLINT
+  - d_backend: RUN_REQUIRED_WORKFLOWS_WITH_BACKEND | MOCKS_SUFFICE
+  - d_serving: SERVED_PRODUCTION_BUILD | DEV_SERVER_ONLY
+  - e_navigation: DIRECT_LOAD_RELOAD_AND_FOCUS | IN_APP_CLICK_ONLY
+  - e_serving: DEV_SERVER_ONLY | SERVED_PRODUCTION_BUILD
   - accessibility_checks: AXE_KEYBOARD_FOCUS_AND_CONSOLE | SCREENSHOTS_ONLY
 success_criteria:
   - A small existing-app change stays within the requested deliverable and verifies affected workflows, states and supported presentations.
   - Shared-component changes cover their consuming workflows and global changes expand across the app.
   - New apps retain full workflow, state, theme and viewport verification.
-  - Scoping preserves real-backend integration, production serving, accessibility and console checks without migrating the existing app.
+  - A component-only edit uses its locked tools and covering repository browser checks, including accessibility, without requiring a backend or served-build check.
+  - A new Vue app chooses compatible compiler and lint tooling and verifies real-backend workflows and production serving.
+  - A route change verifies navigation, refresh and deep links against production serving behavior.
 graders:
   - type: exact_fields
     fields:
@@ -50,6 +65,13 @@ graders:
       c_workflows: APPLICATION_WIDE
       d_workflows: EVERY_REQUIRED_WORKFLOW_VIEW_AND_STATE
       d_presentations: LIGHT_DARK_DESKTOP_AND_320PX
-      backend_checks: RUNNING_BACKEND_FOR_SCOPED_WORKFLOWS
-      serving_checks: SERVED_PRODUCTION_BUILD
+      a_tooling: KEEP_LOCKED_TOOLS
+      a_browser: USE_COVERING_REPO_BROWSER_TEST
+      a_backend: LOCAL_VALIDATION_ONLY
+      a_serving: NO_SERVING_CHECK
+      d_tooling: TS6_VUE_TSC_TYPED_ESLINT
+      d_backend: RUN_REQUIRED_WORKFLOWS_WITH_BACKEND
+      d_serving: SERVED_PRODUCTION_BUILD
+      e_navigation: DIRECT_LOAD_RELOAD_AND_FOCUS
+      e_serving: SERVED_PRODUCTION_BUILD
       accessibility_checks: AXE_KEYBOARD_FOCUS_AND_CONSOLE

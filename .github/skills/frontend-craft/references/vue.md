@@ -5,13 +5,13 @@ Use Vue when selected by the caller or neighbouring apps; shared [design](./desi
 
 ## Toolchain
 
-Use stable Vue, TypeScript and Vite (`npm create vue@latest` with TypeScript, Router, Vitest and
-ESLint); check tool compatibility before upgrades.
-Pin TypeScript 6: `vue-tsc` 3.3 fails on TypeScript 7 (`typescript/lib/tsc` is not exported)
-despite its `>=5.0.0` peer range, and `typescript-eslint` type-checked rules (used through
-`@vue/eslint-config-typescript`) require `<6.1.0`. Check both before upgrading. Node: the current
-Active LTS; take the floor from the lockfile's `engines`. Use ESLint flat config
-(`eslint-plugin-vue`, `@vue/eslint-config-typescript`), Vitest, Vue Test Utils and MSW.
+For a new app, use `npm create vue@latest` with TypeScript, Router, Vitest and ESLint.
+Keep the scaffold's compatible TypeScript and `vue-tsc` pair (TypeScript 6.0.x with
+`vue-tsc` 3.3). Before a compiler upgrade, confirm support in both `vue-tsc` and
+`typescript-eslint` and run the project's Vue single-file-component typecheck and typed lint.
+Use Active LTS Node within the scaffold's engines, ESLint flat config (`eslint-plugin-vue`,
+`@vue/eslint-config-typescript`), Vitest, Vue Test Utils and MSW. Existing apps keep their
+locked tools for feature edits.
 
 ## Kits
 

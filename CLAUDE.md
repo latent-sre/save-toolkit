@@ -15,7 +15,7 @@ defaults below.
 - After three failed fix attempts the diagnosis is wrong, not the patch. Stop patching; use the root-cause skill.
 - Prove the detector before trusting a negative. "No hits", "nothing enforces this", "not covered", and "the suite is green" are claims about the *instrument*, not the code, until the instrument is shown to fire: grep for a string you know is present, delete the file the rule guards, or mutate the predicate the test names and watch it fail. Report an unproven negative as "searched for X, did not confirm the search would find it" — never as an absence.
 - Bind evidence to its location: any command whose result depends on where it ran prints `pwd` and the revision under test in the same call, and setup chains with `&&` so a failed `cd` or checkout can't fall through to the next step. An exit code masked by `|| true` or a verdict cut off by `tail` is not evidence.
-- Verify in two gears: while iterating, run only the targeted check for what you just touched; the full suite and gates run once, at the commit/push boundary — over-verifying every edit spends the attention the boundary check needs, but the boundary evidence is still owed in full.
+- During iteration, check the affected behavior. Select final checks for the actual change using the [contributor verification policy](CONTRIBUTING.md#3-verify-in-proportion-to-the-change).
 - Never assume a red check or warning is pre-existing: prove the base state (run the same check on main or a clean tree) or treat the failure as yours. "Probably already broken" is a claim requiring evidence, not a default.
 
 ## Code changes
@@ -43,7 +43,7 @@ defaults below.
 
 ## Rules vs. state vs. evidence
 - Instructions files hold only durable, imperative rules. Current state (what's paused, what's next, branch names) lives in the project's ledger or tracker; forensic narrative lives in per-task reports. Never let state or narrative leak into instructions — stale lines teach future sessions to distrust the file.
-- Extract the lesson, discard the incident: when something goes wrong, convert it into a general rule and record the rule in the right instructions file — this one for cross-project habits, the repo's own for repo rules. The story of what happened stays in the report or postmortem.
+- Report an operational discovery with its evidence. Follow the [fleet learning rule](AGENTS.md#shared-conventions) when an operational closeout is invoked.
 - No meta-prose: an instructions file carries no provenance narrative, methodology notes, date stamps, citations, or self-justification — comments included. A rule is its trigger, its imperative, and the failure it prevents; where it came from belongs in the report that proposed it.
 
 ## Finish with a review packet

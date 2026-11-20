@@ -13,6 +13,7 @@
     "discovery-pcf-ops-app-crash",
     "discovery-pcf-ops-defers-foundation-repair",
     "discovery-runtime-boundary",
+    "pcf-ops-single-app-escalation",
     "stack-profile-broad-inventory-loading",
     "stack-profile-copilot-selection-loading",
     "stack-profile-structured-classification"
