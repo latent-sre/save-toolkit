@@ -149,7 +149,12 @@ EXPECTED_DELEGATION = {
 
 def _metadata_failures(path: Path, fields: Mapping[str, object]) -> list[str]:
     failures: list[str] = []
-    unknown = sorted(set(fields) - KNOWN_AGENT_FIELDS)
+    known_fields = KNOWN_AGENT_FIELDS
+    if path.stem == "researcher":
+        known_fields = known_fields | {"omitClaudeMd"}
+        if fields.get("omitClaudeMd") is not True:
+            failures.append(f"{path}: omitClaudeMd must be the YAML boolean true for ordinary Claude delegation")
+    unknown = sorted(set(fields) - known_fields)
     if unknown:
         failures.append(f"{path}: unknown or unsupported plugin agent field(s): {', '.join(unknown)}")
     model = fields.get("model")

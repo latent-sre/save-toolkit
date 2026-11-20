@@ -13,6 +13,14 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
 
 ### Changed
 
+- **gcp-ops:** Choose Cloud Run rollback from the affected request path and restore the prior
+  tag, traffic split, or upstream route.
+- **Researcher:** Skip inherited user and project instructions in supported Claude delegation
+  and document a clean-session procedure for strict private-context exclusion.
+- **Claude install:** Clarify cached version updates, add upgrade instructions, and advance the
+  plugin manifest to 0.52.11.
+- **obs-alerting:** Report fractional request budgets and whole failures permitted. Set scheduled
+  alert deadlines from the recovery objective and check telemetry for each expected job.
 - Claude shell hooks now request a blocking failure policy. Grafana command reads by the SRE
   investigator use the installed helper for organization verification and protected output.
 - Observability and agent decision evals distinguish incorrect queries, copied answers and

@@ -98,6 +98,25 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertEqual(sorted(validate_fleet.EXPECTED_AUTHORITY), sorted(names))
         self.assertEqual([], failures)
 
+    def test_only_researcher_requires_boolean_omit_claude_md(self) -> None:
+        field = "omitClaudeMd: true\n"
+        source = ROOT / "agents/researcher.md"
+        self.assertIs(_agent("researcher").fields.get("omitClaudeMd"), True)
+        projected = fleet_frontmatter.parse(generate_platform_adapters.render_copilot_agent(source), source)
+        self.assertNotIn("omitClaudeMd", projected.fields)
+        for invalid in ("", "omitClaudeMd: false\n", 'omitClaudeMd: "true"\n'):
+            with self.subTest(invalid=invalid):
+                failures = _agent_failures_after_edit(
+                    "researcher.md", lambda text: must_replace(text, field, invalid),  # noqa: B023
+                )
+                self.assertEqual(1, len(failures), failures)
+                self.assertIn("omitClaudeMd must be the YAML boolean true", failures[0])
+        failures = _agent_failures_after_edit(
+            "scribe.md", lambda text: must_replace(text, "name: scribe\n", "name: scribe\n" + field),
+        )
+        self.assertEqual(1, len(failures), failures)
+        self.assertIn("unknown or unsupported plugin agent field(s): omitClaudeMd", failures[0])
+
     def test_sre_browser_grants_are_selected_interactions_without_code_execution(self) -> None:
         grants = _granted_tools("sre-assistant")
         self.assertEqual({

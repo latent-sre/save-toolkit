@@ -41,15 +41,27 @@ Read only the row needed for the task:
 | Synthetic test, DNS, BGP, path, or external reachability | [ThousandEyes synthetics](./references/thousandeyes.md) |
 | Calculate budget status or a supported example burn-rate pair | [error_budget.py](./scripts/error_budget.py) |
 
-## Scheduled work — alert on staleness, not errors
+## Scheduled-work freshness
 
-For a backup, sync, or scheduled-job alert, use freshness rather than a request burn pair. Design
-`*_last_success_timestamp_seconds` and an age threshold of at least two full schedule intervals.
-Define no-data behavior: a missing timestamp is silence, never an all-clear. In Prometheus,
-`time() - x > t` returns nothing once the series vanishes, so the alert resolves; pair it with an
-`absent()` rule. In Grafana, one vanished series among others goes to Normal (MissingSeries); no
-series at all is No Data, and `DatasourceNoData`/`DatasourceError` alerts may not match the rule's
-notification policies and silences.
+Track `*_last_success_timestamp_seconds` per expected backup, sync, or scheduled job. Set the age
+threshold to the agreed maximum freshness age minus time for detection, delivery, and recovery.
+Include scrape and evaluation lag and any `for` delay. For a daily backup with a 26h recovery-point
+objective and a combined one-hour allowance, alert at 25h of recoverable data age. Check that normal
+completion including jitter fits before the threshold. If it cannot fit, review the schedule and
+recovery time with the owner. In Prometheus, the example age filter is
+`time() - backup_last_success_timestamp_seconds >= 90000`.
+
+Detect missing telemetry separately from a stale timestamp. In Prometheus, scope `absent()` to the
+full identity of each expected job, for example
+`absent(backup_last_success_timestamp_seconds{backup="database"})`. For a changing fleet, match an
+independently maintained inventory against live samples, for example
+`expected_backups unless on (backup) backup_last_success_timestamp_seconds` when `backup` uniquely
+identifies each job. Any matching sibling suppresses an unscoped `absent()`. In Grafana, one vanished
+series among others goes to Normal (MissingSeries); no series at all is No Data, and
+`DatasourceNoData`/`DatasourceError` alerts may need their own routing and silences.
+
+Exercise the age boundary, then remove one expected job's series while a healthy sibling reports.
+Confirm only the missing job alerts and that its alert resolves when the fresh series returns.
 
 Trace shared dependencies of the job, signal store, evaluator and notification path. If the signal
 store fails, an age query cannot evaluate: specify query-error notification or an independent
