@@ -1,0 +1,7 @@
+#!/bin/sh
+# Offline stand-in for the GitHub CLI; the engine beside this file answers every call.
+dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+if command -v python >/dev/null 2>&1; then
+  exec python "$dir/gh-engine.py" "$@"
+fi
+exec python3 "$dir/gh-engine.py" "$@"

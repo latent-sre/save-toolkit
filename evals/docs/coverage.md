@@ -66,7 +66,7 @@ that need human review. For example, the [GCP guide](../oracles/gcp/README.md) a
 | PCF, database and edge triage | `platform-operations` | Mostly routing, stack facts and supplied-state controls; comparatively sparse task-outcome cases |
 | Release, CI and production authority | `release-and-ci` | Approval validity, unknown outcomes, release boundaries and pipeline contracts; no production action is authorized |
 | Operational records and service lifecycle | `operational-docs` | Runbooks, postmortems, cards, lifecycle state, imports and disposition controls |
-| Evidence collection and independent review | `research-and-review` | Source grounding, missing/private evidence, scratch verification and reviewer boundaries |
+| Evidence collection and independent review | `research-and-review` | Source grounding, missing/private evidence, scratch verification and reviewer boundaries; fifteen complex review cases (multi-file defects, pull requests by number, real upstream slices, five controls) are calibrated offline and have at most three native trials per text arm |
 | Untrusted instructions | `adversarial` | Benign/malicious repository/log/helper pairs and judge-input controls; free-form semantic interpretation retains review limits |
 | Read-only enforcement | `readonly-guard` | Executable command/launcher/hook controls; not proof of containment on every host |
 | Evaluator correctness and saved evidence | `eval-harness` | Harness, grades, identities, selections, accounting, rescoring and coordinated test-runner controls |

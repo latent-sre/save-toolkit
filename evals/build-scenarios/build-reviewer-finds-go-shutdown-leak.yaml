@@ -1,0 +1,1710 @@
+# Go service whose branch parallelises each batch with a per-job timeout. The candidate's tests pass;
+# the per-job context is rooted in context.Background() so Shutdown no longer cancels in-flight
+# handlers, and the fan-out helper returns on the first error and strands the other goroutines on an
+# unbuffered send. Capturing the loop variable in the fan-out closure is correct on go 1.24.
+id: build-reviewer-finds-go-shutdown-leak
+max_turns: 30
+agent: reviewer
+prompt: |
+  Review feature/parallel-fanout against main before we merge. It should process each batch in parallel with a per-job timeout; shutdown behaviour and delivery guarantees must stay as documented.
+fixture:
+  files:
+    .gitignore: |
+      *.log
+    README.md: |
+      # queuepoller
+
+      A small service that drains a job queue. It fetches a batch of jobs from a `queue.Queue`, hands each
+      job to a `Handler`, and acknowledges the job when the handler succeeds or returns it to the queue
+      when the handler fails.
+
+      ## Layout
+
+      | Path | Purpose |
+      |---|---|
+      | `cmd/poller` | The service binary: reads config, runs the poller, handles SIGTERM. |
+      | `internal/poller` | `Poller`, `Handler`, and the fetch/process/settle loop. |
+      | `internal/queue` | The `Queue` interface and an in-memory implementation. |
+      | `internal/config` | Settings read from `POLLER_*` environment variables. |
+      | `internal/backoff` | Exponential retry delays. |
+      | `internal/metrics` | Operational counters. |
+
+      ## Running
+
+      ```
+      go run ./cmd/poller
+      go test ./...
+      ```
+
+      The binary uses the in-memory queue; a deployment replaces it with its own `queue.Queue`.
+
+      ## Configuration
+
+      | Variable | Default | Meaning |
+      |---|---|---|
+      | `POLLER_BATCH_SIZE` | `10` | Most jobs fetched at once. |
+      | `POLLER_POLL_INTERVAL` | `1s` | Pause after a fetch that returned no jobs. |
+      | `POLLER_BACKOFF_BASE` | `500ms` | First pause after a failed fetch or batch; doubles on each repeat. |
+      | `POLLER_BACKOFF_MAX` | `30s` | Longest pause between retries. |
+      | `POLLER_ACK_TIMEOUT` | `5s` | Bound on each ack or nack call. |
+
+      ## Delivery and shutdown
+
+      The service sends SIGTERM to `Poller.Shutdown` with a 10 second grace period and then exits.
+
+      Shutdown returns within the grace period. In-flight jobs are cancelled through their context and
+      nacked for redelivery; no job is left neither acked nor nacked.
+
+      A job is acked only after its handler returns nil. A handler error, including one caused by
+      cancellation, nacks the job, and the queue delivers it again with a higher `Attempt`. Delivery is
+      therefore at least once; handlers should be idempotent.
+
+      ## Resource use
+
+      The poller's memory use is bounded by the batch size; a failing upstream must not grow it. A failed
+      batch is retried after an exponential backoff, and a failed fetch is retried the same way.
+    cmd/poller/main.go: |
+      // Command poller runs the queue poller as a service. It stops on SIGTERM or SIGINT by calling
+      // Poller.Shutdown with a ten second grace period and then exiting.
+      package main
+
+      import (
+      	"context"
+      	"log"
+      	"os"
+      	"os/signal"
+      	"syscall"
+      	"time"
+
+      	"example.com/queuepoller/internal/config"
+      	"example.com/queuepoller/internal/metrics"
+      	"example.com/queuepoller/internal/poller"
+      	"example.com/queuepoller/internal/queue"
+      )
+
+      // shutdownGrace is how long Shutdown may take before the process exits regardless.
+      const shutdownGrace = 10 * time.Second
+
+      func main() {
+      	os.Exit(run())
+      }
+
+      func run() int {
+      	cfg, err := config.FromEnv(os.Getenv)
+      	if err != nil {
+      		log.Printf("poller: %v", err)
+      		return 2
+      	}
+
+      	// The in-memory queue keeps the binary runnable on a laptop; a deployment swaps in its own
+      	// queue.Queue here.
+      	q := queue.NewMemory()
+      	counters := &metrics.Counters{}
+      	p := poller.New(q, poller.HandlerFunc(logJob), cfg, counters)
+
+      	runDone := make(chan error, 1)
+      	go func() { runDone <- p.Run(context.Background()) }()
+
+      	signals := make(chan os.Signal, 1)
+      	signal.Notify(signals, syscall.SIGTERM, os.Interrupt)
+
+      	select {
+      	case sig := <-signals:
+      		log.Printf("poller: received %v, shutting down", sig)
+      	case err := <-runDone:
+      		log.Printf("poller: stopped unexpectedly: %v", err)
+      		return 1
+      	}
+
+      	ctx, cancel := context.WithTimeout(context.Background(), shutdownGrace)
+      	defer cancel()
+      	if err := p.Shutdown(ctx); err != nil {
+      		log.Printf("poller: shutdown did not finish within %v: %v", shutdownGrace, err)
+      		return 1
+      	}
+      	log.Printf("poller: stopped cleanly (%v)", counters.Snapshot())
+      	return 0
+      }
+
+      // logJob is the placeholder handler for the local build.
+      func logJob(ctx context.Context, job queue.Job) error {
+      	if err := ctx.Err(); err != nil {
+      		return err
+      	}
+      	log.Printf("poller: handled job %s (attempt %d)", job.ID, job.Attempt)
+      	return nil
+      }
+    go.mod: |
+      module example.com/queuepoller
+
+      go 1.24
+    internal/backoff/backoff.go: |
+      // Package backoff computes retry delays.
+      package backoff
+
+      import "time"
+
+      // Delay returns the wait before retry number attempt (1 for the first retry): base doubled for each
+      // earlier failure and capped at limit. A non-positive attempt counts as the first; a limit below
+      // base is raised to base.
+      func Delay(attempt int, base, limit time.Duration) time.Duration {
+      	if base <= 0 {
+      		return 0
+      	}
+      	if limit < base {
+      		limit = base
+      	}
+      	d := base
+      	for i := 1; i < attempt; i++ {
+      		if d > limit/2 {
+      			return limit
+      		}
+      		d *= 2
+      	}
+      	return min(d, limit)
+      }
+    internal/backoff/backoff_test.go: |
+      package backoff
+
+      import (
+      	"math"
+      	"testing"
+      	"time"
+      )
+
+      func TestDelay(t *testing.T) {
+      	const base, limit = 100 * time.Millisecond, time.Second
+      	cases := []struct {
+      		name    string
+      		attempt int
+      		base    time.Duration
+      		limit   time.Duration
+      		want    time.Duration
+      	}{
+      		{"first retry", 1, base, limit, 100 * time.Millisecond},
+      		{"second retry", 2, base, limit, 200 * time.Millisecond},
+      		{"third retry", 3, base, limit, 400 * time.Millisecond},
+      		{"capped", 5, base, limit, time.Second},
+      		{"far past the cap", 80, base, limit, time.Second},
+      		{"zero attempt counts as first", 0, base, limit, 100 * time.Millisecond},
+      		{"no base means no wait", 3, 0, limit, 0},
+      		{"limit below base is raised", 4, base, 10 * time.Millisecond, base},
+      		{"huge limit does not overflow", 70, time.Second, time.Duration(math.MaxInt64), time.Duration(math.MaxInt64)},
+      	}
+      	for _, tc := range cases {
+      		t.Run(tc.name, func(t *testing.T) {
+      			if got := Delay(tc.attempt, tc.base, tc.limit); got != tc.want {
+      				t.Fatalf("Delay(%d, %v, %v) = %v, want %v", tc.attempt, tc.base, tc.limit, got, tc.want)
+      			}
+      		})
+      	}
+      }
+    internal/config/config.go: |
+      // Package config reads the poller's settings from the environment.
+      package config
+
+      import (
+      	"fmt"
+      	"strconv"
+      	"time"
+      )
+
+      // Config is the poller's tuning. Zero values are not valid; start from Default.
+      type Config struct {
+      	// BatchSize is the most jobs fetched at once.
+      	BatchSize int
+      	// PollInterval is the pause after a fetch that returned no jobs.
+      	PollInterval time.Duration
+      	// BackoffBase and BackoffMax bound the pause after a failed fetch or batch.
+      	BackoffBase time.Duration
+      	BackoffMax  time.Duration
+      	// AckTimeout bounds each ack or nack call.
+      	AckTimeout time.Duration
+      }
+
+      // Default returns the settings used when nothing is overridden.
+      func Default() Config {
+      	return Config{
+      		BatchSize:    10,
+      		PollInterval: time.Second,
+      		BackoffBase:  500 * time.Millisecond,
+      		BackoffMax:   30 * time.Second,
+      		AckTimeout:   5 * time.Second,
+      	}
+      }
+
+      // FromEnv builds a Config from POLLER_* variables read through getenv, falling back to Default.
+      func FromEnv(getenv func(string) string) (Config, error) {
+      	c := Default()
+      	if v := getenv("POLLER_BATCH_SIZE"); v != "" {
+      		n, err := strconv.Atoi(v)
+      		if err != nil {
+      			return Config{}, fmt.Errorf("POLLER_BATCH_SIZE: %w", err)
+      		}
+      		c.BatchSize = n
+      	}
+      	durations := []struct {
+      		name string
+      		dst  *time.Duration
+      	}{
+      		{"POLLER_POLL_INTERVAL", &c.PollInterval},
+      		{"POLLER_BACKOFF_BASE", &c.BackoffBase},
+      		{"POLLER_BACKOFF_MAX", &c.BackoffMax},
+      		{"POLLER_ACK_TIMEOUT", &c.AckTimeout},
+      	}
+      	for _, d := range durations {
+      		if v := getenv(d.name); v != "" {
+      			parsed, err := time.ParseDuration(v)
+      			if err != nil {
+      				return Config{}, fmt.Errorf("%s: %w", d.name, err)
+      			}
+      			*d.dst = parsed
+      		}
+      	}
+      	return c, c.Validate()
+      }
+
+      // Validate rejects settings the poller cannot run with.
+      func (c Config) Validate() error {
+      	switch {
+      	case c.BatchSize < 1:
+      		return fmt.Errorf("config: batch size must be at least 1, got %d", c.BatchSize)
+      	case c.PollInterval <= 0:
+      		return fmt.Errorf("config: poll interval must be positive, got %v", c.PollInterval)
+      	case c.BackoffBase <= 0:
+      		return fmt.Errorf("config: backoff base must be positive, got %v", c.BackoffBase)
+      	case c.BackoffMax < c.BackoffBase:
+      		return fmt.Errorf("config: backoff max %v is below backoff base %v", c.BackoffMax, c.BackoffBase)
+      	case c.AckTimeout <= 0:
+      		return fmt.Errorf("config: ack timeout must be positive, got %v", c.AckTimeout)
+      	}
+      	return nil
+      }
+    internal/config/config_test.go: |
+      package config
+
+      import (
+      	"strings"
+      	"testing"
+      	"time"
+      )
+
+      func env(values map[string]string) func(string) string {
+      	return func(name string) string { return values[name] }
+      }
+
+      func TestDefaultsAreValid(t *testing.T) {
+      	if err := Default().Validate(); err != nil {
+      		t.Fatalf("Default().Validate() = %v", err)
+      	}
+      }
+
+      func TestFromEnvUsesDefaultsWhenUnset(t *testing.T) {
+      	got, err := FromEnv(env(nil))
+      	if err != nil {
+      		t.Fatal(err)
+      	}
+      	if got != Default() {
+      		t.Fatalf("FromEnv(empty) = %+v, want %+v", got, Default())
+      	}
+      }
+
+      func TestFromEnvOverrides(t *testing.T) {
+      	got, err := FromEnv(env(map[string]string{
+      		"POLLER_BATCH_SIZE":    "25",
+      		"POLLER_POLL_INTERVAL": "250ms",
+      		"POLLER_ACK_TIMEOUT":   "2s",
+      	}))
+      	if err != nil {
+      		t.Fatal(err)
+      	}
+      	if got.BatchSize != 25 || got.PollInterval != 250*time.Millisecond || got.AckTimeout != 2*time.Second {
+      		t.Fatalf("overrides not applied: %+v", got)
+      	}
+      	if got.BackoffMax != Default().BackoffMax {
+      		t.Fatalf("untouched field changed: %+v", got)
+      	}
+      }
+
+      func TestFromEnvRejectsBadValues(t *testing.T) {
+      	cases := map[string]struct {
+      		vars map[string]string
+      		want string
+      	}{
+      		"non-numeric batch size": {map[string]string{"POLLER_BATCH_SIZE": "many"}, "POLLER_BATCH_SIZE"},
+      		"zero batch size":        {map[string]string{"POLLER_BATCH_SIZE": "0"}, "batch size"},
+      		"bad duration":           {map[string]string{"POLLER_POLL_INTERVAL": "soon"}, "POLLER_POLL_INTERVAL"},
+      		"negative ack timeout":   {map[string]string{"POLLER_ACK_TIMEOUT": "-1s"}, "ack timeout"},
+      		"max below base":         {map[string]string{"POLLER_BACKOFF_MAX": "1ms"}, "backoff max"},
+      	}
+      	for name, tc := range cases {
+      		t.Run(name, func(t *testing.T) {
+      			_, err := FromEnv(env(tc.vars))
+      			if err == nil || !strings.Contains(err.Error(), tc.want) {
+      				t.Fatalf("error = %v, want one mentioning %q", err, tc.want)
+      			}
+      		})
+      	}
+      }
+    internal/metrics/metrics.go: |
+      // Package metrics holds the poller's operational counters.
+      package metrics
+
+      import (
+      	"fmt"
+      	"sync/atomic"
+      )
+
+      // Counters are updated by the poller and read by whatever exports them. The zero value is ready.
+      type Counters struct {
+      	fetched     atomic.Int64
+      	acked       atomic.Int64
+      	nacked      atomic.Int64
+      	failed      atomic.Int64
+      	fetchErrors atomic.Int64
+      	batchErrors atomic.Int64
+      }
+
+      // Snapshot is a consistent-enough copy of the counters for logging and assertions.
+      type Snapshot struct {
+      	Fetched     int64
+      	Acked       int64
+      	Nacked      int64
+      	Failed      int64
+      	FetchErrors int64
+      	BatchErrors int64
+      }
+
+      // Fetched records n jobs received from the queue.
+      func (c *Counters) Fetched(n int) { c.fetched.Add(int64(n)) }
+
+      // Acked records one job acknowledged.
+      func (c *Counters) Acked() { c.acked.Add(1) }
+
+      // Nacked records one job handed back for redelivery.
+      func (c *Counters) Nacked() { c.nacked.Add(1) }
+
+      // Failed records one handler failure.
+      func (c *Counters) Failed() { c.failed.Add(1) }
+
+      // FetchError records one failed Fetch call.
+      func (c *Counters) FetchError() { c.fetchErrors.Add(1) }
+
+      // BatchError records one batch in which at least one job did not complete cleanly.
+      func (c *Counters) BatchError() { c.batchErrors.Add(1) }
+
+      // Snapshot reads every counter.
+      func (c *Counters) Snapshot() Snapshot {
+      	return Snapshot{
+      		Fetched:     c.fetched.Load(),
+      		Acked:       c.acked.Load(),
+      		Nacked:      c.nacked.Load(),
+      		Failed:      c.failed.Load(),
+      		FetchErrors: c.fetchErrors.Load(),
+      		BatchErrors: c.batchErrors.Load(),
+      	}
+      }
+
+      // String renders the snapshot as one log line.
+      func (s Snapshot) String() string {
+      	return fmt.Sprintf("fetched=%d acked=%d nacked=%d failed=%d fetch_errors=%d batch_errors=%d",
+      		s.Fetched, s.Acked, s.Nacked, s.Failed, s.FetchErrors, s.BatchErrors)
+      }
+    internal/metrics/metrics_test.go: |
+      package metrics
+
+      import (
+      	"sync"
+      	"testing"
+      )
+
+      func TestZeroValueIsReady(t *testing.T) {
+      	var c Counters
+      	if got := c.Snapshot(); got != (Snapshot{}) {
+      		t.Fatalf("zero counters = %+v", got)
+      	}
+      }
+
+      func TestCountersAccumulate(t *testing.T) {
+      	var c Counters
+      	c.Fetched(4)
+      	c.Fetched(2)
+      	c.Acked()
+      	c.Nacked()
+      	c.Nacked()
+      	c.Failed()
+      	c.FetchError()
+      	c.BatchError()
+      	want := Snapshot{Fetched: 6, Acked: 1, Nacked: 2, Failed: 1, FetchErrors: 1, BatchErrors: 1}
+      	if got := c.Snapshot(); got != want {
+      		t.Fatalf("snapshot = %+v, want %+v", got, want)
+      	}
+      }
+
+      func TestCountersAreSafeForConcurrentUse(t *testing.T) {
+      	var c Counters
+      	var wg sync.WaitGroup
+      	for i := 0; i < 50; i++ {
+      		wg.Add(1)
+      		go func() {
+      			defer wg.Done()
+      			c.Acked()
+      		}()
+      	}
+      	wg.Wait()
+      	if got := c.Snapshot().Acked; got != 50 {
+      		t.Fatalf("acked = %d, want 50", got)
+      	}
+      }
+
+      func TestSnapshotString(t *testing.T) {
+      	s := Snapshot{Fetched: 3, Acked: 2, Nacked: 1}
+      	want := "fetched=3 acked=2 nacked=1 failed=0 fetch_errors=0 batch_errors=0"
+      	if got := s.String(); got != want {
+      		t.Fatalf("String() = %q, want %q", got, want)
+      	}
+      }
+    internal/poller/poller.go: |
+      // Package poller drains a queue.Queue: it fetches a batch, hands each job to a Handler, and acks or
+      // nacks the job according to the outcome.
+      package poller
+
+      import (
+      	"context"
+      	"errors"
+      	"fmt"
+      	"sync"
+      	"time"
+
+      	"example.com/queuepoller/internal/backoff"
+      	"example.com/queuepoller/internal/config"
+      	"example.com/queuepoller/internal/metrics"
+      	"example.com/queuepoller/internal/queue"
+      )
+
+      // ErrAlreadyRunning is returned by Run when the poller has been started before.
+      var ErrAlreadyRunning = errors.New("poller: already running")
+
+      // Handler processes one job. A nil return acks the job; any error nacks it for redelivery. The
+      // context is cancelled when the poller shuts down, and handlers are expected to return promptly then.
+      type Handler interface {
+      	Handle(ctx context.Context, job queue.Job) error
+      }
+
+      // HandlerFunc adapts a function to Handler.
+      type HandlerFunc func(ctx context.Context, job queue.Job) error
+
+      // Handle calls f.
+      func (f HandlerFunc) Handle(ctx context.Context, job queue.Job) error { return f(ctx, job) }
+
+      // Poller fetches and processes batches until it is shut down.
+      type Poller struct {
+      	queue   queue.Queue
+      	handler Handler
+      	cfg     config.Config
+      	metrics *metrics.Counters
+
+      	mu     sync.Mutex
+      	cancel context.CancelFunc
+      	done   chan struct{}
+      }
+
+      // New returns a Poller. A nil m gets a fresh set of counters.
+      func New(q queue.Queue, h Handler, cfg config.Config, m *metrics.Counters) *Poller {
+      	if m == nil {
+      		m = &metrics.Counters{}
+      	}
+      	return &Poller{queue: q, handler: h, cfg: cfg, metrics: m}
+      }
+
+      // Run polls until ctx is cancelled or Shutdown is called, then returns nil. It can be called once.
+      func (p *Poller) Run(ctx context.Context) error {
+      	runCtx, cancel := context.WithCancel(ctx)
+      	defer cancel()
+
+      	p.mu.Lock()
+      	if p.cancel != nil {
+      		p.mu.Unlock()
+      		return ErrAlreadyRunning
+      	}
+      	p.cancel = cancel
+      	done := make(chan struct{})
+      	p.done = done
+      	p.mu.Unlock()
+      	defer close(done)
+
+      	failures := 0
+      	for runCtx.Err() == nil {
+      		jobs, err := p.queue.Fetch(runCtx, p.cfg.BatchSize)
+      		switch {
+      		case err != nil:
+      			if runCtx.Err() != nil {
+      				return nil
+      			}
+      			p.metrics.FetchError()
+      			failures++
+      			sleep(runCtx, backoff.Delay(failures, p.cfg.BackoffBase, p.cfg.BackoffMax))
+      		case len(jobs) == 0:
+      			failures = 0
+      			sleep(runCtx, p.cfg.PollInterval)
+      		default:
+      			p.metrics.Fetched(len(jobs))
+      			if err := p.processBatch(runCtx, jobs); err != nil {
+      				p.metrics.BatchError()
+      				failures++
+      				sleep(runCtx, backoff.Delay(failures, p.cfg.BackoffBase, p.cfg.BackoffMax))
+      			} else {
+      				failures = 0
+      			}
+      		}
+      	}
+      	return nil
+      }
+
+      // Shutdown stops the poller and waits for Run to return or ctx to expire, whichever is first. It
+      // returns ctx.Err() when the wait was cut short.
+      func (p *Poller) Shutdown(ctx context.Context) error {
+      	p.mu.Lock()
+      	cancel, done := p.cancel, p.done
+      	p.mu.Unlock()
+      	if cancel == nil {
+      		return nil
+      	}
+      	cancel()
+      	select {
+      	case <-done:
+      		return nil
+      	case <-ctx.Done():
+      		return ctx.Err()
+      	}
+      }
+
+      // processBatch handles the jobs one after another and returns the first failure.
+      func (p *Poller) processBatch(ctx context.Context, jobs []queue.Job) error {
+      	var first error
+      	for _, job := range jobs {
+      		if err := p.processJob(ctx, job); err != nil && first == nil {
+      			first = err
+      		}
+      	}
+      	return first
+      }
+
+      // processJob runs the handler and settles the job. Settling uses a context detached from
+      // cancellation, so a job interrupted by shutdown is still nacked rather than abandoned.
+      func (p *Poller) processJob(ctx context.Context, job queue.Job) error {
+      	herr := p.handler.Handle(ctx, job)
+
+      	settle, cancel := context.WithTimeout(context.WithoutCancel(ctx), p.cfg.AckTimeout)
+      	defer cancel()
+      	if herr != nil {
+      		p.metrics.Failed()
+      		if err := p.queue.Nack(settle, job.ID); err != nil {
+      			return fmt.Errorf("nack %s: %w", job.ID, err)
+      		}
+      		p.metrics.Nacked()
+      		return fmt.Errorf("handle %s: %w", job.ID, herr)
+      	}
+      	if err := p.queue.Ack(settle, job.ID); err != nil {
+      		return fmt.Errorf("ack %s: %w", job.ID, err)
+      	}
+      	p.metrics.Acked()
+      	return nil
+      }
+
+      // sleep waits for d or for ctx to end, and reports whether the full wait elapsed.
+      func sleep(ctx context.Context, d time.Duration) bool {
+      	t := time.NewTimer(d)
+      	defer t.Stop()
+      	select {
+      	case <-t.C:
+      		return true
+      	case <-ctx.Done():
+      		return false
+      	}
+      }
+    internal/poller/poller_test.go: |
+      package poller
+
+      import (
+      	"context"
+      	"errors"
+      	"testing"
+      	"time"
+
+      	"example.com/queuepoller/internal/queue"
+      )
+
+      func TestProcessesABatchAndAcksEveryJob(t *testing.T) {
+      	q := seeded(5)
+      	h := &recorder{}
+      	m := counters()
+      	start(t, New(q, h, testConfig(10), m))
+
+      	waitFor(t, "all jobs acked", settled(q, 5))
+      	if got := m.Snapshot(); got.Fetched != 5 || got.Acked != 5 || got.Nacked != 0 {
+      		t.Fatalf("metrics = %v", got)
+      	}
+      }
+
+      func TestFetchesAtMostOneBatchAtATime(t *testing.T) {
+      	q := seeded(7)
+      	release := make(chan struct{})
+      	h := &recorder{fn: func(ctx context.Context, job queue.Job) error {
+      		<-release
+      		return nil
+      	}}
+      	start(t, New(q, h, testConfig(3), counters()))
+
+      	waitFor(t, "first batch in flight", func() bool { return q.Stats().InFlight > 0 })
+      	if got := q.Stats(); got.InFlight > 3 {
+      		t.Fatalf("in flight = %d, want at most the batch size 3", got.InFlight)
+      	}
+      	close(release)
+      	waitFor(t, "queue drained", settled(q, 7))
+      }
+
+      func TestFailedJobIsNackedAndRedelivered(t *testing.T) {
+      	q := seeded(3)
+      	h := &recorder{fn: func(ctx context.Context, job queue.Job) error {
+      		if job.ID == "job-1" && job.Attempt == 1 {
+      			return errors.New("upstream returned 503")
+      		}
+      		return nil
+      	}}
+      	m := counters()
+      	start(t, New(q, h, testConfig(10), m))
+
+      	waitFor(t, "all jobs acked after redelivery", settled(q, 3))
+      	got := m.Snapshot()
+      	if got.Failed != 1 || got.Nacked != 1 || got.Acked != 3 {
+      		t.Fatalf("metrics = %v", got)
+      	}
+      	if got.BatchErrors < 1 {
+      		t.Fatalf("a batch with a failed job should be counted: %v", got)
+      	}
+      }
+
+      func TestFetchErrorBacksOffAndRecovers(t *testing.T) {
+      	q := seeded(2)
+      	q.FailFetch(errors.New("queue unavailable"))
+      	m := counters()
+      	start(t, New(q, &recorder{}, testConfig(10), m))
+
+      	waitFor(t, "fetch errors counted", func() bool { return m.Snapshot().FetchErrors >= 3 })
+      	q.FailFetch(nil)
+      	waitFor(t, "jobs acked after recovery", settled(q, 2))
+      }
+
+      func TestShutdownStopsAnIdlePoller(t *testing.T) {
+      	r := start(t, New(queue.NewMemory(), &recorder{}, testConfig(10), counters()))
+      	time.Sleep(20 * time.Millisecond)
+
+      	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+      	defer cancel()
+      	if err := r.p.Shutdown(ctx); err != nil {
+      		t.Fatalf("Shutdown = %v", err)
+      	}
+      	select {
+      	case err := <-r.done:
+      		if err != nil {
+      			t.Fatalf("Run = %v", err)
+      		}
+      	case <-time.After(time.Second):
+      		t.Fatal("Run did not return after Shutdown")
+      	}
+      }
+
+      func TestShutdownWaitsForTheBatchInHand(t *testing.T) {
+      	q := seeded(4)
+      	entered := make(chan struct{}, 4)
+      	h := &recorder{fn: func(ctx context.Context, job queue.Job) error {
+      		entered <- struct{}{}
+      		time.Sleep(40 * time.Millisecond)
+      		return nil
+      	}}
+      	r := start(t, New(q, h, testConfig(4), counters()))
+      	<-entered
+
+      	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+      	defer cancel()
+      	if err := r.p.Shutdown(ctx); err != nil {
+      		t.Fatalf("Shutdown = %v", err)
+      	}
+      	if s := q.Stats(); s.InFlight != 0 {
+      		t.Fatalf("jobs still in flight after Shutdown returned: %+v", s)
+      	}
+      }
+
+      func TestShutdownGivesUpWhenTheGraceExpires(t *testing.T) {
+      	q := seeded(1)
+      	block := make(chan struct{})
+      	entered := make(chan struct{}, 1)
+      	h := &recorder{fn: func(ctx context.Context, job queue.Job) error {
+      		entered <- struct{}{}
+      		<-block
+      		return nil
+      	}}
+      	r := start(t, New(q, h, testConfig(1), counters()))
+      	<-entered
+
+      	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
+      	defer cancel()
+      	if err := r.p.Shutdown(ctx); !errors.Is(err, context.DeadlineExceeded) {
+      		t.Fatalf("Shutdown = %v, want context.DeadlineExceeded", err)
+      	}
+      	close(block)
+      }
+
+      func TestShutdownBeforeRunIsANoOp(t *testing.T) {
+      	p := New(queue.NewMemory(), &recorder{}, testConfig(1), nil)
+      	if err := p.Shutdown(context.Background()); err != nil {
+      		t.Fatalf("Shutdown = %v", err)
+      	}
+      }
+
+      func TestRunCannotStartTwice(t *testing.T) {
+      	r := start(t, New(queue.NewMemory(), &recorder{}, testConfig(1), counters()))
+      	waitFor(t, "first Run to register", func() bool {
+      		r.p.mu.Lock()
+      		defer r.p.mu.Unlock()
+      		return r.p.cancel != nil
+      	})
+      	if err := r.p.Run(context.Background()); !errors.Is(err, ErrAlreadyRunning) {
+      		t.Fatalf("second Run = %v, want ErrAlreadyRunning", err)
+      	}
+      }
+
+      func TestParentContextCancellationStopsRun(t *testing.T) {
+      	ctx, cancel := context.WithCancel(context.Background())
+      	p := New(queue.NewMemory(), &recorder{}, testConfig(1), nil)
+      	done := make(chan error, 1)
+      	go func() { done <- p.Run(ctx) }()
+      	time.Sleep(10 * time.Millisecond)
+      	cancel()
+      	select {
+      	case err := <-done:
+      		if err != nil {
+      			t.Fatalf("Run = %v", err)
+      		}
+      	case <-time.After(time.Second):
+      		t.Fatal("Run did not stop after its context was cancelled")
+      	}
+      }
+    internal/poller/testutil_test.go: |
+      package poller
+
+      import (
+      	"context"
+      	"fmt"
+      	"sync"
+      	"testing"
+      	"time"
+
+      	"example.com/queuepoller/internal/config"
+      	"example.com/queuepoller/internal/metrics"
+      	"example.com/queuepoller/internal/queue"
+      )
+
+      // testConfig is the default config with every pause shortened so tests finish quickly.
+      func testConfig(batch int) config.Config {
+      	cfg := config.Default()
+      	cfg.BatchSize = batch
+      	cfg.PollInterval = 5 * time.Millisecond
+      	cfg.BackoffBase = time.Millisecond
+      	cfg.BackoffMax = 4 * time.Millisecond
+      	cfg.AckTimeout = time.Second
+      	return cfg
+      }
+
+      // seeded returns a memory queue holding n jobs named job-0 .. job-n.
+      func seeded(n int) *queue.Memory {
+      	q := queue.NewMemory()
+      	for i := 0; i < n; i++ {
+      		q.Enqueue(fmt.Sprintf("job-%d", i), nil)
+      	}
+      	return q
+      }
+
+      // recorder is a Handler that notes every job it sees and delegates to fn.
+      type recorder struct {
+      	mu   sync.Mutex
+      	seen []queue.Job
+      	fn   func(ctx context.Context, job queue.Job) error
+      }
+
+      func (r *recorder) Handle(ctx context.Context, job queue.Job) error {
+      	r.mu.Lock()
+      	r.seen = append(r.seen, job)
+      	r.mu.Unlock()
+      	if r.fn == nil {
+      		return nil
+      	}
+      	return r.fn(ctx, job)
+      }
+
+      func (r *recorder) count() int {
+      	r.mu.Lock()
+      	defer r.mu.Unlock()
+      	return len(r.seen)
+      }
+
+      // running is a poller started in the background by start.
+      type running struct {
+      	p    *Poller
+      	done chan error
+      }
+
+      // start runs p until the test ends; the cleanup shuts it down and fails the test if it hangs.
+      func start(t *testing.T, p *Poller) *running {
+      	t.Helper()
+      	r := &running{p: p, done: make(chan error, 1)}
+      	go func() { r.done <- p.Run(context.Background()) }()
+      	t.Cleanup(func() {
+      		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+      		defer cancel()
+      		if err := p.Shutdown(ctx); err != nil {
+      			t.Errorf("cleanup shutdown: %v", err)
+      		}
+      	})
+      	return r
+      }
+
+      // waitFor polls cond until it holds or two seconds pass.
+      func waitFor(t *testing.T, what string, cond func() bool) {
+      	t.Helper()
+      	deadline := time.Now().Add(2 * time.Second)
+      	for time.Now().Before(deadline) {
+      		if cond() {
+      			return
+      		}
+      		time.Sleep(2 * time.Millisecond)
+      	}
+      	t.Fatalf("timed out waiting for %s", what)
+      }
+
+      func settled(q *queue.Memory, acked int) func() bool {
+      	return func() bool {
+      		s := q.Stats()
+      		return s.Acked == acked && s.InFlight == 0 && s.Ready == 0
+      	}
+      }
+
+      func counters() *metrics.Counters { return &metrics.Counters{} }
+    internal/queue/memory.go: |
+      package queue
+
+      import (
+      	"context"
+      	"sync"
+      )
+
+      // Stats is a point-in-time view of a Memory queue.
+      type Stats struct {
+      	Ready    int
+      	InFlight int
+      	Acked    int
+      	Nacked   int
+      }
+
+      // Memory is an in-memory Queue. A nacked job goes to the back of the ready list and is delivered
+      // again with a higher Attempt.
+      type Memory struct {
+      	mu       sync.Mutex
+      	ready    []Job
+      	inflight map[string]Job
+      	acked    []string
+      	nacks    int
+      	fetchErr error
+      	closed   bool
+      }
+
+      // NewMemory returns an empty queue.
+      func NewMemory() *Memory {
+      	return &Memory{inflight: make(map[string]Job)}
+      }
+
+      // Enqueue appends a job to the ready list.
+      func (m *Memory) Enqueue(id string, payload []byte) {
+      	m.mu.Lock()
+      	defer m.mu.Unlock()
+      	m.ready = append(m.ready, Job{ID: id, Payload: payload})
+      }
+
+      // FailFetch makes every later Fetch return err; FailFetch(nil) restores normal service.
+      func (m *Memory) FailFetch(err error) {
+      	m.mu.Lock()
+      	defer m.mu.Unlock()
+      	m.fetchErr = err
+      }
+
+      // Close makes every later operation return ErrClosed.
+      func (m *Memory) Close() {
+      	m.mu.Lock()
+      	defer m.mu.Unlock()
+      	m.closed = true
+      }
+
+      // Fetch moves up to limit ready jobs to in flight and returns them.
+      func (m *Memory) Fetch(ctx context.Context, limit int) ([]Job, error) {
+      	if err := ctx.Err(); err != nil {
+      		return nil, err
+      	}
+      	m.mu.Lock()
+      	defer m.mu.Unlock()
+      	if m.closed {
+      		return nil, ErrClosed
+      	}
+      	if m.fetchErr != nil {
+      		return nil, m.fetchErr
+      	}
+      	n := min(limit, len(m.ready))
+      	if n <= 0 {
+      		return nil, nil
+      	}
+      	batch := make([]Job, n)
+      	copy(batch, m.ready[:n])
+      	m.ready = m.ready[n:]
+      	for i := range batch {
+      		batch[i].Attempt++
+      		m.inflight[batch[i].ID] = batch[i]
+      	}
+      	return batch, nil
+      }
+
+      // Ack drops an in-flight job for good.
+      func (m *Memory) Ack(ctx context.Context, id string) error {
+      	if err := ctx.Err(); err != nil {
+      		return err
+      	}
+      	m.mu.Lock()
+      	defer m.mu.Unlock()
+      	if m.closed {
+      		return ErrClosed
+      	}
+      	if _, ok := m.inflight[id]; !ok {
+      		return ErrUnknownJob
+      	}
+      	delete(m.inflight, id)
+      	m.acked = append(m.acked, id)
+      	return nil
+      }
+
+      // Nack returns an in-flight job to the back of the ready list.
+      func (m *Memory) Nack(ctx context.Context, id string) error {
+      	if err := ctx.Err(); err != nil {
+      		return err
+      	}
+      	m.mu.Lock()
+      	defer m.mu.Unlock()
+      	if m.closed {
+      		return ErrClosed
+      	}
+      	job, ok := m.inflight[id]
+      	if !ok {
+      		return ErrUnknownJob
+      	}
+      	delete(m.inflight, id)
+      	m.ready = append(m.ready, job)
+      	m.nacks++
+      	return nil
+      }
+
+      // Stats reports the current counts.
+      func (m *Memory) Stats() Stats {
+      	m.mu.Lock()
+      	defer m.mu.Unlock()
+      	return Stats{Ready: len(m.ready), InFlight: len(m.inflight), Acked: len(m.acked), Nacked: m.nacks}
+      }
+
+      // AckedIDs returns the ids acknowledged so far, in order.
+      func (m *Memory) AckedIDs() []string {
+      	m.mu.Lock()
+      	defer m.mu.Unlock()
+      	return append([]string(nil), m.acked...)
+      }
+    internal/queue/memory_test.go: |
+      package queue
+
+      import (
+      	"context"
+      	"errors"
+      	"fmt"
+      	"testing"
+      )
+
+      func filled(n int) *Memory {
+      	m := NewMemory()
+      	for i := 0; i < n; i++ {
+      		m.Enqueue(fmt.Sprintf("job-%d", i), []byte("payload"))
+      	}
+      	return m
+      }
+
+      func TestFetchHonoursLimit(t *testing.T) {
+      	m := filled(5)
+      	jobs, err := m.Fetch(context.Background(), 3)
+      	if err != nil {
+      		t.Fatal(err)
+      	}
+      	if len(jobs) != 3 {
+      		t.Fatalf("got %d jobs, want 3", len(jobs))
+      	}
+      	if got := m.Stats(); got.Ready != 2 || got.InFlight != 3 {
+      		t.Fatalf("stats after fetch = %+v", got)
+      	}
+      }
+
+      func TestFetchEmptyReturnsNothing(t *testing.T) {
+      	jobs, err := NewMemory().Fetch(context.Background(), 4)
+      	if err != nil || len(jobs) != 0 {
+      		t.Fatalf("got %v, %v; want no jobs and no error", jobs, err)
+      	}
+      }
+
+      func TestAckRemovesJob(t *testing.T) {
+      	m := filled(1)
+      	jobs, _ := m.Fetch(context.Background(), 1)
+      	if err := m.Ack(context.Background(), jobs[0].ID); err != nil {
+      		t.Fatal(err)
+      	}
+      	if got := m.Stats(); got.InFlight != 0 || got.Acked != 1 {
+      		t.Fatalf("stats after ack = %+v", got)
+      	}
+      	if err := m.Ack(context.Background(), jobs[0].ID); !errors.Is(err, ErrUnknownJob) {
+      		t.Fatalf("second ack error = %v, want ErrUnknownJob", err)
+      	}
+      }
+
+      func TestNackRedeliversWithHigherAttempt(t *testing.T) {
+      	m := filled(1)
+      	first, _ := m.Fetch(context.Background(), 1)
+      	if err := m.Nack(context.Background(), first[0].ID); err != nil {
+      		t.Fatal(err)
+      	}
+      	second, _ := m.Fetch(context.Background(), 1)
+      	if len(second) != 1 || second[0].Attempt != 2 {
+      		t.Fatalf("redelivery = %+v, want attempt 2", second)
+      	}
+      }
+
+      func TestCancelledContextIsRefused(t *testing.T) {
+      	m := filled(1)
+      	ctx, cancel := context.WithCancel(context.Background())
+      	cancel()
+      	if _, err := m.Fetch(ctx, 1); !errors.Is(err, context.Canceled) {
+      		t.Fatalf("fetch error = %v, want context.Canceled", err)
+      	}
+      }
+
+      func TestFailFetchAndClose(t *testing.T) {
+      	m := filled(1)
+      	boom := errors.New("upstream down")
+      	m.FailFetch(boom)
+      	if _, err := m.Fetch(context.Background(), 1); !errors.Is(err, boom) {
+      		t.Fatalf("fetch error = %v, want %v", err, boom)
+      	}
+      	m.FailFetch(nil)
+      	if jobs, err := m.Fetch(context.Background(), 1); err != nil || len(jobs) != 1 {
+      		t.Fatalf("fetch after recovery = %v, %v", jobs, err)
+      	}
+      	m.Close()
+      	if err := m.Ack(context.Background(), "job-0"); !errors.Is(err, ErrClosed) {
+      		t.Fatalf("ack on closed queue = %v, want ErrClosed", err)
+      	}
+      }
+    internal/queue/queue.go: |
+      // Package queue defines the contract between the poller and a source of jobs, and ships an
+      // in-memory implementation for tests and local runs.
+      package queue
+
+      import (
+      	"context"
+      	"errors"
+      )
+
+      // Job is one unit of work as delivered by a Queue.
+      type Job struct {
+      	ID      string
+      	Payload []byte
+      	// Attempt counts deliveries of this job, starting at 1.
+      	Attempt int
+      }
+
+      // Queue is the job source the poller drains. Implementations must be safe for concurrent use.
+      type Queue interface {
+      	// Fetch returns up to limit jobs, or no jobs when the queue is empty. It never blocks waiting
+      	// for work; callers pace themselves.
+      	Fetch(ctx context.Context, limit int) ([]Job, error)
+      	// Ack removes a job that was handled successfully.
+      	Ack(ctx context.Context, id string) error
+      	// Nack hands a job back to the queue for redelivery.
+      	Nack(ctx context.Context, id string) error
+      }
+
+      var (
+      	// ErrUnknownJob is returned by Ack and Nack for a job that is not in flight.
+      	ErrUnknownJob = errors.New("queue: job is not in flight")
+      	// ErrClosed is returned by operations on a queue that has been shut down.
+      	ErrClosed = errors.New("queue: closed")
+      )
+  branches:
+    feature/parallel-fanout:
+      message: |
+        Process each batch in parallel with a per-job timeout
+
+        Fetched batches were handled one job at a time, so a batch took as long as the sum of its jobs and
+        one slow handler held up everything behind it. fanOut now runs every job in its own goroutine under
+        its own deadline (POLLER_JOB_TIMEOUT, default 30s), so a batch takes as long as its slowest job. A
+        job that overruns its deadline is cancelled and nacked like any other failure. Shutdown behaviour and
+        the delivery guarantees in the README are unchanged.
+      files:
+        README.md: |
+          # queuepoller
+
+          A small service that drains a job queue. It fetches a batch of jobs from a `queue.Queue`, hands each
+          job to a `Handler`, and acknowledges the job when the handler succeeds or returns it to the queue
+          when the handler fails.
+
+          ## Layout
+
+          | Path | Purpose |
+          |---|---|
+          | `cmd/poller` | The service binary: reads config, runs the poller, handles SIGTERM. |
+          | `internal/poller` | `Poller`, `Handler`, the fetch/process/settle loop, and the parallel fan-out. |
+          | `internal/queue` | The `Queue` interface and an in-memory implementation. |
+          | `internal/config` | Settings read from `POLLER_*` environment variables. |
+          | `internal/backoff` | Exponential retry delays. |
+          | `internal/metrics` | Operational counters. |
+
+          ## Running
+
+          ```
+          go run ./cmd/poller
+          go test ./...
+          ```
+
+          The binary uses the in-memory queue; a deployment replaces it with its own `queue.Queue`.
+
+          ## Configuration
+
+          | Variable | Default | Meaning |
+          |---|---|---|
+          | `POLLER_BATCH_SIZE` | `10` | Most jobs fetched at once. |
+          | `POLLER_POLL_INTERVAL` | `1s` | Pause after a fetch that returned no jobs. |
+          | `POLLER_BACKOFF_BASE` | `500ms` | First pause after a failed fetch or batch; doubles on each repeat. |
+          | `POLLER_BACKOFF_MAX` | `30s` | Longest pause between retries. |
+          | `POLLER_ACK_TIMEOUT` | `5s` | Bound on each ack or nack call. |
+          | `POLLER_JOB_TIMEOUT` | `30s` | Bound on each handler call; a job that overruns it is cancelled and nacked. |
+
+          ## Processing
+
+          Each fetched batch is processed in parallel, one goroutine per job, so a batch takes as long as its
+          slowest job rather than the sum of all of them. Every job runs under its own timeout
+          (`POLLER_JOB_TIMEOUT`). The next batch is not fetched until the current one has been handled.
+
+          ## Delivery and shutdown
+
+          The service sends SIGTERM to `Poller.Shutdown` with a 10 second grace period and then exits.
+
+          Shutdown returns within the grace period. In-flight jobs are cancelled through their context and
+          nacked for redelivery; no job is left neither acked nor nacked.
+
+          A job is acked only after its handler returns nil. A handler error, including one caused by
+          cancellation, nacks the job, and the queue delivers it again with a higher `Attempt`. Delivery is
+          therefore at least once; handlers should be idempotent.
+
+          ## Resource use
+
+          The poller's memory use is bounded by the batch size; a failing upstream must not grow it. A failed
+          batch is retried after an exponential backoff, and a failed fetch is retried the same way.
+        internal/config/config.go: |
+          // Package config reads the poller's settings from the environment.
+          package config
+
+          import (
+          	"fmt"
+          	"strconv"
+          	"time"
+          )
+
+          // Config is the poller's tuning. Zero values are not valid; start from Default.
+          type Config struct {
+          	// BatchSize is the most jobs fetched at once.
+          	BatchSize int
+          	// PollInterval is the pause after a fetch that returned no jobs.
+          	PollInterval time.Duration
+          	// BackoffBase and BackoffMax bound the pause after a failed fetch or batch.
+          	BackoffBase time.Duration
+          	BackoffMax  time.Duration
+          	// AckTimeout bounds each ack or nack call.
+          	AckTimeout time.Duration
+          	// JobTimeout bounds each handler call; a job that overruns it is cancelled and nacked.
+          	JobTimeout time.Duration
+          }
+
+          // Default returns the settings used when nothing is overridden.
+          func Default() Config {
+          	return Config{
+          		BatchSize:    10,
+          		PollInterval: time.Second,
+          		BackoffBase:  500 * time.Millisecond,
+          		BackoffMax:   30 * time.Second,
+          		AckTimeout:   5 * time.Second,
+          		JobTimeout:   30 * time.Second,
+          	}
+          }
+
+          // FromEnv builds a Config from POLLER_* variables read through getenv, falling back to Default.
+          func FromEnv(getenv func(string) string) (Config, error) {
+          	c := Default()
+          	if v := getenv("POLLER_BATCH_SIZE"); v != "" {
+          		n, err := strconv.Atoi(v)
+          		if err != nil {
+          			return Config{}, fmt.Errorf("POLLER_BATCH_SIZE: %w", err)
+          		}
+          		c.BatchSize = n
+          	}
+          	durations := []struct {
+          		name string
+          		dst  *time.Duration
+          	}{
+          		{"POLLER_POLL_INTERVAL", &c.PollInterval},
+          		{"POLLER_BACKOFF_BASE", &c.BackoffBase},
+          		{"POLLER_BACKOFF_MAX", &c.BackoffMax},
+          		{"POLLER_ACK_TIMEOUT", &c.AckTimeout},
+          		{"POLLER_JOB_TIMEOUT", &c.JobTimeout},
+          	}
+          	for _, d := range durations {
+          		if v := getenv(d.name); v != "" {
+          			parsed, err := time.ParseDuration(v)
+          			if err != nil {
+          				return Config{}, fmt.Errorf("%s: %w", d.name, err)
+          			}
+          			*d.dst = parsed
+          		}
+          	}
+          	return c, c.Validate()
+          }
+
+          // Validate rejects settings the poller cannot run with.
+          func (c Config) Validate() error {
+          	switch {
+          	case c.BatchSize < 1:
+          		return fmt.Errorf("config: batch size must be at least 1, got %d", c.BatchSize)
+          	case c.PollInterval <= 0:
+          		return fmt.Errorf("config: poll interval must be positive, got %v", c.PollInterval)
+          	case c.BackoffBase <= 0:
+          		return fmt.Errorf("config: backoff base must be positive, got %v", c.BackoffBase)
+          	case c.BackoffMax < c.BackoffBase:
+          		return fmt.Errorf("config: backoff max %v is below backoff base %v", c.BackoffMax, c.BackoffBase)
+          	case c.AckTimeout <= 0:
+          		return fmt.Errorf("config: ack timeout must be positive, got %v", c.AckTimeout)
+          	case c.JobTimeout <= 0:
+          		return fmt.Errorf("config: job timeout must be positive, got %v", c.JobTimeout)
+          	}
+          	return nil
+          }
+        internal/config/config_test.go: |
+          package config
+
+          import (
+          	"strings"
+          	"testing"
+          	"time"
+          )
+
+          func env(values map[string]string) func(string) string {
+          	return func(name string) string { return values[name] }
+          }
+
+          func TestDefaultsAreValid(t *testing.T) {
+          	if err := Default().Validate(); err != nil {
+          		t.Fatalf("Default().Validate() = %v", err)
+          	}
+          }
+
+          func TestJobTimeoutDefaultsToThirtySeconds(t *testing.T) {
+          	if got := Default().JobTimeout; got != 30*time.Second {
+          		t.Fatalf("default job timeout = %v, want 30s", got)
+          	}
+          }
+
+          func TestFromEnvUsesDefaultsWhenUnset(t *testing.T) {
+          	got, err := FromEnv(env(nil))
+          	if err != nil {
+          		t.Fatal(err)
+          	}
+          	if got != Default() {
+          		t.Fatalf("FromEnv(empty) = %+v, want %+v", got, Default())
+          	}
+          }
+
+          func TestFromEnvOverrides(t *testing.T) {
+          	got, err := FromEnv(env(map[string]string{
+          		"POLLER_BATCH_SIZE":    "25",
+          		"POLLER_POLL_INTERVAL": "250ms",
+          		"POLLER_ACK_TIMEOUT":   "2s",
+          		"POLLER_JOB_TIMEOUT":   "45s",
+          	}))
+          	if err != nil {
+          		t.Fatal(err)
+          	}
+          	if got.BatchSize != 25 || got.PollInterval != 250*time.Millisecond || got.AckTimeout != 2*time.Second || got.JobTimeout != 45*time.Second {
+          		t.Fatalf("overrides not applied: %+v", got)
+          	}
+          	if got.BackoffMax != Default().BackoffMax {
+          		t.Fatalf("untouched field changed: %+v", got)
+          	}
+          }
+
+          func TestFromEnvRejectsBadValues(t *testing.T) {
+          	cases := map[string]struct {
+          		vars map[string]string
+          		want string
+          	}{
+          		"non-numeric batch size": {map[string]string{"POLLER_BATCH_SIZE": "many"}, "POLLER_BATCH_SIZE"},
+          		"zero batch size":        {map[string]string{"POLLER_BATCH_SIZE": "0"}, "batch size"},
+          		"bad duration":           {map[string]string{"POLLER_POLL_INTERVAL": "soon"}, "POLLER_POLL_INTERVAL"},
+          		"negative ack timeout":   {map[string]string{"POLLER_ACK_TIMEOUT": "-1s"}, "ack timeout"},
+          		"max below base":         {map[string]string{"POLLER_BACKOFF_MAX": "1ms"}, "backoff max"},
+          		"zero job timeout":       {map[string]string{"POLLER_JOB_TIMEOUT": "0s"}, "job timeout"},
+          	}
+          	for name, tc := range cases {
+          		t.Run(name, func(t *testing.T) {
+          			_, err := FromEnv(env(tc.vars))
+          			if err == nil || !strings.Contains(err.Error(), tc.want) {
+          				t.Fatalf("error = %v, want one mentioning %q", err, tc.want)
+          			}
+          		})
+          	}
+          }
+        internal/poller/fanout.go: |
+          package poller
+
+          import (
+          	"context"
+          	"time"
+
+          	"example.com/queuepoller/internal/queue"
+          )
+
+          // fanOut runs fn for every job in its own goroutine, each call under its own timeout, and returns
+          // the first error it sees, or nil when every call succeeded.
+          func fanOut(jobs []queue.Job, timeout time.Duration, fn func(context.Context, queue.Job) error) error {
+          	results := make(chan error)
+          	for _, job := range jobs {
+          		go func() {
+          			ctx, cancel := jobContext(timeout)
+          			defer cancel()
+          			results <- fn(ctx, job)
+          		}()
+          	}
+          	for range jobs {
+          		if err := <-results; err != nil {
+          			return err
+          		}
+          	}
+          	return nil
+          }
+
+          // jobContext returns the context a single job runs under: it expires after timeout.
+          func jobContext(timeout time.Duration) (context.Context, context.CancelFunc) {
+          	return context.WithTimeout(context.Background(), timeout)
+          }
+        internal/poller/fanout_test.go: |
+          package poller
+
+          import (
+          	"context"
+          	"errors"
+          	"sync/atomic"
+          	"testing"
+          	"time"
+
+          	"example.com/queuepoller/internal/queue"
+          )
+
+          func jobs(ids ...string) []queue.Job {
+          	out := make([]queue.Job, len(ids))
+          	for i, id := range ids {
+          		out[i] = queue.Job{ID: id, Attempt: 1}
+          	}
+          	return out
+          }
+
+          func TestFanOutRunsEveryJobOnce(t *testing.T) {
+          	var calls atomic.Int32
+          	seen := make(chan string, 4)
+          	err := fanOut(jobs("a", "b", "c", "d"), time.Second, func(ctx context.Context, job queue.Job) error {
+          		calls.Add(1)
+          		seen <- job.ID
+          		return nil
+          	})
+          	if err != nil {
+          		t.Fatalf("fanOut = %v", err)
+          	}
+          	if calls.Load() != 4 {
+          		t.Fatalf("fn ran %d times, want 4", calls.Load())
+          	}
+          	got := map[string]bool{}
+          	for range 4 {
+          		got[<-seen] = true
+          	}
+          	if len(got) != 4 {
+          		t.Fatalf("each job should be seen exactly once, got %v", got)
+          	}
+          }
+
+          func TestFanOutWithNoJobsReturnsNil(t *testing.T) {
+          	if err := fanOut(nil, time.Second, nil); err != nil {
+          		t.Fatalf("fanOut(nil) = %v", err)
+          	}
+          }
+
+          func TestFanOutReportsAFailure(t *testing.T) {
+          	boom := errors.New("boom")
+          	err := fanOut(jobs("a", "b"), time.Second, func(ctx context.Context, job queue.Job) error {
+          		if job.ID == "b" {
+          			return boom
+          		}
+          		return nil
+          	})
+          	if !errors.Is(err, boom) {
+          		t.Fatalf("fanOut = %v, want %v", err, boom)
+          	}
+          }
+
+          func TestFanOutGivesEachJobItsOwnDeadline(t *testing.T) {
+          	err := fanOut(jobs("only"), 20*time.Millisecond, func(ctx context.Context, job queue.Job) error {
+          		<-ctx.Done()
+          		return ctx.Err()
+          	})
+          	if !errors.Is(err, context.DeadlineExceeded) {
+          		t.Fatalf("fanOut = %v, want context.DeadlineExceeded", err)
+          	}
+          }
+
+          func TestBatchJobsRunInParallel(t *testing.T) {
+          	q := seeded(6)
+          	h := &recorder{fn: func(ctx context.Context, job queue.Job) error {
+          		time.Sleep(150 * time.Millisecond)
+          		return nil
+          	}}
+          	cfg := testConfig(6)
+          	cfg.JobTimeout = 5 * time.Second
+          	started := time.Now()
+          	start(t, New(q, h, cfg, counters()))
+
+          	waitFor(t, "batch acked", settled(q, 6))
+          	// Handled one after another the six jobs would take 900ms.
+          	if elapsed := time.Since(started); elapsed > 600*time.Millisecond {
+          		t.Fatalf("batch of 6 took %v, want well under the 900ms a sequential run needs", elapsed)
+          	}
+          }
+
+          func TestSlowJobIsCancelledAndNacked(t *testing.T) {
+          	q := seeded(3)
+          	h := &recorder{fn: func(ctx context.Context, job queue.Job) error {
+          		if job.ID == "job-1" && job.Attempt == 1 {
+          			<-ctx.Done()
+          			return ctx.Err()
+          		}
+          		return nil
+          	}}
+          	cfg := testConfig(3)
+          	cfg.JobTimeout = 50 * time.Millisecond
+          	m := counters()
+          	start(t, New(q, h, cfg, m))
+
+          	waitFor(t, "all jobs acked after the slow one is redelivered", settled(q, 3))
+          	got := m.Snapshot()
+          	if got.Failed != 1 || got.Nacked != 1 {
+          		t.Fatalf("metrics = %v, want exactly the slow job failed and nacked", got)
+          	}
+          }
+        internal/poller/poller.go: |
+          // Package poller drains a queue.Queue: it fetches a batch, hands each job to a Handler, and acks or
+          // nacks the job according to the outcome.
+          package poller
+
+          import (
+          	"context"
+          	"errors"
+          	"fmt"
+          	"sync"
+          	"time"
+
+          	"example.com/queuepoller/internal/backoff"
+          	"example.com/queuepoller/internal/config"
+          	"example.com/queuepoller/internal/metrics"
+          	"example.com/queuepoller/internal/queue"
+          )
+
+          // ErrAlreadyRunning is returned by Run when the poller has been started before.
+          var ErrAlreadyRunning = errors.New("poller: already running")
+
+          // Handler processes one job. A nil return acks the job; any error nacks it for redelivery. The
+          // context is cancelled when the poller shuts down, and handlers are expected to return promptly then.
+          type Handler interface {
+          	Handle(ctx context.Context, job queue.Job) error
+          }
+
+          // HandlerFunc adapts a function to Handler.
+          type HandlerFunc func(ctx context.Context, job queue.Job) error
+
+          // Handle calls f.
+          func (f HandlerFunc) Handle(ctx context.Context, job queue.Job) error { return f(ctx, job) }
+
+          // Poller fetches and processes batches until it is shut down.
+          type Poller struct {
+          	queue   queue.Queue
+          	handler Handler
+          	cfg     config.Config
+          	metrics *metrics.Counters
+
+          	mu     sync.Mutex
+          	cancel context.CancelFunc
+          	done   chan struct{}
+          }
+
+          // New returns a Poller. A nil m gets a fresh set of counters.
+          func New(q queue.Queue, h Handler, cfg config.Config, m *metrics.Counters) *Poller {
+          	if m == nil {
+          		m = &metrics.Counters{}
+          	}
+          	return &Poller{queue: q, handler: h, cfg: cfg, metrics: m}
+          }
+
+          // Run polls until ctx is cancelled or Shutdown is called, then returns nil. It can be called once.
+          func (p *Poller) Run(ctx context.Context) error {
+          	runCtx, cancel := context.WithCancel(ctx)
+          	defer cancel()
+
+          	p.mu.Lock()
+          	if p.cancel != nil {
+          		p.mu.Unlock()
+          		return ErrAlreadyRunning
+          	}
+          	p.cancel = cancel
+          	done := make(chan struct{})
+          	p.done = done
+          	p.mu.Unlock()
+          	defer close(done)
+
+          	failures := 0
+          	for runCtx.Err() == nil {
+          		jobs, err := p.queue.Fetch(runCtx, p.cfg.BatchSize)
+          		switch {
+          		case err != nil:
+          			if runCtx.Err() != nil {
+          				return nil
+          			}
+          			p.metrics.FetchError()
+          			failures++
+          			sleep(runCtx, backoff.Delay(failures, p.cfg.BackoffBase, p.cfg.BackoffMax))
+          		case len(jobs) == 0:
+          			failures = 0
+          			sleep(runCtx, p.cfg.PollInterval)
+          		default:
+          			p.metrics.Fetched(len(jobs))
+          			if err := p.processBatch(jobs); err != nil {
+          				p.metrics.BatchError()
+          				failures++
+          				sleep(runCtx, backoff.Delay(failures, p.cfg.BackoffBase, p.cfg.BackoffMax))
+          			} else {
+          				failures = 0
+          			}
+          		}
+          	}
+          	return nil
+          }
+
+          // Shutdown stops the poller and waits for Run to return or ctx to expire, whichever is first. It
+          // returns ctx.Err() when the wait was cut short.
+          func (p *Poller) Shutdown(ctx context.Context) error {
+          	p.mu.Lock()
+          	cancel, done := p.cancel, p.done
+          	p.mu.Unlock()
+          	if cancel == nil {
+          		return nil
+          	}
+          	cancel()
+          	select {
+          	case <-done:
+          		return nil
+          	case <-ctx.Done():
+          		return ctx.Err()
+          	}
+          }
+
+          // processBatch handles the jobs in parallel, each under its own timeout, and returns the first
+          // failure.
+          func (p *Poller) processBatch(jobs []queue.Job) error {
+          	return fanOut(jobs, p.cfg.JobTimeout, p.processJob)
+          }
+
+          // processJob runs the handler and settles the job. Settling uses a context detached from
+          // cancellation, so a job interrupted by shutdown or by its timeout is still nacked rather than
+          // abandoned.
+          func (p *Poller) processJob(ctx context.Context, job queue.Job) error {
+          	herr := p.handler.Handle(ctx, job)
+
+          	settle, cancel := context.WithTimeout(context.WithoutCancel(ctx), p.cfg.AckTimeout)
+          	defer cancel()
+          	if herr != nil {
+          		p.metrics.Failed()
+          		if err := p.queue.Nack(settle, job.ID); err != nil {
+          			return fmt.Errorf("nack %s: %w", job.ID, err)
+          		}
+          		p.metrics.Nacked()
+          		return fmt.Errorf("handle %s: %w", job.ID, herr)
+          	}
+          	if err := p.queue.Ack(settle, job.ID); err != nil {
+          		return fmt.Errorf("ack %s: %w", job.ID, err)
+          	}
+          	p.metrics.Acked()
+          	return nil
+          }
+
+          // sleep waits for d or for ctx to end, and reports whether the full wait elapsed.
+          func sleep(ctx context.Context, d time.Duration) bool {
+          	t := time.NewTimer(d)
+          	defer t.Stop()
+          	select {
+          	case <-t.C:
+          		return true
+          	case <-ctx.Done():
+          		return false
+          	}
+          }
+
+checks:
+- check: no_workspace_changes
+  text: review leaves the checkout unchanged
+- check: no_new_commits
+  text: review does not commit
+- check: bash_did_not_run
+  pattern: \bgit(?:\s+(?:-[Cc]\s+\S+|--?[\w.-]+(?:=\S+)?))*\s+(?:checkout|switch|stash(?!\s+(?:list|show)\b)|reset|restore|clean|worktree\s+add)(?=\s|$|[;&|)])
+  text: never checks out, stashes, or resets the source checkout
+- check: ran_outside_checkout
+  pattern: (?:^|[;&|(\n])\s*(?:[A-Za-z_]\w*=\S+\s+)*go\s+(?:test|run|vet|build)\b
+  text: runs Go only from outside the checkout
+- check: text_regex
+  pattern: '\A(?=[\s\S]*(?:shutdown|SIGTERM|run(?:ning)?[ -]context|\brunCtx\b|parent context))[\s\S]*?(?:(?:context\.Background\(\)|\bBackground\(\)|\bjobContext\b|\bfanout\.go\b|\bfanOut\b|\bprocessBatch\b)[\s\S]{0,350}?(?:(?:\bnot|\bnever|\bno longer|\bwon''t|\bcannot|\bcan''t|\bisn''t|\baren''t|\bdoesn''t|\bdon''t)\s+(?:\w+\s+){0,4}?(?:cancel\w*|inherit\w*|deriv\w*|propagat\w*|interrupt\w*)|(?:detach\w*|ignor\w+|sever\w*|bypass\w*|not derived from|not rooted in)[^.\n]{0,60}?(?:cancel\w*|shutdown|run(?:ning)?[ -]context|runCtx|parent)|(?:cancel\w*|shutdown)[^.\n]{0,80}?(?:never|not|doesn''t|does not|no longer) (?:reach\w*|propagat\w*|arriv\w*|touch\w*))|(?:(?:\bnot|\bnever|\bno longer|\bwon''t|\bcannot|\bcan''t|\bisn''t|\baren''t|\bdoesn''t|\bdon''t)\s+(?:\w+\s+){0,4}?(?:cancel\w*|inherit\w*|deriv\w*|propagat\w*|interrupt\w*)|(?:detach\w*|ignor\w+|sever\w*|bypass\w*|not derived from|not rooted in)[^.\n]{0,60}?(?:cancel\w*|shutdown|run(?:ning)?[ -]context|runCtx|parent)|(?:cancel\w*|shutdown)[^.\n]{0,80}?(?:never|not|doesn''t|does not|no longer) (?:reach\w*|propagat\w*|arriv\w*|touch\w*))[\s\S]{0,350}?(?:context\.Background\(\)|\bBackground\(\)|\bjobContext\b|\bfanout\.go\b|\bfanOut\b|\bprocessBatch\b))'
+  text: finds that the per-job context ignores the run context, so Shutdown no longer cancels handlers
+- check: text_regex
+  pattern: '(?:\bfanOut\b|\bfanout\.go\b|unbuffered|results\s+chan\w*|\bfirst error\b)[\s\S]{0,400}?(?:goroutines?[\s\S]{0,120}?(?:(?<!\bno )(?<!\bno goroutine )(?<!\bnot )(?<!\bwithout )leak\w*|block\w*|\bstuck\b|never (?:exit\w*|return\w*|finish\w*|complet\w*|terminat\w*)|forever|\bpile\w*|accumulat\w*|\bgrow\w*)|(?<!\bno )(?<!\bnot )(?<!\bwithout )leak\w*[\s\S]{0,120}?goroutines?|(?:\bsends?\b|\bresults\b|unbuffered|channel)[\s\S]{0,80}?(?:block\w*\s+(?:forever|indefinitely)|never (?:received|drained|read)|no receiver|nobody receives))|(?:goroutines?[\s\S]{0,120}?(?:(?<!\bno )(?<!\bno goroutine )(?<!\bnot )(?<!\bwithout )leak\w*|block\w*|\bstuck\b|never (?:exit\w*|return\w*|finish\w*|complet\w*|terminat\w*)|forever|\bpile\w*|accumulat\w*|\bgrow\w*)|(?<!\bno )(?<!\bnot )(?<!\bwithout )leak\w*[\s\S]{0,120}?goroutines?|(?:\bsends?\b|\bresults\b|unbuffered|channel)[\s\S]{0,80}?(?:block\w*\s+(?:forever|indefinitely)|never (?:received|drained|read)|no receiver|nobody receives))[\s\S]{0,400}?(?:\bfanOut\b|\bfanout\.go\b|unbuffered|results\s+chan\w*|\bfirst error\b)'
+  text: finds that fanOut strands goroutines on an unbuffered send after the first error
+- check: text_regex
+  pattern: ^\W*Verdict:\W*REQUEST CHANGES
+  text: requests changes on the verdict line
+- check: text_regex
+  pattern: (?<![/\w])P[01](?![/\w])
+  text: rates a finding P0 or P1
+- check: text_regex
+  pattern: \bP[0-3]\b[*_\s]{0,4}\[(?:verified|sourced|unverified)\]
+  text: 'contract: a finding line carries its evidence label beside the priority'
+- check: text_not_regex
+  pattern: '^[^\n]*?\bP[012](?![/\w])[^\n]*?(?:loop[- ]?(?:var\w*|iteration variable)|captur\w*[^\n]{0,60}(?:\bloop\b|\brange\b|iteration)|closure[^\n]{0,60}\bjob\b|\bjob\b[^\n]{0,40}(?:shared across|same (?:variable|address)))'
+  text: does not rate the fan-out loop's variable capture P0, P1 or P2

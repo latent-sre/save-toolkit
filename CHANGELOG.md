@@ -21,6 +21,9 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
   cross-repository PR is a fork, whose code is never run or imported on the host.
 - **Reviewer evals:** The Git-prefix check grades only `status` and `diff`, the calls that can rewrite
   the source index; object reads such as `show` and `log` pass with any prefix.
+- **Reviewer evals:** Fifteen complex cases grade what a review finds: pull requests by number through an
+  offline `gh` stand-in, multi-file Python, Go and CI changes, real upstream slices, and five controls.
+- **production-change-gate:** A P2 finding no longer blocks merge readiness; P0 and P1 findings still do.
 - **cicd-github (renamed from ci-actions):** Replace common GitHub Actions practice with current platform behavior: trigger-scoped
   cache access and `cache-mode`, which events satisfy a required check, the checkout fork-PR refusal
   on floating major tags, lockfile limits, hosted-runner clouds and RHEL images, the 63-day runner

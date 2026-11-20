@@ -1,0 +1,1765 @@
+# Candidate adds a failure-report chain (format 2) that its tests cover only for `raise ... from`. The
+# serializer reuses iter_links, which follows __cause__ only, so the commonest failure (a raise inside
+# an except block) still shows one error; and the parser reads `chain` of every report, so a format 1
+# report from a not-yet-upgraded worker is rejected by the unchanged consumer and never reaches on-call.
+# Decoys: the unguarded chain walk (iter_links keeps the cycle guard) and json.dumps(default=repr)
+# (documented, unchanged).
+id: build-reviewer-finds-lost-failure-chain
+max_turns: 30
+agent: reviewer
+prompt: |
+  Please review feature/relay-exception-chains against main before we merge. It makes failure reports carry the whole exception chain instead of only the last error.
+fixture:
+  files:
+    .gitignore: |
+      *.log
+    README.md: |
+      # jobrelay
+
+      jobrelay runs jobs on worker processes and relays every job failure to a controller, which keeps
+      the on-call summary. It uses only the standard library and needs Python 3.12 or later.
+
+      ## Layout
+
+      | Path | Role |
+      |---|---|
+      | `jobrelay/worker/runner.py` | Runs a job, retries it, and queues a failure report when attempts run out |
+      | `jobrelay/worker/serialize.py` | Builds the JSON failure report |
+      | `jobrelay/transport.py` | The spool: a file-based queue between workers and the controller |
+      | `jobrelay/controller/consumer.py` | Reads the spool, parses and stores each report |
+      | `jobrelay/controller/render.py` | Renders the on-call summary |
+      | `jobrelay/cli.py` | `run` and `summary` commands |
+
+      ## Running
+
+      Set `JOBRELAY_SPOOL` to a directory shared by the workers and the controller, then:
+
+      ```
+      python -m jobrelay.cli run divide --arg a=1 --arg b=0
+      python -m jobrelay.cli summary
+      ```
+
+      Other settings: `JOBRELAY_WORKER` (the worker's name in reports), `JOBRELAY_ATTEMPTS`
+      (attempts per job, default 3), `JOBRELAY_CAPACITY` (reports the controller keeps, default 200) and
+      `JOBRELAY_LOG_DIR` (where `jobrelay.log` is written; unset logs nowhere). Run the tests with
+      `python -m pytest -q`.
+
+      ## Failure reports
+
+      When a job fails on its last attempt the worker writes one JSON failure report into
+      `$JOBRELAY_SPOOL/pending/`. Reports are written through `tmp/` and renamed into place, so the
+      controller never reads a partial file. The controller moves a stored report to `done/`.
+
+      ### Format 1
+
+      ```json
+      {
+        "format": 1,
+        "job_id": "7f3a",
+        "job": "export",
+        "worker": "worker-2",
+        "attempt": 3,
+        "failed_at": 1700000000.0,
+        "args": {"bucket": "daily"},
+        "error": {"type": "RuntimeError", "message": "export failed", "where": "export.py:41 in run"}
+      }
+      ```
+
+      `error.where` is the innermost frame of the exception and is null when the exception was never
+      raised.
+
+      ### Contracts
+
+      - **Independent releases.** Workers and the controller are released independently, and the
+        controller goes first. The controller must ingest every report format produced by the previous
+        worker release, so workers can be upgraded one at a time without losing a failure.
+      - **Rejected reports.** A report the controller cannot parse is moved to `rejected/`, logged, and is
+        not shown to on-call.
+      - **Arguments.** Job arguments that are not JSON values (sets, datetimes, arbitrary objects) are
+        stored as their `repr`.
+      - **On-call summary.** The summary shows each failed job with its worker, attempt number and the
+        error that ended it, newest first.
+    jobrelay/__init__.py: |
+      """jobrelay: run jobs on workers and relay their failures to the on-call controller."""
+
+      __version__ = "1.4.0"
+    jobrelay/cli.py: |
+      """Command line entry point: ``python -m jobrelay.cli {run,summary}``."""
+
+      import argparse
+      import json
+      import sys
+      import time
+      import uuid
+
+      from jobrelay.config import Config
+      from jobrelay.controller.consumer import Consumer
+      from jobrelay.controller.render import render_summary
+      from jobrelay.worker.runner import JOBS, Runner
+
+
+      def build_parser() -> argparse.ArgumentParser:
+          parser = argparse.ArgumentParser(prog="jobrelay")
+          commands = parser.add_subparsers(dest="command", required=True)
+          run = commands.add_parser("run", help="run a job on this worker")
+          run.add_argument("job", help="name of a registered job")
+          run.add_argument("--arg", action="append", default=[], metavar="KEY=VALUE", help="a job argument; VALUE is JSON")
+          commands.add_parser("summary", help="ingest the spool and print the on-call summary")
+          return parser
+
+
+      def parse_arg(text: str) -> tuple[str, object]:
+          """Split ``KEY=VALUE``; a VALUE that is not JSON is kept as a string."""
+          key, sep, raw = text.partition("=")
+          if not sep or not key:
+              raise ValueError(f"expected KEY=VALUE, got {text!r}")
+          try:
+              return key, json.loads(raw)
+          except ValueError:
+              return key, raw
+
+
+      def main(argv=None, *, environ=None, out=None, clock=time.time) -> int:
+          """Run one command; the exit status is 0, 1 when a job failed for good, or 2 for bad usage."""
+          args = build_parser().parse_args(argv)
+          out = out or sys.stdout
+          try:
+              config = Config.from_env(environ)
+          except ValueError as exc:
+              print(f"jobrelay: {exc}", file=sys.stderr)
+              return 2
+          if args.command == "run":
+              return _run(args, config, clock)
+          return _summary(config, out, clock)
+
+
+      def _run(args, config: Config, clock) -> int:
+          if args.job not in JOBS:
+              print(f"jobrelay: unknown job {args.job!r}", file=sys.stderr)
+              return 2
+          try:
+              job_args = dict(parse_arg(text) for text in args.arg)
+          except ValueError as exc:
+              print(f"jobrelay: {exc}", file=sys.stderr)
+              return 2
+          ok = Runner(config, clock=clock).run(uuid.uuid4().hex[:8], args.job, job_args)
+          return 0 if ok else 1
+
+
+      def _summary(config: Config, out, clock) -> int:
+          consumer = Consumer(config)
+          consumer.run_once()
+          out.write(render_summary(consumer.store.recent(), now=clock()))
+          return 0
+
+
+      if __name__ == "__main__":
+          sys.exit(main())
+    jobrelay/config.py: |
+      """Settings shared by the worker and the controller, read from environment variables."""
+
+      import os
+      from collections.abc import Mapping
+      from dataclasses import dataclass
+      from pathlib import Path
+
+      DEFAULT_ATTEMPTS = 3
+      DEFAULT_CAPACITY = 200
+
+
+      @dataclass(frozen=True)
+      class Config:
+          """Where the spool lives and how the two sides behave."""
+
+          spool_dir: Path
+          worker_id: str = "worker-1"
+          max_attempts: int = DEFAULT_ATTEMPTS
+          store_capacity: int = DEFAULT_CAPACITY
+          log_dir: Path | None = None
+
+          def __post_init__(self):
+              if self.max_attempts < 1:
+                  raise ValueError("max_attempts must be at least 1")
+              if self.store_capacity < 1:
+                  raise ValueError("store_capacity must be at least 1")
+
+          @classmethod
+          def from_env(cls, environ: Mapping[str, str] | None = None) -> "Config":
+              """Build a Config from JOBRELAY_* variables; JOBRELAY_SPOOL is required."""
+              env = os.environ if environ is None else environ
+              try:
+                  spool = env["JOBRELAY_SPOOL"]
+              except KeyError:
+                  raise ValueError("JOBRELAY_SPOOL is not set") from None
+              log_dir = env.get("JOBRELAY_LOG_DIR")
+              return cls(
+                  spool_dir=Path(spool),
+                  worker_id=env.get("JOBRELAY_WORKER", "worker-1"),
+                  max_attempts=int(env.get("JOBRELAY_ATTEMPTS", DEFAULT_ATTEMPTS)),
+                  store_capacity=int(env.get("JOBRELAY_CAPACITY", DEFAULT_CAPACITY)),
+                  log_dir=Path(log_dir) if log_dir else None,
+              )
+    jobrelay/controller/__init__.py: |
+      """The controller side: read failure reports and show them to on-call."""
+    jobrelay/controller/consumer.py: |
+      """The controller's loop: read the spool, parse each report and store it.
+
+      A report that cannot be parsed is logged and moved to ``rejected/`` without being stored, so
+      on-call never sees it. Every parsed report is stored and moved to ``done/``.
+      """
+
+      import time
+      from dataclasses import dataclass
+
+      from jobrelay.config import Config
+      from jobrelay.controller import ingest
+      from jobrelay.controller.store import ReportStore
+      from jobrelay.logging_util import get_logger
+      from jobrelay.transport import Spool
+
+      UNPARSEABLE = (ValueError, KeyError, TypeError)
+
+
+      @dataclass
+      class Tally:
+          """What one pass over the spool did."""
+
+          stored: int = 0
+          rejected: int = 0
+
+
+      class Consumer:
+          """Moves reports from the spool into the store."""
+
+          def __init__(self, config: Config, spool: Spool | None = None, store: ReportStore | None = None):
+              self.spool = spool if spool is not None else Spool(config.spool_dir)
+              self.store = store if store is not None else ReportStore(config.store_capacity)
+              self.log = get_logger("controller", config.log_dir)
+
+          def run_once(self) -> Tally:
+              """Process every report currently pending, oldest first."""
+              tally = Tally()
+              for path in self.spool.pending():
+                  try:
+                      report = ingest.parse_report(self.spool.read(path))
+                  except UNPARSEABLE as exc:
+                      self.log.warning("rejected %s: %s: %s", path.name, type(exc).__name__, exc)
+                      self.spool.reject(path)
+                      tally.rejected += 1
+                      continue
+                  self.store.add(report)
+                  self.spool.ack(path)
+                  tally.stored += 1
+              return tally
+
+          def run_forever(self, interval: float = 2.0, *, should_stop=lambda: False, sleep=time.sleep) -> None:
+              """Poll the spool every *interval* seconds until *should_stop* returns true."""
+              while not should_stop():
+                  self.run_once()
+                  sleep(interval)
+    jobrelay/controller/ingest.py: |
+      """Parse the failure reports workers write to the spool.
+
+      ``parse_report`` is the one reader of the report format described in the README.
+      """
+
+      import json
+      from dataclasses import dataclass
+      from typing import Any
+
+      SUPPORTED_FORMATS = (1,)
+
+
+      class ReportError(ValueError):
+          """The text is not a failure report this controller understands."""
+
+
+      @dataclass(frozen=True)
+      class ErrorInfo:
+          """One exception as the worker described it."""
+
+          type: str
+          message: str
+          where: str | None = None
+
+
+      @dataclass(frozen=True)
+      class Report:
+          """A parsed failure report."""
+
+          job_id: str
+          job: str
+          worker: str
+          attempt: int
+          failed_at: float
+          args: dict[str, Any]
+          error: ErrorInfo
+
+
+      def parse_report(text: str) -> Report:
+          """Parse one report; raises ReportError, ValueError, KeyError or TypeError when it is malformed."""
+          data = json.loads(text)
+          if not isinstance(data, dict):
+              raise ReportError("a failure report is a JSON object")
+          if data.get("format") not in SUPPORTED_FORMATS:
+              raise ReportError(f"unsupported report format {data.get('format')!r}")
+          return Report(
+              job_id=str(data["job_id"]),
+              job=data["job"],
+              worker=data["worker"],
+              attempt=int(data["attempt"]),
+              failed_at=float(data["failed_at"]),
+              args=dict(data["args"]),
+              error=_error_info(data["error"]),
+          )
+
+
+      def _error_info(raw: dict) -> ErrorInfo:
+          return ErrorInfo(type=raw["type"], message=raw["message"], where=raw.get("where"))
+    jobrelay/controller/render.py: |
+      """Render the on-call summary from stored reports."""
+
+      from collections import Counter
+      from collections.abc import Iterable
+      from datetime import datetime, timezone
+
+      from jobrelay.controller.ingest import ErrorInfo, Report
+
+
+      def render_summary(reports: Iterable[Report], *, now: float) -> str:
+          """The text on-call reads: a headline, then one block per failure, in the order given."""
+          reports = list(reports)
+          if not reports:
+              return "No job failures.\n"
+          lines = [_headline(reports)]
+          for report in reports:
+              lines.extend(_render_report(report, now))
+          return "\n".join(lines) + "\n"
+
+
+      def _headline(reports: list[Report]) -> str:
+          counts = Counter(r.job for r in reports)
+          busiest = ", ".join(f"{job} x{n}" for job, n in counts.most_common(3))
+          noun = "failure" if len(reports) == 1 else "failures"
+          return f"{len(reports)} job {noun} ({busiest})"
+
+
+      def _render_report(report: Report, now: float) -> list[str]:
+          when = datetime.fromtimestamp(report.failed_at, tz=timezone.utc).strftime("%H:%M:%S")
+          lines = [
+              "",
+              f"[{when}] {report.job} on {report.worker}, attempt {report.attempt} ({_age(now - report.failed_at)} ago)",
+              f"  {_describe(report.error)}",
+          ]
+          if report.args:
+              lines.append(f"  args: {_format_args(report.args)}")
+          return lines
+
+
+      def _describe(error: ErrorInfo) -> str:
+          text = f"{error.type}: {error.message}"
+          return f"{text} ({error.where})" if error.where else text
+
+
+      def _format_args(args: dict) -> str:
+          return ", ".join(f"{key}={value!r}" for key, value in sorted(args.items()))
+
+
+      def _age(seconds: float) -> str:
+          seconds = max(0, int(seconds))
+          if seconds < 60:
+              return f"{seconds}s"
+          if seconds < 3600:
+              return f"{seconds // 60}m"
+          return f"{seconds // 3600}h"
+    jobrelay/controller/store.py: |
+      """In-memory store of the failures the controller has ingested."""
+
+      from collections import Counter, deque
+
+      from jobrelay.controller.ingest import Report
+
+
+      class ReportStore:
+          """Keeps the most recent *capacity* reports; older ones fall off."""
+
+          def __init__(self, capacity: int):
+              self._reports: deque[Report] = deque(maxlen=capacity)
+
+          def add(self, report: Report) -> None:
+              self._reports.append(report)
+
+          def recent(self, limit: int | None = None) -> list[Report]:
+              """The stored reports, newest first, at most *limit* of them."""
+              newest_first = list(reversed(self._reports))
+              return newest_first if limit is None else newest_first[:limit]
+
+          def for_job(self, job: str) -> list[Report]:
+              """Every stored report of one job, newest first."""
+              return [r for r in self.recent() if r.job == job]
+
+          def counts_by_job(self) -> Counter:
+              return Counter(r.job for r in self._reports)
+
+          def __len__(self) -> int:
+              return len(self._reports)
+    jobrelay/logging_util.py: |
+      """Logger setup shared by the worker and the controller."""
+
+      import logging
+      from pathlib import Path
+
+      FORMAT = "%(asctime)s %(levelname)s %(name)s: %(message)s"
+
+
+      def get_logger(name: str, log_dir: Path | None = None) -> logging.Logger:
+          """Return the logger ``jobrelay.<name>``; with *log_dir* it also writes ``jobrelay.log`` there."""
+          logger = logging.getLogger(f"jobrelay.{name}")
+          logger.setLevel(logging.INFO)
+          if log_dir is not None and not any(isinstance(h, logging.FileHandler) for h in logger.handlers):
+              Path(log_dir).mkdir(parents=True, exist_ok=True)
+              handler = logging.FileHandler(Path(log_dir) / "jobrelay.log", encoding="utf-8")
+              handler.setFormatter(logging.Formatter(FORMAT))
+              logger.addHandler(handler)
+          return logger
+    jobrelay/transport.py: |
+      """File-based queue between workers and the controller.
+
+      Workers write each failure report into ``pending/`` through a file in ``tmp/`` and an atomic
+      rename, so the controller never reads a half-written report. The controller moves a report to
+      ``done/`` once it is stored, or to ``rejected/`` when it cannot be parsed.
+      """
+
+      import os
+      import time
+      import uuid
+      from pathlib import Path
+
+      PENDING, DONE, REJECTED, TMP = "pending", "done", "rejected", "tmp"
+
+
+      class Spool:
+          """One spool directory shared by every worker and the controller."""
+
+          def __init__(self, root: Path | str):
+              self.root = Path(root)
+              for name in (PENDING, DONE, REJECTED, TMP):
+                  (self.root / name).mkdir(parents=True, exist_ok=True)
+
+          def put(self, text: str) -> Path:
+              """Queue *text* as one report and return its path in ``pending/``."""
+              name = f"{time.time_ns():020d}-{uuid.uuid4().hex[:8]}.json"
+              staged = self.root / TMP / name
+              staged.write_text(text, encoding="utf-8")
+              target = self.root / PENDING / name
+              os.replace(staged, target)
+              return target
+
+          def pending(self) -> list[Path]:
+              """Queued reports, oldest first."""
+              return sorted((self.root / PENDING).glob("*.json"))
+
+          def read(self, path: Path) -> str:
+              return path.read_text(encoding="utf-8")
+
+          def ack(self, path: Path) -> Path:
+              """Move a stored report to ``done/``."""
+              return self._move(path, DONE)
+
+          def reject(self, path: Path) -> Path:
+              """Move an unparseable report to ``rejected/``."""
+              return self._move(path, REJECTED)
+
+          def count(self, folder: str) -> int:
+              """How many reports sit in *folder*."""
+              return sum(1 for _ in (self.root / folder).glob("*.json"))
+
+          def _move(self, path: Path, folder: str) -> Path:
+              target = self.root / folder / path.name
+              os.replace(path, target)
+              return target
+    jobrelay/worker/__init__.py: |
+      """The worker side: run jobs and queue failure reports."""
+    jobrelay/worker/links.py: |
+      """Helpers for walking the exceptions behind a failure."""
+
+      from collections.abc import Iterator
+
+
+      def iter_links(exc: BaseException) -> Iterator[BaseException]:
+          """Yield the exceptions behind *exc* by following explicit causes (``raise ... from``).
+
+          Nearest first; *exc* itself is not yielded. A cause that leads back to an exception already
+          seen ends the walk, so a cyclic chain cannot loop forever.
+          """
+          seen = {id(exc)}
+          link = exc.__cause__
+          while link is not None and id(link) not in seen:
+              seen.add(id(link))
+              yield link
+              link = link.__cause__
+    jobrelay/worker/runner.py: |
+      """Run jobs on a worker and relay the failure of one that runs out of attempts."""
+
+      import time
+      from collections.abc import Callable
+
+      from jobrelay.config import Config
+      from jobrelay.logging_util import get_logger
+      from jobrelay.transport import Spool
+      from jobrelay.worker import serialize
+      from jobrelay.worker.links import iter_links
+
+      JOBS: dict[str, Callable[..., object]] = {}
+      BACKOFF_SECONDS = 0.5
+
+
+      def job(name: str):
+          """Register the decorated function as the job *name*."""
+
+          def register(func):
+              JOBS[name] = func
+              return func
+
+          return register
+
+
+      @job("echo")
+      def echo(**kwargs):
+          """Return its arguments; the smallest job that cannot fail."""
+          return kwargs
+
+
+      @job("divide")
+      def divide(a, b):
+          """Divide *a* by *b*."""
+          return a / b
+
+
+      class Runner:
+          """Runs jobs for one worker and queues a report for each job that fails for good."""
+
+          def __init__(self, config: Config, spool: Spool | None = None, *, clock=time.time, sleep=time.sleep):
+              self.config = config
+              self.spool = spool if spool is not None else Spool(config.spool_dir)
+              self.log = get_logger("worker", config.log_dir)
+              self._clock = clock
+              self._sleep = sleep
+
+          def run(self, job_id: str, name: str, args: dict) -> bool:
+              """Run job *name*, retrying failures; True on success, False once a report was queued."""
+              attempts = self.config.max_attempts
+              for attempt in range(1, attempts + 1):
+                  try:
+                      JOBS[name](**args)
+                      return True
+                  except Exception as exc:
+                      self._log_failure(job_id, name, attempt, exc)
+                      if attempt == attempts:
+                          self._report(job_id, name, args, attempt, exc)
+                      else:
+                          self._sleep(BACKOFF_SECONDS * 2 ** (attempt - 1))
+              return False
+
+          def _log_failure(self, job_id: str, name: str, attempt: int, exc: Exception) -> None:
+              self.log.error("job %s (%s) failed on attempt %d: %s: %s", job_id, name, attempt, type(exc).__name__, exc)
+              for link in iter_links(exc):
+                  self.log.error("  caused by %s: %s", type(link).__name__, link)
+
+          def _report(self, job_id: str, name: str, args: dict, attempt: int, exc: Exception) -> None:
+              report = serialize.build_report(
+                  job_id, name, exc, worker=self.config.worker_id, attempt=attempt, args=args, failed_at=self._clock()
+              )
+              self.spool.put(serialize.to_json(report))
+    jobrelay/worker/serialize.py: |
+      """Turn a failed job into the JSON failure report the controller ingests.
+
+      The format is documented in the README; ``controller/ingest.py`` is its reader.
+      """
+
+      import json
+      import os
+      import traceback
+
+      FORMAT = 1
+
+
+      def describe(exc: BaseException) -> dict:
+          """The type, message and innermost frame of one exception."""
+          return {
+              "type": type(exc).__qualname__,
+              "message": str(exc),
+              "where": _where(exc),
+          }
+
+
+      def _where(exc: BaseException) -> str | None:
+          frames = traceback.extract_tb(exc.__traceback__)
+          if not frames:
+              return None
+          last = frames[-1]
+          return f"{os.path.basename(last.filename)}:{last.lineno} in {last.name}"
+
+
+      def build_report(job_id, job, exc, *, worker, attempt, args, failed_at) -> dict:
+          """The failure report for *job*, which ended with *exc* on attempt number *attempt*."""
+          return {
+              "format": FORMAT,
+              "job_id": job_id,
+              "job": job,
+              "worker": worker,
+              "attempt": attempt,
+              "failed_at": failed_at,
+              "args": args,
+              "error": describe(exc),
+          }
+
+
+      def to_json(report: dict) -> str:
+          """Serialise *report*; arguments that are not JSON values are stored as their repr."""
+          return json.dumps(report, sort_keys=True, default=repr)
+    tests/test_cli.py: |
+      import io
+
+      import pytest
+
+      from jobrelay import cli
+      from jobrelay.config import Config
+
+      NOW = 1_700_000_100.0
+
+
+      def env(tmp_path, **extra):
+          return {"JOBRELAY_SPOOL": str(tmp_path), "JOBRELAY_ATTEMPTS": "1", "JOBRELAY_WORKER": "w3"} | extra
+
+
+      def run_cli(argv, tmp_path, **extra):
+          out = io.StringIO()
+          status = cli.main(argv, environ=env(tmp_path, **extra), out=out, clock=lambda: NOW)
+          return status, out.getvalue()
+
+
+      def test_failed_job_shows_up_in_the_summary(tmp_path):
+          status, _ = run_cli(["run", "divide", "--arg", "a=1", "--arg", "b=0"], tmp_path)
+          assert status == 1
+          status, summary = run_cli(["summary"], tmp_path)
+          assert status == 0
+          assert summary.splitlines()[0] == "1 job failure (divide x1)"
+          assert "divide on w3, attempt 1" in summary
+          assert "ZeroDivisionError: division by zero" in summary
+          assert "args: a=1, b=0" in summary
+
+
+      def test_successful_job_leaves_an_empty_summary(tmp_path):
+          assert run_cli(["run", "echo", "--arg", "x=1"], tmp_path)[0] == 0
+          assert run_cli(["summary"], tmp_path)[1] == "No job failures.\n"
+
+
+      def test_parse_arg_reads_json_and_falls_back_to_text():
+          assert cli.parse_arg("n=3") == ("n", 3)
+          assert cli.parse_arg("name=bob") == ("name", "bob")
+          assert cli.parse_arg("flag=true") == ("flag", True)
+          with pytest.raises(ValueError):
+              cli.parse_arg("novalue")
+
+
+      def test_missing_spool_setting_is_a_usage_error(capsys):
+          assert cli.main(["summary"], environ={}) == 2
+          assert "JOBRELAY_SPOOL is not set" in capsys.readouterr().err
+
+
+      def test_unknown_job_is_a_usage_error(tmp_path, capsys):
+          assert run_cli(["run", "nope"], tmp_path)[0] == 2
+          assert "unknown job 'nope'" in capsys.readouterr().err
+
+
+      def test_config_reads_every_setting(tmp_path):
+          config = Config.from_env(env(tmp_path, JOBRELAY_CAPACITY="7", JOBRELAY_LOG_DIR=str(tmp_path / "logs")))
+          assert (config.worker_id, config.max_attempts, config.store_capacity) == ("w3", 1, 7)
+          assert config.log_dir == tmp_path / "logs"
+          with pytest.raises(ValueError):
+              Config(spool_dir=tmp_path, max_attempts=0)
+    tests/test_consumer.py: |
+      import json
+
+      from jobrelay.config import Config
+      from jobrelay.controller.consumer import Consumer
+      from jobrelay.controller.store import ReportStore
+      from jobrelay.transport import DONE, REJECTED, Spool
+      from jobrelay.worker import serialize
+
+
+      def queue_failure(spool, job="export", message="export failed"):
+          try:
+              raise RuntimeError(message)
+          except RuntimeError as exc:
+              report = serialize.build_report(
+                  "j1", job, exc, worker="w1", attempt=3, args={"bucket": "daily"}, failed_at=1_700_000_000.0
+              )
+          return spool.put(serialize.to_json(report))
+
+
+      def make_consumer(tmp_path, capacity=10):
+          config = Config(spool_dir=tmp_path, store_capacity=capacity)
+          return Consumer(config)
+
+
+      def test_stores_a_report_and_moves_it_to_done(tmp_path):
+          consumer = make_consumer(tmp_path)
+          queue_failure(consumer.spool)
+          tally = consumer.run_once()
+          assert (tally.stored, tally.rejected) == (1, 0)
+          assert consumer.store.recent()[0].error.message == "export failed"
+          assert (consumer.spool.pending(), consumer.spool.count(DONE)) == ([], 1)
+
+
+      def test_unparseable_text_is_rejected_and_not_stored(tmp_path):
+          consumer = make_consumer(tmp_path)
+          consumer.spool.put("this is not json")
+          tally = consumer.run_once()
+          assert (tally.stored, tally.rejected) == (0, 1)
+          assert len(consumer.store) == 0
+          assert consumer.spool.count(REJECTED) == 1
+
+
+      def test_report_with_an_unknown_format_is_rejected(tmp_path):
+          consumer = make_consumer(tmp_path)
+          consumer.spool.put(json.dumps({"format": 99}))
+          assert consumer.run_once().rejected == 1
+
+
+      def test_one_bad_report_does_not_block_the_next(tmp_path):
+          consumer = make_consumer(tmp_path)
+          consumer.spool.put("{")
+          queue_failure(consumer.spool, job="sync")
+          tally = consumer.run_once()
+          assert (tally.stored, tally.rejected) == (1, 1)
+          assert consumer.store.recent()[0].job == "sync"
+
+
+      def test_store_keeps_only_its_capacity_newest_first(tmp_path):
+          consumer = make_consumer(tmp_path, capacity=2)
+          for job in ("a", "b", "c"):
+              queue_failure(consumer.spool, job=job)
+          consumer.run_once()
+          assert [r.job for r in consumer.store.recent()] == ["c", "b"]
+
+
+      def test_an_empty_store_passed_in_is_used(tmp_path):
+          store = ReportStore(5)
+          consumer = Consumer(Config(spool_dir=tmp_path), store=store)
+          queue_failure(consumer.spool)
+          consumer.run_once()
+          assert len(store) == 1
+
+
+      def test_run_forever_polls_until_told_to_stop(tmp_path):
+          consumer = make_consumer(tmp_path)
+          queue_failure(consumer.spool)
+          sleeps = []
+          consumer.run_forever(0.25, should_stop=lambda: len(sleeps) >= 2, sleep=sleeps.append)
+          assert sleeps == [0.25, 0.25]
+          assert len(consumer.store) == 1
+
+
+      def test_store_filters_and_counts_by_job(tmp_path):
+          consumer = make_consumer(tmp_path)
+          for job in ("a", "b", "a"):
+              queue_failure(consumer.spool, job=job)
+          consumer.run_once()
+          assert len(consumer.store.for_job("a")) == 2
+          assert consumer.store.counts_by_job() == {"a": 2, "b": 1}
+          assert len(consumer.store.recent(limit=1)) == 1
+    tests/test_ingest.py: |
+      import json
+
+      import pytest
+
+      from jobrelay.controller.ingest import ReportError, parse_report
+      from jobrelay.worker import serialize
+
+
+      def failure(message="export failed"):
+          try:
+              raise RuntimeError(message)
+          except RuntimeError as exc:
+              return exc
+
+
+      def report_text(exc=None, **overrides):
+          report = serialize.build_report(
+              "j1", "export", exc or failure(), worker="w1", attempt=2, args={"bucket": "daily"}, failed_at=1_700_000_000.0
+          )
+          return json.dumps(report | overrides)
+
+
+      def test_parses_every_field():
+          report = parse_report(report_text())
+          assert (report.job_id, report.job, report.worker, report.attempt) == ("j1", "export", "w1", 2)
+          assert report.failed_at == 1_700_000_000.0
+          assert report.args == {"bucket": "daily"}
+          assert (report.error.type, report.error.message) == ("RuntimeError", "export failed")
+          assert report.error.where.endswith("in failure")
+
+
+      def test_unsupported_format_is_a_report_error():
+          with pytest.raises(ReportError, match="unsupported report format 99"):
+              parse_report(report_text(format=99))
+
+
+      def test_report_must_be_a_json_object():
+          with pytest.raises(ReportError):
+              parse_report("[1, 2]")
+
+
+      def test_text_that_is_not_json_is_a_value_error():
+          with pytest.raises(ValueError):
+              parse_report("not json")
+
+
+      def test_missing_field_is_a_key_error():
+          data = json.loads(report_text())
+          del data["job"]
+          with pytest.raises(KeyError):
+              parse_report(json.dumps(data))
+    tests/test_links.py: |
+      from jobrelay.worker.links import iter_links
+
+
+      def three_links():
+          """RuntimeError caused by ValueError caused by KeyError, all raised for real."""
+          try:
+              try:
+                  raise KeyError("bucket")
+              except KeyError as first:
+                  raise ValueError("bad bucket") from first
+          except ValueError as second:
+              try:
+                  raise RuntimeError("export failed") from second
+              except RuntimeError as third:
+                  return third
+
+
+      def test_yields_causes_nearest_first():
+          names = [type(link).__name__ for link in iter_links(three_links())]
+          assert names == ["ValueError", "KeyError"]
+
+
+      def test_exception_without_cause_has_no_links():
+          assert list(iter_links(RuntimeError("alone"))) == []
+
+
+      def test_walk_stops_at_a_cause_that_was_suppressed():
+          try:
+              try:
+                  raise KeyError("hidden")
+              except KeyError:
+                  raise RuntimeError("clean") from None
+          except RuntimeError as exc:
+              assert list(iter_links(exc)) == []
+
+
+      def test_cyclic_causes_end_the_walk():
+          a, b = ValueError("a"), ValueError("b")
+          a.__cause__, b.__cause__ = b, a
+          assert list(iter_links(a)) == [b]
+    tests/test_render.py: |
+      from jobrelay.controller.ingest import ErrorInfo, Report
+      from jobrelay.controller.render import render_summary
+
+      NOW = 1_700_000_300.0
+
+
+      def make_report(job="export", worker="w1", attempt=3, age=90, args=None, error=None):
+          return Report(
+              job_id="j1",
+              job=job,
+              worker=worker,
+              attempt=attempt,
+              failed_at=NOW - age,
+              args={"bucket": "daily"} if args is None else args,
+              error=error or ErrorInfo("RuntimeError", "export failed", "export.py:41 in run"),
+          )
+
+
+      def test_no_reports_say_so():
+          assert render_summary([], now=NOW) == "No job failures.\n"
+
+
+      def test_block_names_job_worker_attempt_and_error():
+          text = render_summary([make_report()], now=NOW)
+          assert text.splitlines()[0] == "1 job failure (export x1)"
+          assert "[22:16:50] export on w1, attempt 3 (1m ago)" in text
+          assert "  RuntimeError: export failed (export.py:41 in run)" in text
+
+
+      def test_args_are_listed_sorted():
+          text = render_summary([make_report(args={"b": 2, "a": "x"})], now=NOW)
+          assert "  args: a='x', b=2" in text
+
+
+      def test_report_without_args_has_no_args_line():
+          assert "args:" not in render_summary([make_report(args={})], now=NOW)
+
+
+      def test_blocks_follow_the_order_given_and_headline_counts_jobs():
+          reports = [make_report(job="export"), make_report(job="sync"), make_report(job="export")]
+          text = render_summary(reports, now=NOW)
+          assert text.splitlines()[0] == "3 job failures (export x2, sync x1)"
+          assert [line.split()[1] for line in text.splitlines() if line.startswith("[")] == ["export", "sync", "export"]
+
+
+      def test_ages_use_the_largest_whole_unit():
+          ages = {30: "30s", 90: "1m", 7300: "2h", -5: "0s"}
+          for age, expected in ages.items():
+              assert f"({expected} ago)" in render_summary([make_report(age=age)], now=NOW)
+    tests/test_runner.py: |
+      import json
+      import logging
+
+      import pytest
+
+      from jobrelay.config import Config
+      from jobrelay.worker import runner
+
+      NOW = 1_700_000_000.0
+
+
+      @pytest.fixture
+      def jobs(monkeypatch):
+          registry = dict(runner.JOBS)
+          monkeypatch.setattr(runner, "JOBS", registry)
+          return registry
+
+
+      def make_runner(tmp_path, attempts=3, sleeps=None):
+          config = Config(spool_dir=tmp_path, worker_id="w9", max_attempts=attempts)
+          sleep = (lambda s: None) if sleeps is None else sleeps.append
+          return runner.Runner(config, clock=lambda: NOW, sleep=sleep)
+
+
+      def queued(r):
+          return [json.loads(r.spool.read(p)) for p in r.spool.pending()]
+
+
+      def test_successful_job_queues_nothing(tmp_path):
+          r = make_runner(tmp_path)
+          assert r.run("j1", "echo", {"x": 1}) is True
+          assert queued(r) == []
+
+
+      def test_job_that_keeps_failing_queues_one_report(tmp_path):
+          r = make_runner(tmp_path)
+          assert r.run("j1", "divide", {"a": 1, "b": 0}) is False
+          (report,) = queued(r)
+          assert (report["job_id"], report["job"], report["worker"]) == ("j1", "divide", "w9")
+          assert (report["attempt"], report["failed_at"], report["args"]) == (3, NOW, {"a": 1, "b": 0})
+          assert report["error"]["type"] == "ZeroDivisionError"
+
+
+      def test_retries_back_off_and_a_late_success_queues_nothing(tmp_path, jobs):
+          calls = []
+
+          def flaky():
+              calls.append(1)
+              if len(calls) < 3:
+                  raise OSError("busy")
+
+          jobs["flaky"] = flaky
+          sleeps = []
+          r = make_runner(tmp_path, sleeps=sleeps)
+          assert r.run("j1", "flaky", {}) is True
+          assert sleeps == [0.5, 1.0]
+          assert queued(r) == []
+
+
+      def test_single_attempt_does_not_sleep(tmp_path):
+          sleeps = []
+          r = make_runner(tmp_path, attempts=1, sleeps=sleeps)
+          assert r.run("j1", "divide", {"a": 1, "b": 0}) is False
+          assert sleeps == []
+
+
+      def test_failure_log_lists_explicit_causes(tmp_path, jobs, caplog):
+          def wrapped():
+              try:
+                  raise KeyError("bucket")
+              except KeyError as err:
+                  raise RuntimeError("export failed") from err
+
+          jobs["wrapped"] = wrapped
+          with caplog.at_level(logging.INFO, logger="jobrelay.worker"):
+              make_runner(tmp_path, attempts=1).run("j1", "wrapped", {})
+          messages = [record.getMessage() for record in caplog.records]
+          assert messages == [
+              "job j1 (wrapped) failed on attempt 1: RuntimeError: export failed",
+              "  caused by KeyError: 'bucket'",
+          ]
+
+
+      def test_unknown_job_is_reported_as_a_failure(tmp_path):
+          r = make_runner(tmp_path, attempts=1)
+          assert r.run("j1", "nope", {}) is False
+          assert queued(r)[0]["error"]["type"] == "KeyError"
+    tests/test_serialize.py: |
+      import json
+
+      from jobrelay.worker import serialize
+
+
+      def failure(message="export failed"):
+          try:
+              raise RuntimeError(message)
+          except RuntimeError as exc:
+              return exc
+
+
+      def report_for(exc, **overrides):
+          fields = {"worker": "w1", "attempt": 3, "args": {"bucket": "daily"}, "failed_at": 1_700_000_000.0}
+          return serialize.build_report("j1", "export", exc, **(fields | overrides))
+
+
+      def test_report_carries_the_job_and_the_final_error():
+          report = report_for(failure())
+          assert report["format"] == 1
+          assert (report["job_id"], report["job"], report["worker"]) == ("j1", "export", "w1")
+          assert (report["attempt"], report["failed_at"]) == (3, 1_700_000_000.0)
+          assert report["error"]["type"] == "RuntimeError"
+          assert report["error"]["message"] == "export failed"
+
+
+      def test_error_names_the_innermost_frame():
+          where = report_for(failure())["error"]["where"]
+          assert where.startswith("test_serialize.py:") and where.endswith("in failure")
+
+
+      def test_error_that_was_never_raised_has_no_frame():
+          assert serialize.describe(ValueError("fresh"))["where"] is None
+
+
+      def test_report_round_trips_through_json():
+          report = report_for(failure())
+          assert json.loads(serialize.to_json(report)) == report
+
+
+      def test_arguments_that_are_not_json_values_are_stored_as_repr():
+          report = report_for(failure(), args={"ids": {7}, "path": b"x"})
+          stored = json.loads(serialize.to_json(report))["args"]
+          assert stored == {"ids": "{7}", "path": "b'x'"}
+    tests/test_transport.py: |
+      from jobrelay.transport import DONE, PENDING, REJECTED, TMP, Spool
+
+
+      def test_creates_its_folders(tmp_path):
+          Spool(tmp_path / "spool")
+          assert sorted(p.name for p in (tmp_path / "spool").iterdir()) == [DONE, PENDING, REJECTED, TMP]
+
+
+      def test_put_queues_a_report_and_leaves_nothing_in_tmp(tmp_path):
+          spool = Spool(tmp_path)
+          path = spool.put('{"a": 1}')
+          assert path.parent.name == PENDING
+          assert spool.read(path) == '{"a": 1}'
+          assert list((tmp_path / TMP).iterdir()) == []
+
+
+      def test_pending_lists_oldest_first(tmp_path):
+          spool = Spool(tmp_path)
+          first, second, third = (spool.put(text) for text in "abc")
+          assert spool.pending() == [first, second, third]
+
+
+      def test_ack_and_reject_move_the_file(tmp_path):
+          spool = Spool(tmp_path)
+          kept, bad = spool.put("kept"), spool.put("bad")
+          assert spool.ack(kept).parent.name == DONE
+          assert spool.reject(bad).parent.name == REJECTED
+          assert spool.pending() == []
+          assert (spool.count(DONE), spool.count(REJECTED)) == (1, 1)
+
+
+      def test_spool_survives_being_opened_twice(tmp_path):
+          Spool(tmp_path).put("x")
+          assert len(Spool(tmp_path).pending()) == 1
+  branches:
+    feature/relay-exception-chains:
+      message: |
+        Carry the whole exception chain in failure reports
+
+        Failure reports are now format 2: they keep every field of format 1 and add
+        `chain`, the exceptions behind the final error, nearest first, each described
+        like `error`. The serializer builds it with worker.links.iter_links, the helper
+        the worker log already uses for its "caused by" lines, so a failure shows the
+        same lineage in the log and in the report. The controller parses format 2, the
+        on-call summary prints each chain entry under the error as an "underlying"
+        line, and the README documents the new format and the summary contract.
+
+        Tests cover the serializer, the parser and the renderer.
+      files:
+        README.md: |
+          # jobrelay
+
+          jobrelay runs jobs on worker processes and relays every job failure to a controller, which keeps
+          the on-call summary. It uses only the standard library and needs Python 3.12 or later.
+
+          ## Layout
+
+          | Path | Role |
+          |---|---|
+          | `jobrelay/worker/runner.py` | Runs a job, retries it, and queues a failure report when attempts run out |
+          | `jobrelay/worker/serialize.py` | Builds the JSON failure report |
+          | `jobrelay/transport.py` | The spool: a file-based queue between workers and the controller |
+          | `jobrelay/controller/consumer.py` | Reads the spool, parses and stores each report |
+          | `jobrelay/controller/render.py` | Renders the on-call summary |
+          | `jobrelay/cli.py` | `run` and `summary` commands |
+
+          ## Running
+
+          Set `JOBRELAY_SPOOL` to a directory shared by the workers and the controller, then:
+
+          ```
+          python -m jobrelay.cli run divide --arg a=1 --arg b=0
+          python -m jobrelay.cli summary
+          ```
+
+          Other settings: `JOBRELAY_WORKER` (the worker's name in reports), `JOBRELAY_ATTEMPTS`
+          (attempts per job, default 3), `JOBRELAY_CAPACITY` (reports the controller keeps, default 200) and
+          `JOBRELAY_LOG_DIR` (where `jobrelay.log` is written; unset logs nowhere). Run the tests with
+          `python -m pytest -q`.
+
+          ## Failure reports
+
+          When a job fails on its last attempt the worker writes one JSON failure report into
+          `$JOBRELAY_SPOOL/pending/`. Reports are written through `tmp/` and renamed into place, so the
+          controller never reads a partial file. The controller moves a stored report to `done/`.
+
+          ### Format 1
+
+          ```json
+          {
+            "format": 1,
+            "job_id": "7f3a",
+            "job": "export",
+            "worker": "worker-2",
+            "attempt": 3,
+            "failed_at": 1700000000.0,
+            "args": {"bucket": "daily"},
+            "error": {"type": "RuntimeError", "message": "export failed", "where": "export.py:41 in run"}
+          }
+          ```
+
+          `error.where` is the innermost frame of the exception and is null when the exception was never
+          raised.
+
+          ### Format 2
+
+          Format 2 is format 1 plus one field, `chain`, which lists the exceptions behind `error`, nearest
+          first. Each entry is described like `error`.
+
+          ```json
+          {
+            "format": 2,
+            "job_id": "7f3a",
+            "job": "export",
+            "worker": "worker-2",
+            "attempt": 3,
+            "failed_at": 1700000000.0,
+            "args": {"bucket": "daily"},
+            "error": {"type": "RuntimeError", "message": "export failed", "where": "export.py:41 in run"},
+            "chain": [
+              {"type": "ValueError", "message": "bad bucket", "where": "export.py:30 in load"},
+              {"type": "KeyError", "message": "'bucket'", "where": "export.py:27 in load"}
+            ]
+          }
+          ```
+
+          `chain` is empty when the error has nothing behind it. The summary prints each entry under the
+          error as an `underlying` line.
+
+          ### Contracts
+
+          - **Independent releases.** Workers and the controller are released independently, and the
+            controller goes first. The controller must ingest every report format produced by the previous
+            worker release, so workers can be upgraded one at a time without losing a failure.
+          - **Rejected reports.** A report the controller cannot parse is moved to `rejected/`, logged, and is
+            not shown to on-call.
+          - **Arguments.** Job arguments that are not JSON values (sets, datetimes, arbitrary objects) are
+            stored as their `repr`.
+          - **On-call summary.** The summary shows each failed job with its worker, attempt number and the
+            error that ended it, newest first. It shows the same chain the worker's own traceback shows:
+            explicit causes (`raise ... from err`), implicit contexts (an exception raised while another was
+            being handled), and nothing below a `raise ... from None`.
+        jobrelay/controller/ingest.py: |
+          """Parse the failure reports workers write to the spool.
+
+          ``parse_report`` is the one reader of the report format described in the README.
+          """
+
+          import json
+          from dataclasses import dataclass
+          from typing import Any
+
+          SUPPORTED_FORMATS = (1, 2)
+
+
+          class ReportError(ValueError):
+              """The text is not a failure report this controller understands."""
+
+
+          @dataclass(frozen=True)
+          class ErrorInfo:
+              """One exception as the worker described it."""
+
+              type: str
+              message: str
+              where: str | None = None
+
+
+          @dataclass(frozen=True)
+          class Report:
+              """A parsed failure report."""
+
+              job_id: str
+              job: str
+              worker: str
+              attempt: int
+              failed_at: float
+              args: dict[str, Any]
+              error: ErrorInfo
+              chain: tuple[ErrorInfo, ...] = ()
+
+
+          def parse_report(text: str) -> Report:
+              """Parse one report; raises ReportError, ValueError, KeyError or TypeError when it is malformed."""
+              data = json.loads(text)
+              if not isinstance(data, dict):
+                  raise ReportError("a failure report is a JSON object")
+              if data.get("format") not in SUPPORTED_FORMATS:
+                  raise ReportError(f"unsupported report format {data.get('format')!r}")
+              return Report(
+                  job_id=str(data["job_id"]),
+                  job=data["job"],
+                  worker=data["worker"],
+                  attempt=int(data["attempt"]),
+                  failed_at=float(data["failed_at"]),
+                  args=dict(data["args"]),
+                  error=_error_info(data["error"]),
+                  chain=tuple(_error_info(link) for link in data["chain"]),
+              )
+
+
+          def _error_info(raw: dict) -> ErrorInfo:
+              return ErrorInfo(type=raw["type"], message=raw["message"], where=raw.get("where"))
+        jobrelay/controller/render.py: |
+          """Render the on-call summary from stored reports."""
+
+          from collections import Counter
+          from collections.abc import Iterable
+          from datetime import datetime, timezone
+
+          from jobrelay.controller.ingest import ErrorInfo, Report
+
+
+          def render_summary(reports: Iterable[Report], *, now: float) -> str:
+              """The text on-call reads: a headline, then one block per failure, in the order given."""
+              reports = list(reports)
+              if not reports:
+                  return "No job failures.\n"
+              lines = [_headline(reports)]
+              for report in reports:
+                  lines.extend(_render_report(report, now))
+              return "\n".join(lines) + "\n"
+
+
+          def _headline(reports: list[Report]) -> str:
+              counts = Counter(r.job for r in reports)
+              busiest = ", ".join(f"{job} x{n}" for job, n in counts.most_common(3))
+              noun = "failure" if len(reports) == 1 else "failures"
+              return f"{len(reports)} job {noun} ({busiest})"
+
+
+          def _render_report(report: Report, now: float) -> list[str]:
+              when = datetime.fromtimestamp(report.failed_at, tz=timezone.utc).strftime("%H:%M:%S")
+              lines = [
+                  "",
+                  f"[{when}] {report.job} on {report.worker}, attempt {report.attempt} ({_age(now - report.failed_at)} ago)",
+                  f"  {_describe(report.error)}",
+              ]
+              lines.extend(f"    underlying {_describe(link)}" for link in report.chain)
+              if report.args:
+                  lines.append(f"  args: {_format_args(report.args)}")
+              return lines
+
+
+          def _describe(error: ErrorInfo) -> str:
+              text = f"{error.type}: {error.message}"
+              return f"{text} ({error.where})" if error.where else text
+
+
+          def _format_args(args: dict) -> str:
+              return ", ".join(f"{key}={value!r}" for key, value in sorted(args.items()))
+
+
+          def _age(seconds: float) -> str:
+              seconds = max(0, int(seconds))
+              if seconds < 60:
+                  return f"{seconds}s"
+              if seconds < 3600:
+                  return f"{seconds // 60}m"
+              return f"{seconds // 3600}h"
+        jobrelay/worker/serialize.py: |
+          """Turn a failed job into the JSON failure report the controller ingests.
+
+          The format is documented in the README; ``controller/ingest.py`` is its reader.
+          """
+
+          import json
+          import os
+          import traceback
+
+          from jobrelay.worker.links import iter_links
+
+          FORMAT = 2
+
+
+          def describe(exc: BaseException) -> dict:
+              """The type, message and innermost frame of one exception."""
+              return {
+                  "type": type(exc).__qualname__,
+                  "message": str(exc),
+                  "where": _where(exc),
+              }
+
+
+          def _where(exc: BaseException) -> str | None:
+              frames = traceback.extract_tb(exc.__traceback__)
+              if not frames:
+                  return None
+              last = frames[-1]
+              return f"{os.path.basename(last.filename)}:{last.lineno} in {last.name}"
+
+
+          def chain_entries(exc: BaseException) -> list[dict]:
+              """Describe every exception behind *exc*, nearest first."""
+              return [describe(link) for link in iter_links(exc)]
+
+
+          def build_report(job_id, job, exc, *, worker, attempt, args, failed_at) -> dict:
+              """The failure report for *job*, which ended with *exc* on attempt number *attempt*."""
+              return {
+                  "format": FORMAT,
+                  "job_id": job_id,
+                  "job": job,
+                  "worker": worker,
+                  "attempt": attempt,
+                  "failed_at": failed_at,
+                  "args": args,
+                  "error": describe(exc),
+                  "chain": chain_entries(exc),
+              }
+
+
+          def to_json(report: dict) -> str:
+              """Serialise *report*; arguments that are not JSON values are stored as their repr."""
+              return json.dumps(report, sort_keys=True, default=repr)
+        tests/test_consumer.py: |
+          import json
+
+          from jobrelay.config import Config
+          from jobrelay.controller.consumer import Consumer
+          from jobrelay.controller.store import ReportStore
+          from jobrelay.transport import DONE, REJECTED, Spool
+          from jobrelay.worker import serialize
+
+
+          def queue_failure(spool, job="export", message="export failed"):
+              try:
+                  raise RuntimeError(message)
+              except RuntimeError as exc:
+                  report = serialize.build_report(
+                      "j1", job, exc, worker="w1", attempt=3, args={"bucket": "daily"}, failed_at=1_700_000_000.0
+                  )
+              return spool.put(serialize.to_json(report))
+
+
+          def chained_failure():
+              """RuntimeError caused by ValueError caused by KeyError, all raised for real."""
+              try:
+                  try:
+                      raise KeyError("bucket")
+                  except KeyError as first:
+                      raise ValueError("bad bucket") from first
+              except ValueError as second:
+                  try:
+                      raise RuntimeError("export failed") from second
+                  except RuntimeError as third:
+                      return third
+
+
+          def make_consumer(tmp_path, capacity=10):
+              config = Config(spool_dir=tmp_path, store_capacity=capacity)
+              return Consumer(config)
+
+
+          def test_stores_a_report_and_moves_it_to_done(tmp_path):
+              consumer = make_consumer(tmp_path)
+              queue_failure(consumer.spool)
+              tally = consumer.run_once()
+              assert (tally.stored, tally.rejected) == (1, 0)
+              assert consumer.store.recent()[0].error.message == "export failed"
+              assert (consumer.spool.pending(), consumer.spool.count(DONE)) == ([], 1)
+
+
+          def test_unparseable_text_is_rejected_and_not_stored(tmp_path):
+              consumer = make_consumer(tmp_path)
+              consumer.spool.put("this is not json")
+              tally = consumer.run_once()
+              assert (tally.stored, tally.rejected) == (0, 1)
+              assert len(consumer.store) == 0
+              assert consumer.spool.count(REJECTED) == 1
+
+
+          def test_report_with_an_unknown_format_is_rejected(tmp_path):
+              consumer = make_consumer(tmp_path)
+              consumer.spool.put(json.dumps({"format": 99}))
+              assert consumer.run_once().rejected == 1
+
+
+          def test_one_bad_report_does_not_block_the_next(tmp_path):
+              consumer = make_consumer(tmp_path)
+              consumer.spool.put("{")
+              queue_failure(consumer.spool, job="sync")
+              tally = consumer.run_once()
+              assert (tally.stored, tally.rejected) == (1, 1)
+              assert consumer.store.recent()[0].job == "sync"
+
+
+          def test_store_keeps_only_its_capacity_newest_first(tmp_path):
+              consumer = make_consumer(tmp_path, capacity=2)
+              for job in ("a", "b", "c"):
+                  queue_failure(consumer.spool, job=job)
+              consumer.run_once()
+              assert [r.job for r in consumer.store.recent()] == ["c", "b"]
+
+
+          def test_an_empty_store_passed_in_is_used(tmp_path):
+              store = ReportStore(5)
+              consumer = Consumer(Config(spool_dir=tmp_path), store=store)
+              queue_failure(consumer.spool)
+              consumer.run_once()
+              assert len(store) == 1
+
+
+          def test_run_forever_polls_until_told_to_stop(tmp_path):
+              consumer = make_consumer(tmp_path)
+              queue_failure(consumer.spool)
+              sleeps = []
+              consumer.run_forever(0.25, should_stop=lambda: len(sleeps) >= 2, sleep=sleeps.append)
+              assert sleeps == [0.25, 0.25]
+              assert len(consumer.store) == 1
+
+
+          def test_store_filters_and_counts_by_job(tmp_path):
+              consumer = make_consumer(tmp_path)
+              for job in ("a", "b", "a"):
+                  queue_failure(consumer.spool, job=job)
+              consumer.run_once()
+              assert len(consumer.store.for_job("a")) == 2
+              assert consumer.store.counts_by_job() == {"a": 2, "b": 1}
+              assert len(consumer.store.recent(limit=1)) == 1
+
+
+          def test_chain_reaches_the_store_with_its_report(tmp_path):
+              consumer = make_consumer(tmp_path)
+              report = serialize.build_report(
+                  "j1", "export", chained_failure(), worker="w1", attempt=3, args={}, failed_at=1_700_000_000.0
+              )
+              consumer.spool.put(serialize.to_json(report))
+              consumer.run_once()
+              (stored,) = consumer.store.recent()
+              assert [(link.type, link.message) for link in stored.chain] == [("ValueError", "bad bucket"), ("KeyError", "'bucket'")]
+
+
+          def test_report_with_a_malformed_chain_entry_is_rejected(tmp_path):
+              consumer = make_consumer(tmp_path)
+              report = serialize.build_report(
+                  "j1", "export", chained_failure(), worker="w1", attempt=3, args={}, failed_at=1_700_000_000.0
+              )
+              report["chain"] = [{"type": "ValueError"}]
+              consumer.spool.put(json.dumps(report))
+              tally = consumer.run_once()
+              assert (tally.stored, tally.rejected) == (0, 1)
+              assert consumer.spool.count(REJECTED) == 1
+        tests/test_ingest.py: |
+          import json
+
+          import pytest
+
+          from jobrelay.controller.ingest import ReportError, parse_report
+          from jobrelay.worker import serialize
+
+
+          def failure(message="export failed"):
+              try:
+                  raise RuntimeError(message)
+              except RuntimeError as exc:
+                  return exc
+
+
+          def explicit_chain():
+              """RuntimeError caused by ValueError caused by KeyError, all raised for real."""
+              try:
+                  try:
+                      raise KeyError("bucket")
+                  except KeyError as first:
+                      raise ValueError("bad bucket") from first
+              except ValueError as second:
+                  try:
+                      raise RuntimeError("export failed") from second
+                  except RuntimeError as third:
+                      return third
+
+
+          def report_text(exc=None, **overrides):
+              report = serialize.build_report(
+                  "j1", "export", exc or failure(), worker="w1", attempt=2, args={"bucket": "daily"}, failed_at=1_700_000_000.0
+              )
+              return json.dumps(report | overrides)
+
+
+          def test_parses_every_field():
+              report = parse_report(report_text())
+              assert (report.job_id, report.job, report.worker, report.attempt) == ("j1", "export", "w1", 2)
+              assert report.failed_at == 1_700_000_000.0
+              assert report.args == {"bucket": "daily"}
+              assert (report.error.type, report.error.message) == ("RuntimeError", "export failed")
+              assert report.error.where.endswith("in failure")
+
+
+          def test_unsupported_format_is_a_report_error():
+              with pytest.raises(ReportError, match="unsupported report format 99"):
+                  parse_report(report_text(format=99))
+
+
+          def test_report_must_be_a_json_object():
+              with pytest.raises(ReportError):
+                  parse_report("[1, 2]")
+
+
+          def test_text_that_is_not_json_is_a_value_error():
+              with pytest.raises(ValueError):
+                  parse_report("not json")
+
+
+          def test_missing_field_is_a_key_error():
+              data = json.loads(report_text())
+              del data["job"]
+              with pytest.raises(KeyError):
+                  parse_report(json.dumps(data))
+
+
+          def test_parses_the_chain_nearest_first():
+              report = parse_report(report_text(explicit_chain()))
+              assert [(link.type, link.message) for link in report.chain] == [
+                  ("ValueError", "bad bucket"),
+                  ("KeyError", "'bucket'"),
+              ]
+              assert all(link.where.endswith("in explicit_chain") for link in report.chain)
+
+
+          def test_chain_is_empty_when_the_error_has_no_cause():
+              assert parse_report(report_text()).chain == ()
+
+
+          def test_chain_entry_without_a_message_is_a_key_error():
+              data = json.loads(report_text(explicit_chain()))
+              del data["chain"][0]["message"]
+              with pytest.raises(KeyError):
+                  parse_report(json.dumps(data))
+        tests/test_render.py: |
+          from jobrelay.controller.ingest import ErrorInfo, Report
+          from jobrelay.controller.render import render_summary
+
+          NOW = 1_700_000_300.0
+
+
+          def make_report(job="export", worker="w1", attempt=3, age=90, args=None, error=None, chain=()):
+              return Report(
+                  job_id="j1",
+                  job=job,
+                  worker=worker,
+                  attempt=attempt,
+                  failed_at=NOW - age,
+                  args={"bucket": "daily"} if args is None else args,
+                  error=error or ErrorInfo("RuntimeError", "export failed", "export.py:41 in run"),
+                  chain=chain,
+              )
+
+
+          def test_no_reports_say_so():
+              assert render_summary([], now=NOW) == "No job failures.\n"
+
+
+          def test_block_names_job_worker_attempt_and_error():
+              text = render_summary([make_report()], now=NOW)
+              assert text.splitlines()[0] == "1 job failure (export x1)"
+              assert "[22:16:50] export on w1, attempt 3 (1m ago)" in text
+              assert "  RuntimeError: export failed (export.py:41 in run)" in text
+
+
+          def test_args_are_listed_sorted():
+              text = render_summary([make_report(args={"b": 2, "a": "x"})], now=NOW)
+              assert "  args: a='x', b=2" in text
+
+
+          def test_report_without_args_has_no_args_line():
+              assert "args:" not in render_summary([make_report(args={})], now=NOW)
+
+
+          def test_blocks_follow_the_order_given_and_headline_counts_jobs():
+              reports = [make_report(job="export"), make_report(job="sync"), make_report(job="export")]
+              text = render_summary(reports, now=NOW)
+              assert text.splitlines()[0] == "3 job failures (export x2, sync x1)"
+              assert [line.split()[1] for line in text.splitlines() if line.startswith("[")] == ["export", "sync", "export"]
+
+
+          def test_ages_use_the_largest_whole_unit():
+              ages = {30: "30s", 90: "1m", 7300: "2h", -5: "0s"}
+              for age, expected in ages.items():
+                  assert f"({expected} ago)" in render_summary([make_report(age=age)], now=NOW)
+
+
+          def test_chain_is_listed_under_the_error_nearest_first():
+              chain = (ErrorInfo("ValueError", "bad bucket", "export.py:30 in load"), ErrorInfo("KeyError", "'bucket'"))
+              lines = render_summary([make_report(chain=chain)], now=NOW).splitlines()
+              start = lines.index("  RuntimeError: export failed (export.py:41 in run)")
+              assert lines[start + 1 : start + 4] == [
+                  "    underlying ValueError: bad bucket (export.py:30 in load)",
+                  "    underlying KeyError: 'bucket'",
+                  "  args: bucket='daily'",
+              ]
+
+
+          def test_report_without_a_chain_has_no_underlying_lines():
+              assert "underlying" not in render_summary([make_report()], now=NOW)
+        tests/test_serialize.py: |
+          import json
+
+          from jobrelay.worker import serialize
+
+
+          def failure(message="export failed"):
+              try:
+                  raise RuntimeError(message)
+              except RuntimeError as exc:
+                  return exc
+
+
+          def explicit_chain():
+              """RuntimeError caused by ValueError caused by KeyError, all raised for real."""
+              try:
+                  try:
+                      raise KeyError("bucket")
+                  except KeyError as first:
+                      raise ValueError("bad bucket") from first
+              except ValueError as second:
+                  try:
+                      raise RuntimeError("export failed") from second
+                  except RuntimeError as third:
+                      return third
+
+
+          def report_for(exc, **overrides):
+              fields = {"worker": "w1", "attempt": 3, "args": {"bucket": "daily"}, "failed_at": 1_700_000_000.0}
+              return serialize.build_report("j1", "export", exc, **(fields | overrides))
+
+
+          def test_report_carries_the_job_and_the_final_error():
+              report = report_for(failure())
+              assert report["format"] == 2
+              assert (report["job_id"], report["job"], report["worker"]) == ("j1", "export", "w1")
+              assert (report["attempt"], report["failed_at"]) == (3, 1_700_000_000.0)
+              assert report["error"]["type"] == "RuntimeError"
+              assert report["error"]["message"] == "export failed"
+
+
+          def test_error_names_the_innermost_frame():
+              where = report_for(failure())["error"]["where"]
+              assert where.startswith("test_serialize.py:") and where.endswith("in failure")
+
+
+          def test_error_that_was_never_raised_has_no_frame():
+              assert serialize.describe(ValueError("fresh"))["where"] is None
+
+
+          def test_report_round_trips_through_json():
+              report = report_for(failure())
+              assert json.loads(serialize.to_json(report)) == report
+
+
+          def test_arguments_that_are_not_json_values_are_stored_as_repr():
+              report = report_for(failure(), args={"ids": {7}, "path": b"x"})
+              stored = json.loads(serialize.to_json(report))["args"]
+              assert stored == {"ids": "{7}", "path": "b'x'"}
+
+
+          def test_chain_lists_explicit_causes_nearest_first():
+              chain = report_for(explicit_chain())["chain"]
+              assert [(entry["type"], entry["message"]) for entry in chain] == [
+                  ("ValueError", "bad bucket"),
+                  ("KeyError", "'bucket'"),
+              ]
+              assert all(entry["where"].endswith("in explicit_chain") for entry in chain)
+
+
+          def test_chain_is_empty_when_nothing_is_behind_the_error():
+              assert report_for(failure())["chain"] == []
+
+
+          def test_raise_from_none_leaves_the_chain_empty():
+              try:
+                  try:
+                      raise KeyError("hidden")
+                  except KeyError:
+                      raise RuntimeError("clean") from None
+              except RuntimeError as exc:
+                  assert report_for(exc)["chain"] == []
+
+
+          def test_chain_survives_the_json_round_trip():
+              report = report_for(explicit_chain())
+              assert json.loads(serialize.to_json(report))["chain"] == report["chain"]
+checks:
+- check: no_workspace_changes
+  text: review leaves the checkout unchanged
+- check: no_new_commits
+  text: review does not commit
+- check: bash_did_not_run
+  pattern: \bgit(?:\s+(?:-[Cc]\s+\S+|--?[\w.-]+(?:=\S+)?))*\s+(?:checkout|switch|stash(?!\s+(?:list|show)\b)|reset|restore|clean|worktree\s+add)(?=\s|$|[;&|)])
+  text: never checks out, stashes, or resets the source checkout
+- check: bash_ran
+  pattern: (?:^|[;&|(\s])(?:python[\d.]*|py|pytest)(?:\.exe)?(?=\s|$)
+  text: runs a check on the user's own change
+- check: ran_outside_checkout
+  text: runs candidate code only from outside the checkout
+- check: text_regex
+  pattern: '(?:(?:iter_links|chain_entries|serialize(?:\.py|r)?\b|worker/links|links\.py|build_report)[\s\S]{0,350}(?:(?:__context__|__suppress_context__|implicit(?:ly)?\W+(?:\w+\W+){0,2}(?:context|chain|exception|cause|error)|(?:raise[sd]?|thrown)\W+(?:\w+\W+){0,3}(?:in|inside|within|during|while)\W+(?:\w+\W+){0,2}(?:except|handl)|(?:without|no|missing)\W{1,3}from\b|(?:bare|plain)\W+raise|no\W+explicit\W+cause)[\s\S]{0,120}(?:ignor|drop|miss|omit|skip|los[et]|lose|never|silently|truncat|incomplete|partial|absent|empty|n.t\s+(?:follow|includ|walk|captur|record|carr|serializ|emit|report|show|surfac)|only\s+(?:follow|walk|captur|trac)|(?:follows?|walks?|covers?)\W+only\b|nothing\s+else|chain\W{1,4}==\W{1,4}\[\]|(?:follows?|walks?|uses?)\W+(?:\w+\W+){0,2}__cause__\W+(?:\w+\W+){0,1}(?:only|alone))|(?:ignor|drop|miss|omit|skip|los[et]|lose|never|silently|truncat|incomplete|partial|absent|empty|n.t\s+(?:follow|includ|walk|captur|record|carr|serializ|emit|report|show|surfac)|only\s+(?:follow|walk|captur|trac)|(?:follows?|walks?|covers?)\W+only\b|nothing\s+else|chain\W{1,4}==\W{1,4}\[\]|(?:follows?|walks?|uses?)\W+(?:\w+\W+){0,2}__cause__\W+(?:\w+\W+){0,1}(?:only|alone))[\s\S]{0,120}(?:__context__|__suppress_context__|implicit(?:ly)?\W+(?:\w+\W+){0,2}(?:context|chain|exception|cause|error)|(?:raise[sd]?|thrown)\W+(?:\w+\W+){0,3}(?:in|inside|within|during|while)\W+(?:\w+\W+){0,2}(?:except|handl)|(?:without|no|missing)\W{1,3}from\b|(?:bare|plain)\W+raise|no\W+explicit\W+cause))|(?:(?:__context__|__suppress_context__|implicit(?:ly)?\W+(?:\w+\W+){0,2}(?:context|chain|exception|cause|error)|(?:raise[sd]?|thrown)\W+(?:\w+\W+){0,3}(?:in|inside|within|during|while)\W+(?:\w+\W+){0,2}(?:except|handl)|(?:without|no|missing)\W{1,3}from\b|(?:bare|plain)\W+raise|no\W+explicit\W+cause)[\s\S]{0,120}(?:ignor|drop|miss|omit|skip|los[et]|lose|never|silently|truncat|incomplete|partial|absent|empty|n.t\s+(?:follow|includ|walk|captur|record|carr|serializ|emit|report|show|surfac)|only\s+(?:follow|walk|captur|trac)|(?:follows?|walks?|covers?)\W+only\b|nothing\s+else|chain\W{1,4}==\W{1,4}\[\]|(?:follows?|walks?|uses?)\W+(?:\w+\W+){0,2}__cause__\W+(?:\w+\W+){0,1}(?:only|alone))|(?:ignor|drop|miss|omit|skip|los[et]|lose|never|silently|truncat|incomplete|partial|absent|empty|n.t\s+(?:follow|includ|walk|captur|record|carr|serializ|emit|report|show|surfac)|only\s+(?:follow|walk|captur|trac)|(?:follows?|walks?|covers?)\W+only\b|nothing\s+else|chain\W{1,4}==\W{1,4}\[\]|(?:follows?|walks?|uses?)\W+(?:\w+\W+){0,2}__cause__\W+(?:\w+\W+){0,1}(?:only|alone))[\s\S]{0,120}(?:__context__|__suppress_context__|implicit(?:ly)?\W+(?:\w+\W+){0,2}(?:context|chain|exception|cause|error)|(?:raise[sd]?|thrown)\W+(?:\w+\W+){0,3}(?:in|inside|within|during|while)\W+(?:\w+\W+){0,2}(?:except|handl)|(?:without|no|missing)\W{1,3}from\b|(?:bare|plain)\W+raise|no\W+explicit\W+cause))[\s\S]{0,350}(?:iter_links|chain_entries|serialize(?:\.py|r)?\b|worker/links|links\.py|build_report))'
+  text: finds the chain built from explicit causes only, dropping implicit contexts
+- check: text_regex
+  pattern: '(?:(?:ingest(?:\.py)?\b|parse_report|SUPPORTED_FORMATS|data\[\W{0,2}chain\W{0,2}\]|consumer(?:\.py)?\b|ReportError)(?=[\s\S]{0,400}(?:format\W{0,3}(?:1|one)\b|(?:old|older|legacy|previous|prior|earlier)\W+(?:\w+\W+){0,2}(?:format|worker|release|report|version)|not\W+yet\W+upgraded|un-?upgraded|rolling|v1\b|version\W{0,3}1\b|mixed[\s-]+version|(?:staggered|gradual|phased)\W+(?:\w+\W+){0,1}(?:rollout|upgrade|deploy|release)|during\W+(?:\w+\W+){0,2}(?:upgrade|rollout|release|deploy)))(?=[\s\S]{0,400}(?:KeyError|unconditional\w*|data\[\W{0,2}chain\W{0,2}\]|(?:always|blindly|directly)\W+(?:\w+\W+){0,1}(?:read|index|access|require|expect)\w*|(?:requires?|expects?|assumes?|demands?|needs?|mandatory|required)\W+(?:\w+\W+){0,3}chain|chain\W+(?:\w+\W+){0,3}(?:mandatory|required|unconditional)|backward\W+compat\w*\W+(?:\w+\W+){0,3}(?:broken|break|lost|fail|regress)|(?:no|missing|absent|lacks?|without|omit\w*)\W+(?:(?:a|the|any|that|its)\W+)?\W{0,2}chain\b[\s\S]{0,150}(?:reject|rais|fail|KeyError|drop|lost|disappear)))|(?:format\W{0,3}(?:1|one)\b|(?:old|older|legacy|previous|prior|earlier)\W+(?:\w+\W+){0,2}(?:format|worker|release|report|version)|not\W+yet\W+upgraded|un-?upgraded|rolling|v1\b|version\W{0,3}1\b|mixed[\s-]+version|(?:staggered|gradual|phased)\W+(?:\w+\W+){0,1}(?:rollout|upgrade|deploy|release)|during\W+(?:\w+\W+){0,2}(?:upgrade|rollout|release|deploy))(?=[\s\S]{0,400}(?:ingest(?:\.py)?\b|parse_report|SUPPORTED_FORMATS|data\[\W{0,2}chain\W{0,2}\]|consumer(?:\.py)?\b|ReportError))(?=[\s\S]{0,400}(?:KeyError|unconditional\w*|data\[\W{0,2}chain\W{0,2}\]|(?:always|blindly|directly)\W+(?:\w+\W+){0,1}(?:read|index|access|require|expect)\w*|(?:requires?|expects?|assumes?|demands?|needs?|mandatory|required)\W+(?:\w+\W+){0,3}chain|chain\W+(?:\w+\W+){0,3}(?:mandatory|required|unconditional)|backward\W+compat\w*\W+(?:\w+\W+){0,3}(?:broken|break|lost|fail|regress)|(?:no|missing|absent|lacks?|without|omit\w*)\W+(?:(?:a|the|any|that|its)\W+)?\W{0,2}chain\b[\s\S]{0,150}(?:reject|rais|fail|KeyError|drop|lost|disappear)))|(?:KeyError|unconditional\w*|data\[\W{0,2}chain\W{0,2}\]|(?:always|blindly|directly)\W+(?:\w+\W+){0,1}(?:read|index|access|require|expect)\w*|(?:requires?|expects?|assumes?|demands?|needs?|mandatory|required)\W+(?:\w+\W+){0,3}chain|chain\W+(?:\w+\W+){0,3}(?:mandatory|required|unconditional)|backward\W+compat\w*\W+(?:\w+\W+){0,3}(?:broken|break|lost|fail|regress)|(?:no|missing|absent|lacks?|without|omit\w*)\W+(?:(?:a|the|any|that|its)\W+)?\W{0,2}chain\b[\s\S]{0,150}(?:reject|rais|fail|KeyError|drop|lost|disappear))(?=[\s\S]{0,400}(?:ingest(?:\.py)?\b|parse_report|SUPPORTED_FORMATS|data\[\W{0,2}chain\W{0,2}\]|consumer(?:\.py)?\b|ReportError))(?=[\s\S]{0,400}(?:format\W{0,3}(?:1|one)\b|(?:old|older|legacy|previous|prior|earlier)\W+(?:\w+\W+){0,2}(?:format|worker|release|report|version)|not\W+yet\W+upgraded|un-?upgraded|rolling|v1\b|version\W{0,3}1\b|mixed[\s-]+version|(?:staggered|gradual|phased)\W+(?:\w+\W+){0,1}(?:rollout|upgrade|deploy|release)|during\W+(?:\w+\W+){0,2}(?:upgrade|rollout|release|deploy))))'
+  text: finds the parser rejecting format 1 reports from a worker not yet upgraded
+- check: text_regex
+  pattern: '^\W*Verdict:\W*REQUEST CHANGES'
+  text: requests changes on the verdict line
+- check: text_regex
+  pattern: '(?<![/\w])P[01](?![/\w])'
+  text: rates a finding P0 or P1
+- check: text_regex
+  pattern: \bP[0-3]\b[*_\s]{0,4}\[(?:verified|sourced|unverified)\]
+  text: 'contract: a finding line carries its evidence label beside the priority'
+- check: text_not_regex
+  pattern: '(?<![/\w])P[0-2](?![/\w])[^\n]{0,250}(?:(?:no|without|lacks?|missing|absent|unguarded|not\s+guarded)\W+(?:\w+\W+){0,3}(?:cycl\w*|loop\w*|recurs\w*|guard\w*|seen)|infinite\W+(?:loop|recurs|walk)|(?:loop|hang|spin)s?\W+(?:\w+\W+){0,2}forever|unbounded\W+(?:loop|walk|recurs))'
+  text: does not rate the unguarded chain walk a defect, since iter_links guards cycles
+- check: text_not_regex
+  pattern: '(?<![/\w])P[0-2](?![/\w])[^\n]{0,250}(?:default\s*=\s*repr|\brepr\b[^\n]{0,80}(?:hid|mask|swallow|silent|lossy|loses|lost)|(?:hid|mask|swallow|silent|lossy)\w*[^\n]{0,80}\brepr\b)'
+  text: does not rate json.dumps(default=repr) a defect, since the README documents it
