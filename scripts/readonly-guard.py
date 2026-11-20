@@ -80,7 +80,6 @@ import runpy
 import shlex
 import sys
 from pathlib import Path
-from urllib.parse import parse_qs, urlsplit
 
 # Type checkers treat a name spelled TYPE_CHECKING as true; at runtime this skips importing
 # `typing`, which measured ~1.5 ms of every hook call's ~17 ms on Python 3.11.
@@ -244,46 +243,6 @@ _OS_READ_FORMS: dict[str, set[tuple[str, ...]]] = {
 # `Resolve-DnsName`. Admitted in Copilot mode only, and only through the Bash classifier, so
 # `_date_reason`'s clock-SETTING check and the structural denial of `dig $(...)` still decide.
 _COPILOT_POSIX_READERS = frozenset({"date", "dig"})
-# curl output is unmasked, so only reads that return no credentials, logins or unbounded lists stay:
-# frontend/settings carries decrypted basic auth for direct-access datasources, datasources carries
-# connection users, and the rule, search and dashboard reads belong to the masking helper.
-_GRAFANA_READ_PATH = re.compile(
-    r"/(?:api/(?:health|plugins|access-control/user/permissions|"
-    r"datasources/uid/[A-Za-z0-9_-]+/health|folders)|"
-    r"apis/dashboard\.grafana\.app/v[012](?:(?:alpha|beta)1)?/namespaces/"
-    r"[A-Za-z0-9_-]+/dashboards/[A-Za-z0-9_-]+)"
-)
-
-
-def grafana_curl_allowed(command: str, powershell: bool = False) -> bool:
-    """One credential-safe GET form; human-established env binds the destination and token.
-
-    `-q` first suppresses curlrc; no redirects, output files, uploads, custom methods, verbose
-    headers, TLS bypass, or arbitrary destinations. Only known Grafana resource reads are exposed.
-    Query execution is deliberately absent: raw datasource proxy URLs are not uniformly read-only.
-    """
-    binary = "curl.exe" if powershell else "curl"
-    env = r"\$env:" if powershell else r"\$"
-    pattern = (
-        re.escape(binary) + r' -q --silent --show-error --fail --max-time 20 --max-redirs 0 '
-        r'--proto =https --header "Authorization: Bearer ' + env + r'GRAFANA_SA_TOKEN" "'
-        + env + r'GRAFANA_URL(?P<resource>/[A-Za-z0-9_/?=&%.:+,-]*)"'
-    )
-    match = re.fullmatch(pattern, command.strip())
-    if not match or len(command) > 4096:
-        return False
-    resource = urlsplit(match['resource'])
-    if not _GRAFANA_READ_PATH.fullmatch(resource.path):
-        return False
-    params = parse_qs(resource.query, keep_blank_values=True)
-    if set(params) - {"limit", "page"}:
-        return False
-    if any(len(values) != 1 for values in params.values()):
-        return False
-    for name, maximum in (("limit", 100), ("page", 100)):
-        if name in params and not (params[name][0].isdigit() and 1 <= int(params[name][0]) <= maximum):
-            return False
-    return True
 
 
 def grafana_helper_allowed(command: str, powershell: bool = False, *, shell_independent: bool = False) -> bool:
@@ -367,7 +326,7 @@ def explain_powershell(command: str, *, shell_independent: bool = False) -> str 
     Reject expressions, expansions, scripts, redirection, stop-parsing and command chains.
     Only fixed cmdlets and the existing external CLI readers may pass. No aliases are inferred.
     """
-    if grafana_helper_allowed(command, powershell=True, shell_independent=shell_independent) or grafana_curl_allowed(command, powershell=True):
+    if grafana_helper_allowed(command, powershell=True, shell_independent=shell_independent):
         return None
     if not command.strip():
         return None
@@ -1018,12 +977,12 @@ def explain(command: str) -> str | None:
     """
     if re.search(r"[\x00-\x08\x0b-\x1f\x7f]", command):
         return "Bash commands may not contain control characters other than tab and newline"
-    if grafana_helper_allowed(command) or grafana_curl_allowed(command):
+    if grafana_helper_allowed(command):
         return None
     if not command.strip(" \t\n"):
         return None  # nothing to run
     if re.search(r"\$(?:env:|\{)?GRAFANA_SA_TOKEN\b|\bglsa_", command, re.IGNORECASE):
-        return "Grafana credentials may only be referenced by the fixed authenticated GET form"
+        return "use the installed Grafana read helper; it handles authentication internally"
     normalized = _SIMPLE_VAR.sub(r"$\1", command)
     structure = _STRUCTURE_DENY.search(normalized)
     if structure:
@@ -1050,12 +1009,9 @@ def copilot_read_allowed(command: str) -> bool:
     restricted PowerShell grammar first. That grammar denies the macOS spellings the
     sre-assistant native-observations list advertises, which would make the documented time and DNS
     observations unusable on a macOS execution host. Widening is deliberately narrow: the fixed
-    OS forms, the authenticated Grafana GET, and the two POSIX heads above -- never the whole
-    Bash allowlist.
+    OS forms and the two POSIX heads above.
     """
     stripped = command.strip()
-    if grafana_curl_allowed(stripped):
-        return True
     if any(stripped == " ".join((name, *args))
            for name, forms in _OS_READ_FORMS.items() for args in forms):
         return True

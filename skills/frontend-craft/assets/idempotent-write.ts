@@ -58,6 +58,7 @@ function defaultSleep(ms: number, signal?: AbortSignal): Promise<void> {
 /**
  * Sends a state-changing request under `key`. Takes a URL and an init, never a `Request`: a
  * Request's body is a stream that one send consumes, so it cannot be re-sent after a 409.
+ * Each call snapshots the destination and encodes mutable bodies once for all its sends.
  * The init accepts only replayable, non-stream bodies; streams are rejected before any send.
  * Returns the first response that is not an in-flight 409, or the last in-flight 409 once
  * maxAttempts is spent or its delay exceeds maxWaitMs, so the caller can say it is still running.
@@ -83,14 +84,29 @@ export async function sendIdempotent(
   }
   const defaultWaitMs = options.defaultWaitMs ?? 1000;
   const maxWaitMs = options.maxWaitMs ?? 30_000;
+  const base = globalThis.document?.baseURI ?? globalThis.location?.href;
+  const url = base ? new URL(input, base).href : String(input);
   const headers = new Headers(init.headers);
   headers.set(IDEMPOTENCY_HEADER, key);
   // One effective signal for the sends and the waits between them, whichever way it was given.
   const signal = options.signal ?? init.signal ?? undefined;
-  const request: RequestInit = { ...init, headers, signal: signal ?? null };
+  signal?.throwIfAborted();
+  const request: RequestInit = { ...init, body, signal: signal ?? null };
+  if (body != null && typeof body !== "string" && !(body instanceof Blob)) {
+    // Fetch's body encoder snapshots views and form fields, including the multipart boundary.
+    const encoded = new Response(body);
+    const contentType = encoded.headers.get("content-type");
+    if (contentType && !headers.has("content-type")) headers.set("content-type", contentType);
+    // A multipart snapshot can still be reading a file when the user cancels.
+    const snapshot = signal && encoded.body
+      ? new Response(encoded.body.pipeThrough(new TransformStream(), { signal }))
+      : encoded;
+    request.body = await snapshot.blob();
+  }
 
   for (let attempt = 1; ; attempt += 1) {
-    const response = await doFetch(input, request);
+    signal?.throwIfAborted();
+    const response = await doFetch(url, { ...request, headers: new Headers(headers) });
     if (!isInFlight(response) || attempt >= maxAttempts) return response;
     const waitMs = retryAfterMs(response) ?? defaultWaitMs;
     if (waitMs > maxWaitMs) return response;

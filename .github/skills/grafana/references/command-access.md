@@ -1,6 +1,8 @@
 # Grafana command access — Windows and macOS
 
-For an SRE agent with terminal tools; no write authority is granted.
+For `sre-assistant` with terminal tools, use only the installed read helper for Grafana commands.
+If it cannot perform the requested read, ask the caller for a sanitized excerpt from the intended
+instance and organization. Record the source and coverage of that evidence.
 
 ## Selected gcx migration
 
@@ -13,8 +15,9 @@ credentials, enable HTTP payload logging, or install vendor skills as an inciden
 ## Bundled read helper
 
 Run the stdlib-only [grafana_read.py](../scripts/grafana_read.py) as `python -I -S` (or `python3`,
-`python.exe`) with its **absolute installed path** in drive-letter form (on Copilot, the generated
-`.github` copy), or call its installed [PowerShell wrapper](../scripts/grafana_read.ps1). The SRE
+`python.exe`) with its **absolute installed path**, or call its installed
+[PowerShell wrapper](../scripts/grafana_read.ps1). Use drive-letter paths on Windows and the generated
+`.github` copy in Copilot command preview. The SRE
 guard denies Git Bash `/c/...` paths, `py`, double-quoted arguments (single-quote literals instead),
 `--flag=value`, pipes, redirection (including `2>&1`), `timeout`, and custom URL/method/credential
 flags. If Python 3.14+ or the helper is missing, report the gap; never install tools or switch
@@ -83,22 +86,3 @@ all-null, zero, and unsupported distinct. Only these built-in macros are accepte
 Backend-expanded macros report `panel_equivalence: not_established`; pass `--interval-ms` /
 `--rate-interval-ms` when panel equivalence matters. Dashboard variables and other `$__` macros fail
 before authentication.
-
-## Grafana resource reads (`curl` fallback)
-
-Use the bundled helper first. This one-line `curl` fallback covers only reads the helper lacks:
-`/api/health`, `/api/access-control/user/permissions`, `/api/folders` (bounded to 100 items, 100
-pages), `/api/plugins`, `/api/datasources/uid/<uid>/health`, and a single `/apis/` dashboard object.
-Every other path — including `/api/frontend/settings` and `/api/datasources` (which can expose
-datasource credentials) — is denied.
-
-Requires `GRAFANA_URL` and `GRAFANA_SA_TOKEN` already set in the environment (note: setting either
-makes the helper ignore `grafana.env`, so `GRAFANA_ORG_ID` must also be set). Replace only the path:
-
-```bash
-curl -q --silent --show-error --fail --max-time 20 --max-redirs 0 --proto =https --header "Authorization: Bearer $GRAFANA_SA_TOKEN" "$GRAFANA_URL/api/health"
-```
-
-```powershell
-curl.exe -q --silent --show-error --fail --max-time 20 --max-redirs 0 --proto =https --header "Authorization: Bearer $env:GRAFANA_SA_TOKEN" "$env:GRAFANA_URL/api/health"
-```

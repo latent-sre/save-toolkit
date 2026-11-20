@@ -47,9 +47,9 @@ retained artifacts. Neither reverses:
 - data or schema migrations, rows already written, or consumed sequence values;
 - messages, webhooks, files, or any other external effect a consumer already performed.
 
-Design schema changes as expand → backfill → dual-write, and do not contract until the old code is
-permanently gone. `database-reliability` owns operational migration safety; this is an ownership map,
-not permission to load it. "We can roll back" remains `[unverified]` until rehearsed evidence proves
+For a schema change, load `database-reliability` and apply its migration safety rules across
+both app versions and every writer during route overlap. Include the data cutover and recovery
+evidence in the PCF plan. "We can roll back" remains `[unverified]` until rehearsed evidence proves
 the exact artifact and target can be restored. During an incident, `incident-investigation` advises
 the responder on mitigation; ITO approves the change in the TLC.
 

@@ -59,7 +59,7 @@ class EvaluatorImplementationIdentityTests(unittest.TestCase):
     FILES = ("build_probe.py",
              *sorted(p.relative_to(ROOT / "evals").as_posix() for p in (ROOT / "evals" / "probe").rglob("*.py")),
              "graders.py", "judge.py", "clean_room.py", "itbench_submission.py",
-             "oracles/incident-closing-fields/probe_closing_fields.py",
+             "oracles/incident-closing-fields/probe_closing_fields.py", "oracles/obs-analysis/promql.py",
              "swebench_adapter/__init__.py", "swebench_adapter/windows_job.py")
 
     def test_new_process_identity_binds_every_local_evaluator_module(self) -> None:
@@ -87,6 +87,7 @@ class EvaluatorImplementationIdentityTests(unittest.TestCase):
                 "swebench_adapter/__init__.py": ("WP-08", "WP-08 bound"),
                 "oracles/incident-closing-fields/probe_closing_fields.py": (
                     '"board": {"impact"', '"board": {"changed"'),
+                "oracles/obs-analysis/promql.py": ('"eval_time": "10m"', '"eval_time": "11m"'),
             }
             for name, (old, new) in replacements.items():
                 with self.subTest(module=name):

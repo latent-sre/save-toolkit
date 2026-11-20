@@ -10,6 +10,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import graders as fleet_graders
+import judge
 from probe import catalog as probe_catalog
 from probe import checking as probe_checking
 from probe import invocation as probe_invocation
@@ -208,28 +209,18 @@ def run_oracle_check(check, document, text):
 
 
 class ToilInterviewQuestionTests(unittest.TestCase):
-    """The question-text case must credit real questions and reject self-report claims."""
-
-    SPEC = ROOT / "scenarios/agent-direct-reliability-engineer-toil-interview-questions.yaml"
-    GOOD = (
-        "What is cleaned up and what triggers it? How often does it happen, and is it growing? "
-        "How long does one run take, including being interrupted? Who does it today, and who "
-        "would maintain an alternative? Where does it need judgment? What could go wrong, and "
-        "is that reversible, and can it be undone? How often does it fail or bounce back for rework? Why does this "
-        "work exist? What must stay manual, and who decides?"
-    )
-
-    def grade(self, response):
-        spec = scenario_file(self.SPEC)
-        return [fleet_graders.run_grader(dict(g), response) for g in spec["graders"]]
-
-    def test_actual_questions_pass(self):
-        self.assertTrue(all(passed for passed, _ in self.grade(self.GOOD)))
-
-    def test_booleans_and_boilerplate_fail(self):
-        for response in ('{"asks_frequency_and_pattern": true}', "I would ask some questions first."):
-            with self.subTest(response=response):
-                self.assertFalse(all(passed for passed, _ in self.grade(response)))
+    def test_calibration_must_distinguish_direct_questions_from_declared_topics(self):
+        spec = scenario_file(ROOT / "scenarios/agent-direct-reliability-engineer-toil-interview-questions.yaml")
+        grader, = spec["graders"]
+        self.assertEqual({"type": "rubric", "name": "toil_intake_questions"}, grader)
+        self.assertEqual([], probe_catalog.validate_scenario(spec))
+        # These verdicts are required in a real judge receipt. No semantic verdict is
+        # simulated or treated as measured by this offline calibration-contract check.
+        corpus, _ = judge._current_calibration_contract()
+        expectations = {case["source"]: case["expect"] for case in corpus
+                        if case["rubric"] == grader["name"] and case.get("required")}
+        self.assertEqual("pass", expectations["toil intake: direct paraphrase"])
+        self.assertEqual("fail", expectations["toil intake: declares the interview"])
 
 
 class ReliabilityAuthorizationTests(unittest.TestCase):

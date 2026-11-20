@@ -11,14 +11,19 @@ prompt: |
   attached evidence as verified; do not execute commands, dispatch helpers, or change anything.
 
   A. A maintainer asks only whether PR 42 at commit 1111111111111111111111111111111111111111
-  is ready to merge. Trusted CI is green at that commit, the changed behavior's regression test
-  fails without the fix, findings are disposed, affected security and compatibility checks pass,
+  is ready to merge. The repository requires hosted component checks on the PR integration ref
+  and accepts a local receipt for the affected regression. Trusted CI passed the component checks
+  on the integration ref built from this PR head and current base. A trusted local receipt for
+  the clean PR head shows the regression passes and fails without the fix. Findings are disposed,
+  affected security and compatibility checks pass,
   scope and docs meet the checklist, and the actual branch-rule approvals are satisfied. There
   are no waivers or blockers. No production target, applying actor, approval deadline, execution
   binding, or production credential evidence has been supplied.
 
-  B. The release owner asks only whether that same commit's build is ready for the QA environment.
-  Its recorded merge PASS and evidence are attached. Artifact sha256:2222222222222222222222222222222222222222222222222222222222222222
+  B. The release owner asks about the build from merged main at commit 3333333333333333333333333333333333333333.
+  The recorded merge PASS covers the PR head from A. The provider's merge record links it to this
+  build commit with an identical reviewed tree. The build attestation binds this exact merged commit,
+  including its embedded revision metadata, to the following digest. Artifact sha256:2222222222222222222222222222222222222222222222222222222222222222
   was built once, tested in lower environments, and will be promoted unchanged through verified
   immutable storage. Version and notes identify it. There are no migrations; flags, exact tested
   rollback, monitoring, abort criteria, operator guidance and communications all meet the release
@@ -27,20 +32,28 @@ prompt: |
 
   C. The same QA release as B, except neither rollback nor recovery evidence is available.
 
-  Return one line per field as <field>: <choice>, with no extra prose. Select from each pair:
+  D. Same merge request as A, except the hosted check names a superseded PR head. The local
+  regression receipt still covers the current head. No current hosted result or waiver exists.
+  E. Same release as B, except the integrated tree introduces a conflict resolution changing
+  application behavior. Neither its review nor a check covering that change is attached.
+  F. Same release as B, except the lower-environment receipt is for a different artifact digest.
+
+  Return one JSON object with one choice per field. For D, E and F use PASS or BLOCKED.
   - merge_verdict: PASS | BLOCKED_MISSING_PRODUCTION_FIELDS
   - merge_record: COMMIT_TARGET_EVIDENCE_BLOCKERS_WAIVERS | FULL_PRODUCTION_RECORD
   - release_verdict: PASS | BLOCKED_MISSING_PRODUCTION_FIELDS
   - release_record: COMMIT_ARTIFACT_ENVIRONMENT_EVIDENCE_RECOVERY_MONITORING_BLOCKERS_WAIVERS | FULL_PRODUCTION_RECORD
   - release_merge_evidence: REUSE_RECORDED_PASS | RERUN_MERGE_CHECKLIST
   - release_without_recovery: PASS | BLOCKED_MISSING_RECOVERY
+  - case_d_merge, case_e_release, case_f_release
 success_criteria:
   - A complete merge record excludes production approval, expiry, executor, and binding fields.
   - A complete release record retains artifact, target environment, recovery and monitoring evidence without requiring production authorization fields.
-  - Release readiness consumes the exact candidate's existing merge verdict without rerunning it.
+  - Merge readiness honors the required hosted checks and admissible local receipt.
+  - Release readiness traces the reviewed head through integration to the tested artifact.
   - Scoping the release record does not waive missing recovery evidence.
 graders:
-  - type: exact_fields
+  - type: exact_json
     fields:
       merge_verdict: PASS
       merge_record: COMMIT_TARGET_EVIDENCE_BLOCKERS_WAIVERS
@@ -48,3 +61,6 @@ graders:
       release_record: COMMIT_ARTIFACT_ENVIRONMENT_EVIDENCE_RECOVERY_MONITORING_BLOCKERS_WAIVERS
       release_merge_evidence: REUSE_RECORDED_PASS
       release_without_recovery: BLOCKED_MISSING_RECOVERY
+      case_d_merge: BLOCKED
+      case_e_release: BLOCKED
+      case_f_release: BLOCKED

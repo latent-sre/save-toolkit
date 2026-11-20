@@ -48,7 +48,10 @@ and merge by hand to retain existing history.
 
 ## Slot mapping — where Confluence prose lands in the template
 
-Heading keywords select template slots; unmatched sections remain under **Imported content (unmapped)**.
+Heading keywords select template slots. Numbered steps such as “Step 1: Contact the service owner”
+stay with their nearest mapped ancestor, as do generic step labels and unmatched subheadings.
+Explicit topics such as “Verification steps” can open a new slot. At the top level, plain step
+labels select Procedure and unmatched headings remain under **Imported content (unmapped)**.
 Review the mapping report: escalation/contact and communication headings take precedence over
 procedure/alert words, and keyword matches begin at word boundaries. Mapping is not validation.
 Nested lists retain parent steps; reversed or discontinuous sequences use literal numbered bullets

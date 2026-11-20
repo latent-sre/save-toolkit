@@ -43,8 +43,8 @@ SLOTS = (
 # ("fix" matches "Fix it", never "prefix"); first hit wins in this order. Escalation and
 # Communication come first because their headings often carry procedure or alert words ("Escalation
 # process", "Alert contacts"). Deliberately narrow: a wrong guess buries content in the wrong slot,
-# while a miss lands it — visibly — in "Imported content (unmapped)". Err toward the miss.
-SLOT_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
+# while headings without a matching ancestor can stay visibly unmapped.
+SLOT_KEYWORDS: tuple[tuple[str | None, tuple[str, ...]], ...] = (
     ("Escalation", ("escalat", "on-call", "on call", "paging", "contact", "support")),
     ("Communication", ("communicat", "notif", "stakeholder", "comms")),
     ("Trigger", ("when to use", "trigger", "symptom", "alert")),
@@ -52,7 +52,8 @@ SLOT_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("Triage / first checks", ("triage", "first check", "diagnos", "impact")),
     ("Rollback / cleanup", ("rollback", "roll back", "revert", "undo", "backout", "back out", "cleanup")),
     ("Verification", ("verif", "validat", "confirm")),
-    ("Procedure", ("step", "procedure", "resolution", "remediat", "instruction", "process", "fix")),
+    ("Procedure", ("procedure", "resolution", "remediat", "process", "fix")),
+    (None, ("step", "instruction")),  # Generic actions belong to the enclosing section.
     ("Purpose & scope", ("purpose", "overview", "scope", "about", "goal", "summary")),
     ("References", ("reference", "related", "see also", "links")),
 )
@@ -119,8 +120,15 @@ def _integer(value: str | None) -> int | None:
         return None
 
 
+@dataclass
+class _Section:
+    level: int
+    heading: str
+    blocks: list[tuple[str, str]] = field(default_factory=list)
+
+
 class _Extractor(HTMLParser):
-    """Flatten the export into (heading, blocks) sections.
+    """Collect source sections with their HTML heading levels.
 
     Blocks are ("text", str) paragraphs/list items or ("code", str) literal blocks. Content inside
     Confluence namespace elements (<ac:...>/<ri:...>) or unsupported media is suppressed and counted:
@@ -136,7 +144,7 @@ class _Extractor(HTMLParser):
         self.title = title or ""
         self._title_fixed = bool(title)
         self.title_source = "supplied" if title else None
-        self.sections: list[tuple[str, list[tuple[str, str]]]] = [("", [])]
+        self.sections = [_Section(0, "")]
         self.macro_count = 0
         self.image_count = 0
         self.media_count = 0
@@ -182,7 +190,7 @@ class _Extractor(HTMLParser):
 
     def _append_block(self, kind: str, text: str) -> None:
         blocks = (self._lists[-1].items[-1][1] if self._lists and self._lists[-1].items
-                  else self.sections[-1][1])
+                  else self.sections[-1].blocks)
         blocks.append((kind, text))
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
@@ -276,8 +284,10 @@ class _Extractor(HTMLParser):
             if tag == "h1" and heading and not self.title:
                 self.title = heading
                 self.title_source = "first heading"
-            elif heading and heading != self.title:
-                self.sections.append((heading, []))
+            if heading:
+                # A page-title h1 starts a fresh outline. Its own prose is introductory.
+                label = "" if tag == "h1" and heading == self.title else heading
+                self.sections.append(_Section(int(tag[1]), label))
         elif tag == "pre" and self._pre is not None:
             code = "".join(self._pre).strip("\n")
             self._pre = None
@@ -333,9 +343,14 @@ def parse_owner(value: str) -> str:
     return value
 
 
-def map_slot(heading: str) -> str | None:
+def map_slot(heading: str, parent_slot: str | None = None) -> str | None:
     lowered = heading.lower()
-    return next((slot for slot, pattern in _SLOT_PATTERNS if pattern.search(lowered)), None)
+    if parent_slot and re.match(r"step\s+#?\d+\b", lowered):
+        return parent_slot
+    for slot, pattern in _SLOT_PATTERNS:
+        if pattern.search(lowered):
+            return slot or parent_slot or "Procedure"
+    return parent_slot
 
 
 @dataclass
@@ -385,7 +400,7 @@ def render_blocks(blocks: list[tuple[str, str]]) -> list[str]:
     return lines
 
 
-def _map_sections(sections: list[tuple[str, list[tuple[str, str]]]]):
+def _map_sections(sections: list[_Section]):
     """Place each non-empty source section in its template slot, or keep it under its own heading.
 
     Returns (mapped slot -> lines, unmapped lines, one report line per placement).
@@ -393,11 +408,19 @@ def _map_sections(sections: list[tuple[str, list[tuple[str, str]]]]):
     mapped: dict[str, list[str]] = {}
     unmapped: list[str] = []
     placements: list[str] = []
-    for heading, blocks in sections:
-        if not blocks:
+    ancestors: list[tuple[int, str | None]] = []
+    for section in sections:
+        while ancestors and ancestors[-1][0] >= section.level:
+            ancestors.pop()
+        heading = section.heading
+        if heading:
+            slot = map_slot(heading, ancestors[-1][1] if ancestors else None)
+            ancestors.append((section.level, slot))
+        else:
+            slot = "Purpose & scope"
+        if not section.blocks:
             continue
-        slot = map_slot(heading) if heading else "Purpose & scope"
-        body = render_blocks(blocks)
+        body = render_blocks(section.blocks)
         if slot:
             note = f"*(from source section: “{heading}”)*" if heading else ""
             mapped.setdefault(slot, []).extend(([note, ""] if note else []) + body)

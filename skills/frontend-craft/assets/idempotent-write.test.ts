@@ -3,14 +3,14 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { IDEMPOTENCY_HEADER, isInFlight, newIntentKey, sendIdempotent } from "./idempotent-write.ts";
 
-type Call = { url: string; key: string | null; body: string | null };
+type Call = { request: Request; bytes: ArrayBuffer | null };
 
 function server(...responses: Array<() => Response>) {
   const calls: Call[] = [];
   const waits: number[] = [];
   const fetch = async (input: string | URL | Request, init?: RequestInit) => {
     const request = new Request(input instanceof Request ? input : new URL(input, "https://api.example.test"), init);
-    calls.push({ url: request.url, key: request.headers.get(IDEMPOTENCY_HEADER), body: request.body === null ? null : await request.text() });
+    calls.push({ request, bytes: request.body === null ? null : await request.arrayBuffer() });
     const next = responses.shift();
     if (!next) throw new Error("no more responses");
     return next();
@@ -33,7 +33,7 @@ test("the key travels as Idempotency-Key and a success returns after one send", 
   const s = server(ok);
   const response = await sendIdempotent("/v1/orders", { method: "POST", body: "{}" }, "key-1", s);
   assert.equal(response.status, 201);
-  assert.deepEqual(s.calls.map((c) => c.key), ["key-1"]);
+  assert.deepEqual(s.calls.map((c) => c.request.headers.get(IDEMPOTENCY_HEADER)), ["key-1"]);
   assert.equal(s.waits.length, 0);
 });
 
@@ -41,9 +41,74 @@ test("an in-flight 409 waits Retry-After and re-sends the same request under the
   const s = server(inFlight("2"), inFlight("1"), ok);
   const response = await sendIdempotent("/v1/orders", { method: "POST", body: '{"qty":5}' }, "key-2", s);
   assert.equal(response.status, 201);
-  assert.deepEqual(s.calls.map((c) => c.key), ["key-2", "key-2", "key-2"]);
-  assert.deepEqual(s.calls.map((c) => c.body), ['{"qty":5}', '{"qty":5}', '{"qty":5}']);
+  assert.deepEqual(s.calls.map((c) => c.request.headers.get(IDEMPOTENCY_HEADER)), ["key-2", "key-2", "key-2"]);
+  assert.deepEqual(s.calls.map((c) => new TextDecoder().decode(c.bytes!)), ['{"qty":5}', '{"qty":5}', '{"qty":5}']);
   assert.deepEqual(s.waits, [2000, 1000]);
+});
+
+test("editing the destination, headers and URL parameters cannot redirect or alter a replay", async () => {
+  const s = server(inFlight("0"), ok);
+  const url = new URL("https://api.example.test/orders");
+  const headers = new Headers({ "if-match": "v1" });
+  const params = new URLSearchParams({ item: "red & blue" });
+  const init = { method: "POST", headers, body: params };
+  await sendIdempotent(url, init, "original", {
+    fetch: s.fetch,
+    sleep: async () => {
+      url.pathname = "/refunds";
+      headers.set("if-match", "v2");
+      params.set("item", "edited");
+      init.method = "PUT";
+    },
+  });
+  assert.equal(s.calls.length, 2);
+  for (const { request, bytes } of s.calls) {
+    assert.equal(request.url, "https://api.example.test/orders");
+    assert.equal(request.method, "POST");
+    assert.equal(request.headers.get("if-match"), "v1");
+    assert.equal(request.headers.get(IDEMPOTENCY_HEADER), "original");
+    assert.equal(request.headers.get("content-type"), "application/x-www-form-urlencoded;charset=UTF-8");
+    assert.equal(new TextDecoder().decode(bytes!), "item=red+%26+blue");
+  }
+});
+
+test("binary replays preserve the original bytes, view offsets and caller-specified media type", async () => {
+  for (const kind of ["ArrayBuffer", "Uint8Array", "DataView"]) {
+    const s = server(inFlight("0"), ok);
+    const data = new Uint8Array([10, 255, 0, 254]);
+    const body = kind === "ArrayBuffer" ? data.buffer :
+      kind === "Uint8Array" ? data.subarray(1, 3) : new DataView(data.buffer, 1, 2);
+    const type = kind === "ArrayBuffer" ? null : "application/example";
+    await sendIdempotent("/upload", { method: "POST", headers: type ? { "content-type": type } : {}, body }, "binary", {
+      fetch: s.fetch, sleep: async () => { data.fill(99); },
+    });
+    assert.equal(s.calls.length, 2);
+    for (const { request, bytes } of s.calls) {
+      assert.equal(request.headers.get("content-type"), type, kind);
+      assert.deepEqual([...new Uint8Array(bytes!)], kind === "ArrayBuffer" ? [10, 255, 0, 254] : [255, 0], kind);
+    }
+  }
+});
+
+test("multipart replays preserve the encoded bytes and the matching boundary", async () => {
+  const s = server(inFlight("0"), ok);
+  const form = new FormData();
+  form.append("item", "original");
+  form.append("attachment", new Blob([new Uint8Array([0, 255])]), "receipt.bin");
+  await sendIdempotent("/upload", { method: "POST", body: form }, "multipart", {
+    fetch: s.fetch, sleep: async () => { form.set("item", "edited"); form.delete("attachment"); },
+  });
+  assert.equal(s.calls.length, 2);
+  const [first, replay] = s.calls;
+  const type = first.request.headers.get("content-type");
+  assert.match(type ?? "", /^multipart\/form-data;\s*boundary=.+/i);
+  assert.equal(replay.request.headers.get("content-type"), type);
+  assert.deepEqual(replay.bytes, first.bytes);
+  const decoded = await new Response(replay.bytes, { headers: replay.request.headers }).formData();
+  assert.equal(decoded.get("item"), "original");
+  const file = decoded.get("attachment") as File;
+  assert.equal(file.name, "receipt.bin");
+  assert.deepEqual([...new Uint8Array(await file.arrayBuffer())], [0, 255]);
 });
 
 test("a stream body is refused before any send or wait", async () => {
@@ -68,6 +133,32 @@ test("a stream body is refused before any send or wait", async () => {
   assert.equal(body.locked, false);
   assert.ok(error instanceof TypeError);
   assert.match(error.message, /replayable|stream/i);
+});
+
+test("aborting a multipart upload during encoding rejects before its first send", async () => {
+  const controller = new AbortController();
+  const started = Promise.withResolvers<void>();
+  let finishedReading = false;
+  const file = new File(["receipt"], "receipt.txt");
+  file.stream = () => {
+    started.resolve();
+    return new ReadableStream({ start(source) {
+      setImmediate(() => {
+        finishedReading = true;
+        if (source.desiredSize !== 0) source.close();
+      });
+    } });
+  };
+  const form = new FormData();
+  form.set("attachment", file);
+  const s = server(ok);
+  const sending = sendIdempotent("/upload", { method: "POST", body: form, signal: controller.signal }, "upload", s);
+  await started.promise;
+  const reason = new Error("left during upload");
+  controller.abort(reason);
+  await assert.rejects(sending, (error: unknown) => error === reason);
+  assert.equal(finishedReading, false, "cancellation must settle before the pending attachment read");
+  assert.equal(s.calls.length, 0);
 });
 
 test("a Retry-After beyond the wait budget returns the pending response without another send", async () => {

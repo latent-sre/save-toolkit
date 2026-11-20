@@ -6,19 +6,22 @@ tools: [Skill, Read]
 references:
   - skills/obs-analysis/references/gcp-logging.md
 prompt: |
-  Read the Cloud Logging reference. Answer with short labelled lines only, no
-  explanation; do not run queries or edit files. A: how long does the _Required log
-  bucket retain entries, and how long do _Default buckets retain them by default?
-  B: what is the entries.list quota per project, and can it be raised? C: a log entry
-  is absent; name two configuration reasons that prove nothing about the service.
+  Read the Cloud Logging reference. Return one JSON object only. Do not run queries or edit files.
+  Give the _Required and project _Default bucket default retention in days as integer fields
+  required_retention_days and default_retention_days. Give the entries.list read quota as the integer
+  calls_per_minute_per_project and whether it can be raised as the boolean quota_increasable.
+  A reader cannot find an entry in the expected bucket. Identify a routing configuration that can
+  exclude a generated entry (routing_reason) and a setting that can prevent a non-BigQuery Data
+  Access audit entry from being generated (generation_reason). Use the applicable string codes
+  from sink_includes_entry, data_access_disabled, data_access_enabled and sink_exclusion.
 success_criteria:
-  - States the retention asymmetry, the fixed read quota, and silent sink or exclusion behaviour.
+  - Assigns the correct retention to each bucket, gives the fixed per-project read quota, and identifies both routing and audit-generation causes of absence.
 graders:
-  - type: regex
-    pattern: '400 days'
-  - type: regex
-    pattern: '30 days'
-  - type: regex
-    pattern: '60'
-  - type: regex
-    pattern: '(?i)exclusion|sink'
+  - type: exact_json
+    fields:
+      required_retention_days: 400
+      default_retention_days: 30
+      calls_per_minute_per_project: 60
+      quota_increasable: false
+      routing_reason: sink_exclusion
+      generation_reason: data_access_disabled
