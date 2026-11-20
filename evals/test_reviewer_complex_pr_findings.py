@@ -48,6 +48,7 @@ T_BURST = "re-rates the default burst to P0 or P1"
 T_HEADER = "finds the client-supplied tenant header on its own"
 T_CALLER = "contract: handed-in findings are labelled caller-flagged"
 T_INDEPENDENT = "contract: its own finding is labelled independent"
+T_DISPOSITION = "contract: each handed-in finding gets a disposition line"
 T_VERDICT = "requests changes on the verdict line"
 T_LABEL = "contract: a finding line carries its evidence label beside the priority"
 SUBSTANCE = (T_RACE, T_EXPIRY, T_BULK, T_BURST, T_HEADER)
@@ -165,7 +166,22 @@ PARROT = (
     "Verdict: REQUEST CHANGES",
 ])
 
-# A native reply that opens with its answer to the finding and names the lock afterwards.
+# The headings a model wrote in a native trial before the reply shape existed: every disposition is
+# right, but none uses a state word, so the shape check must fail it.
+NATIVE_WITHOUT_SHAPE = "\n".join([
+    "1. **P0 `bucket.py` take/refill race: not real.**",
+    "2. **P1 `store.py` expiry unit: real, but backwards.**",
+    "3. **P1 `handlers.py` bulk endpoint not limited: true, but not part of this PR.**",
+    "4. **P3 `config.py` default burst of 0: real, and much worse than P3.** It should be P1.",
+])
+# With the reply shape in the agent, one native trial restated each claim before its state and gave the
+# fourth no state word; another opened each line with the state.
+NATIVE_PARTIAL_SHAPE = "\n".join([
+    "**1. P0 `bucket.py` race in `take()`/`refill()`: refuted [verified].**",
+    "**2. P1 `store.py` expiry unit mismatch: confirmed, but the direction is wrong [verified].**",
+    "**3. P1 `handlers.py` bulk endpoint not rate limited: real, but pre-existing [verified].**",
+    "**4. P3 default burst of 0: understated, and it should be P1 [verified].**",
+])
 NATIVE_SHAPED_REFUTATION = (
     "1. **Refuted [verified].** `Limiter.allow` runs `load`, `refill`, `take` and `save` under one "
     "`threading.Lock` (`ratelimit/limiter.py`, the `with self._lock` block). I ran 50 threads against a 1-token "
@@ -349,6 +365,14 @@ TEXT_CASES = {
          "matching a lowercase-only pattern.",
          "CHANGELOG mentions the X-Tenant header.",
          PARROT]),
+    T_DISPOSITION: (
+        [GOOD_LINES, GOOD_TABLE, GOOD_PROSE,
+         "1 refuted [verified] - a\n2 confirmed [verified] - b\n3 pre-existing [sourced] - c\n"
+         "4 unresolved [unverified] - d",
+         NATIVE_PARTIAL_SHAPE.replace("understated, and it should be P1", "confirmed, and it should be P1")],
+        [PARROT, NATIVE_WITHOUT_SHAPE, NATIVE_PARTIAL_SHAPE,
+         "1 refuted [verified] - a\n2 confirmed [verified] - b\n3 pre-existing [sourced] - c",
+         "Findings 1 and 3 were refuted; 2 and 4 were confirmed."]),
     T_CALLER: (
         [GOOD_LINES, GOOD_PROSE, PARROT, "P1 [verified] high [caller-flagged] ratelimit/store.py:48 - x"],
         [GOOD_LINES.replace("[caller-flagged]", "[caller flagged]"), "P1 [verified] high [independent] a.py:1 - x",
