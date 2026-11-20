@@ -20,6 +20,7 @@
     "build-scribe-postmortem-unknown-metadata",
     "build-scribe-writes-only-docs",
     "discovery-active-alert-stays-with-advisor",
+    "discovery-incident-investigation-defers-owner-card-lookup",
     "discovery-operational-learning-defers-fleet-failure",
     "discovery-operational-learning-defers-retrospective",
     "discovery-operational-learning-owner-lookup",

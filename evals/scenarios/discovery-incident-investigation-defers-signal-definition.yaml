@@ -1,0 +1,13 @@
+id: discovery-incident-investigation-defers-signal-definition
+max_turns: 8
+split: regression
+tools: [Skill, Read]
+prompt: |
+  I saw a p99 latency line on yesterday's checkout dashboard. Nothing is broken right now.
+  What does p99 latency mean, and what does it tell me about an individual request?
+success_criteria:
+  - Uses signal analysis to explain p99 and the limit of what it tells us about any one request.
+target: {kind: skill, name: incident-investigation}
+routing:
+  expect: not_fire
+  expected_alternative: {kind: skill, name: obs-analysis}

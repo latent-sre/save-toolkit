@@ -43,6 +43,8 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
   Overview page and to Observability > Logs, complete the Gorouter error table, replace the
   end-of-support TAS 2.12 citation, use the current product name, and record what a revision and a
   deployment's sizing options cover.
+- **Incident investigation:** Use the advisor for decisions. Route standalone telemetry explanations
+  and owner or pager lookups to their existing bounded workflows.
 - **grafana, obs-analysis, obs-pipeline, obs-alerting:** Correct Grafana 13.3, Tempo, Mimir, Alloy,
   OpenTelemetry, Splunk and Moogsoft facts against current releases and source.
 - **stack-profile:** Record Grafana 13.3.x, matching the `grafana` references' 13.3 API shapes.

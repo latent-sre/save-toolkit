@@ -1,10 +1,12 @@
 ---
 name: obs-analysis
 description: >-
-  Query and interpret logs, metrics, and traces: signal meaning, request correlation, and bounded
-  comparisons. Triggers: 'search the logs', 'write a metric query', 'trace this request',
-  'explain this telemetry'. Live incident decisions use incident-investigation; alert/SLO design
-  uses obs-alerting, Grafana operations use grafana, and instrumentation/export uses obs-pipeline.
+  Explain or query logs, metrics, and traces, including standalone signal definitions, request
+  correlation, and bounded comparisons. Triggers: 'search the logs', 'write a metric query',
+  'trace this request', 'explain this telemetry'. Use incident-investigation to advise a responder
+  on causes, the next diagnostic check, mitigation, or recovery, including in drills or past
+  incidents. Alert/SLO design uses obs-alerting, Grafana operations use grafana, and
+  instrumentation/export uses obs-pipeline.
 argument-hint: "[service, signal, query, or evidence]"
 ---
 
@@ -12,7 +14,8 @@ argument-hint: "[service, signal, query, or evidence]"
 
 Read the applicable signal method for queries or interpretation; read backend references when
 writing queries or interpreting backend-specific fields. Load only what the question needs.
-Supplied-evidence explanations need no new retrieval, baseline, or full investigation.
+Answer standalone signal questions directly. Supplied-evidence explanations need no new retrieval,
+baseline, or full investigation.
 
 | Need | References |
 |---|---|
