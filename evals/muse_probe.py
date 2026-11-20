@@ -470,7 +470,7 @@ def grade_routing(spec: dict[str, Any], trace: MuseTrace, raw: str) -> list[dict
             return [_expectation("routing", State.PASS, f"target {name!r} not credited in a completed trace")]
         alternatives = alternative if isinstance(alternative, list) else [alternative]
         for item in alternatives:
-            if item in {"inline", "main_session"} and trace.result_text.strip():
+            if item in ("inline", "main_session") and trace.result_text.strip():
                 return [_expectation("routing", State.PASS, "target stayed out; inline/main-session answer present")]
             if isinstance(item, dict) and item.get("name") in trace.skills_loaded | trace.dispatch_targets:
                 return [_expectation("routing", State.PASS, f"alternative {item.get('name')!r} fired instead")]

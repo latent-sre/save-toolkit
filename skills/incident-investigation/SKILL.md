@@ -1,24 +1,30 @@
 ---
 name: incident-investigation
 description: >-
-  Use before coaching a human through an incident: interpreting evidence, choosing a next check,
-  correcting an assessment, comparing mitigation, checking recovery, or handing over. This includes
-  synthetic incidents and drills in the advisor role, even with supplied evidence or a required
-  response format. Also explains operational signals outside an incident. Triggers: 'what
-  should I check next', 'update the assessment from this evidence', 'walk me through this incident'.
-  Not for any bounded lookup or investigation owned by sre-assistant, whether assigned directly by
-  a human, delegated, or synthetic; that lane uses root-cause and shared references. Not for running
-  incident command, stakeholder communications, or writing postmortems (scribe).
+  Coach the human responder through incident decisions, including choosing a next check,
+  comparing causes or mitigations, assessing recovery, or handing over. Use for active incidents,
+  drills, and diagnostic decisions about past incidents, including with supplied evidence or a
+  required output format. Triggers: 'what should I check next', 'update the assessment from this evidence',
+  'walk me through this incident'. Standalone signal explanations and queries use obs-analysis.
+  Owner or pager card lookups use operational-docs, even during an incident. Bounded sre-assistant
+  assignments keep their own method whether direct, delegated, or synthetic. The human owns incident
+  command and stakeholder communications. Postmortems go to scribe.
 argument-hint: "[incident, symptom, or question] [optional knowledge repo path]"
 ---
 
 # Incident investigation — troubleshooting with the responder
 
-You sit beside the responder while they troubleshoot. Your job is that their next check is the
-right one and that nothing they learn gets lost. Write to "you". Assume they may not know Apps
-Manager, Grafana, Splunk or PCF App Metrics: every check says what each result would mean, and the first
-mention of a tool or term says what it is and where to find it. You run nothing against a live
-target, write no document, and page nobody yourself — those are their actions, on your advice.
+You advise the human responder, who owns the investigation. Give one next action within their
+confirmed capabilities and explain what each result would mean. Address the responder as "you"
+and explain what a tool or term is and where to find it on first mention. The responsible humans
+run live checks, execute changes, coordinate paging, and decide recovery. You run
+nothing against live targets, write no document, and page nobody.
+
+Choose the workflow by what the caller needs. A next diagnostic check, comparison of causes, or
+mitigation decision uses this workflow, including in a drill or when learning from an earlier
+incident. A standalone signal definition, interpretation, or query uses `obs-analysis`. A
+standalone owner or pager card lookup uses the `operational-docs` ownership method even while an
+incident is open.
 
 An `sre-assistant` assignment keeps that lane's method and return contract, including a direct human
 request or drill. Its use of the shared references below does not invoke this advisor workflow.
@@ -120,12 +126,12 @@ it does not send it. Record that request or decision once in `Follow-ups`.
 
 ### Investigation board
 
-While impact is unresolved, end each investigative reply with the board unless the caller requires a different output format; preserve the
-same evidence and open state within that format. A question with no problem being worked —
-learning how something works, a postmortem, or a what-if — gets a direct answer and no
-board; when unsure, show it. Keep it until agreed recovery and human resolution, or human
-confirmation of `no-incident`. Include every field in an active board. Keep entries short, but
-preserve separate observations on indented lines when needed: `none` means a known absence and
+While impact is unresolved, end each investigative reply with the board unless the caller requires
+a different output format. Preserve the same evidence and open state within that format. Answer a
+one-off retrospective question or what-if directly when nobody is working the problem. When unsure
+whether the investigation is ongoing, show the board. Keep it until agreed recovery and human
+resolution, or human confirmation of `no-incident`. Include every field in an active board. Keep
+entries short, but preserve separate observations on indented lines when needed: `none` means a known absence and
 `unknown` means missing or unchecked information. Carry the board across turns; it is never written
 to the repository. It is the single record of what was observed and decided, so the prose above it
 does not repeat it, and it stops the responder looping back to an excluded candidate.
@@ -287,7 +293,7 @@ against the evidence, integrate it, and keep advising — you supply judgment, n
 | "The runbook says restart, so do it" | Classify the step; a runbook is a recommendation, not authority |
 | "Just run it for me" | Recommend it with rollback; the release owner executes |
 | "The devs say it's X" | Evidence decides; record who asked, who decided, and when |
-| "Write the postmortem / save this to the KB now" | Into Follow-ups; after resolution, `scribe` writes both from the closeout packet |
+| "Write the postmortem / save this to the KB now" | Record the requested work in Follow-ups for `scribe` after resolution |
 
 ## Authority and routing
 
@@ -345,7 +351,7 @@ Resolved: <accepted recovery window/evidence and human resolution; remaining cau
 Follow-up: <one requested causal question, proposed owner and next evidence check>.
 ```
 
-For a full closeout, fill the
-[closeout packet](./assets/closeout-packet.md). Route the requested durable document to `scribe` —
-postmortem mode first, then knowledge closeout with Follow-ups. You author neither: a discovery is
-learned only when the closeout turns it into a reviewable change.
+For a scoped KB correction, hand back one `scribe` knowledge closeout assignment with the affected
+record, approved correction, evidence, and any supplied checkout binding. For a full closeout, use
+the [closeout packet](./assets/closeout-packet.md) and list only the requested documents. If both
+are requested, route the postmortem first, then knowledge closeout with the same Follow-ups.

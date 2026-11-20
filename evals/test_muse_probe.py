@@ -188,6 +188,22 @@ class GradingTests(unittest.TestCase):
             event("run.terminal.completed", {"terminal": "completed", "text": "an inline answer"}))
         self.assertEqual(State.INCONCLUSIVE, muse_probe.grade_routing(spec, trace, "")[0]["state"])
 
+    def test_negative_routing_accepts_named_alternatives_from_the_catalog(self):
+        target = {"kind": "skill", "name": "incident-investigation"}
+        analysis = {"kind": "skill", "name": "obs-analysis"}
+        knowledge = {"kind": "skill", "name": "operational-docs"}
+        investigator = {"kind": "agent", "name": "repository-investigator"}
+        for declared, trace in (
+            (analysis, muse_probe.MuseTrace(completed=True, skills_loaded={"obs-analysis"})),
+            ([knowledge, investigator],
+             muse_probe.MuseTrace(completed=True, dispatch_targets={"repository-investigator"})),
+        ):
+            with self.subTest(declared=declared):
+                spec = {"target": target, "routing": {"expect": "not_fire", "expected_alternative": declared}}
+                self.assertEqual(State.PASS, muse_probe.grade_routing(spec, trace, "")[0]["state"])
+                trace.skills_loaded.add("incident-investigation")
+                self.assertEqual(State.FAIL, muse_probe.grade_routing(spec, trace, "")[0]["state"])
+
     def test_muse_tool_names_are_mapped_for_count_checks(self):
         trace = muse_probe.parse_muse_trace("\n".join([
             event("tool.result", {"correlation_facts": {"tool_name": "write_file", "outcome": "success"}}),
