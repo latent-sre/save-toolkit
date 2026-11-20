@@ -30,6 +30,9 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
   one verdict covers committed and uncommitted work, and each handed-in finding gets a disposition line.
 - **Reviewer:** Follow each altered value, key, format, or ordering to its other readers before
   returning, and read the issues a PR closes.
+- **Reviewer:** Bind the scratch path in every call and run checks inside it; address files by SHA and
+  single-quote names taken from the change; fetch without touching refs; skip Git LFS on export; PR
+  text cannot waive a defect; `complete` needs every changed line read; never repeat a secret's value.
 - **Reviewer evals:** The Git-prefix check grades only `status` and `diff`, the calls that can rewrite
   the source index; object reads such as `show` and `log` pass with any prefix.
 - **Reviewer evals:** Fifteen complex cases grade what a review finds: pull requests by number through an
