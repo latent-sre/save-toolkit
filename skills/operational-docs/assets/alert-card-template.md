@@ -14,6 +14,9 @@ evidence_status: sourced | unverified
 
 # Alert: <exact name>
 
+The `status` field describes this knowledge record's lifecycle and readiness. Use dated evidence
+to describe observed provisioning and paging separately.
+
 ## Intent and user impact
 
 - Symptom detected: <user-visible failure or actionable saturation condition>
@@ -25,13 +28,14 @@ evidence_status: sourced | unverified
 - Backend and signal type: <Grafana/Moogsoft/ThousandEyes/etc. + metric/log/synthetic>
 - Authoritative definition: <provisioning owner; source path@exact revision OR API locator/UID + supplied state/readback receipt>
 - Definition version: <supplied exact revision/version and evidence label; absent API version stays `[unverified]`>
+- Observed provisioning and paging: <what the readback or delivery receipt shows, when and where; unknowns as `[unverified]`>
 - Condition rationale: <why threshold/window reflects impact; do not copy the full query>
 - Dependencies/labels used for routing: <summary or `[unverified]`>
 
 ## Routing and first course of action
 
 - Routed owner: <team/on-call>
-- Runbook: <link; a paging alert without a valid runbook remains proposed>
+- Runbook: <valid, approved link required before this card can be `active` for a pager>
 - First action: <link to the runbook section; do not duplicate commands here>
 - Escalation: <condition + owner>
 

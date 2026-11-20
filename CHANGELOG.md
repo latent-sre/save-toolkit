@@ -19,6 +19,8 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
   contradictory decisions from answers that satisfy the task.
 - Merge and release checks follow repository policy and trace reviewed changes to the tested artifact.
 - Frontend retries preserve the original request, and runbook imports keep nested rollback steps under recovery.
+- **Operational docs:** Record documentation status independently of observed alert behavior. Keep
+  scoped knowledge corrections focused on the requested change.
 - Database and PCF migration plans cover concurrent writers, replay and cutover reconciliation.
 - **Contributor guide:** Correct handoff and dependency guidance and shorten the CI, eval catalog,
   Copilot projection, and guard sections.

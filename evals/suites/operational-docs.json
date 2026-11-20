@@ -15,6 +15,7 @@
     "agent-direct-scribe-command-evidence",
     "agent-direct-scribe-contradictory-record",
     "build-scribe-alert-definition-closeout",
+    "build-scribe-alert-lifecycle-closeout",
     "build-scribe-knowledge-closeout",
     "build-scribe-postmortem-evidence",
     "build-scribe-postmortem-unknown-metadata",
@@ -25,7 +26,8 @@
     "discovery-operational-learning-owner-lookup",
     "discovery-postmortem-write-for-incident",
     "discovery-runbook-incident-update",
-    "discovery-scribe-defers-live-incident"
+    "discovery-scribe-defers-live-incident",
+    "incident-closeout-pager-correction"
   ],
   "campaigns": [],
   "guides": [

@@ -19,12 +19,12 @@ export does not become authoritative merely because it is committed.
 
 ## Alerts
 
-| Exact alert name | Status | Service | Page/ticket | Alert card | Runbook | Definition |
+| Exact alert name | Documentation status | Service | Page/ticket | Alert card | Runbook | Definition |
 |---|---|---|---|---|---|---|
 |  |  |  |  |  |  |  |
 
-Set `Status` for every alert row. Keep it aligned with the linked alert card (`active`, `retired`,
-or the repository's equivalent lifecycle state).
+Keep each row's documentation status aligned with the alert card. Use the existing column if it is
+named `Status`. Record any divergence from observed provisioning or paging in Open knowledge gaps.
 
 ## Open knowledge gaps
 

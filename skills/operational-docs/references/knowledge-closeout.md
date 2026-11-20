@@ -48,13 +48,13 @@ a reviewable repository change or a tracked, owned handoff. Use the
 | Observed event | Required disposition |
 |---|---|
 | A component is approved or materially changes | Create or update its card and knowledge index, disposition its runbook, and propose missing alert, runbook, ownership, dependency, recovery or SLO work. |
-| A component is decommissioned | Set its card's `lifecycle` and index lifecycle to `retired`, with date and authorizing record in `Lifecycle since / record`. Set dependent alert cards to `status: retired`, their knowledge-index `Status` cells to `retired`, and runbooks to `status: retired`; do not delete them. Name remaining artifact/component references. Live-resource removal remains a separately gated production change. |
+| A component is decommissioned | Set its card and index lifecycle to `retired`, with date and authorization in `Lifecycle since / record`. Inventory remaining consumers. For alert cards and runbooks used only by the retired component, set `status: retired`, carry the alert status to its index row, and retain the records. Keep shared records and their surviving references usable. If usage is unclear, leave retirement of those records open with an owner and a check. Live-resource removal remains a separately gated production change. |
 | An audit finds an operational gap on an otherwise unchanged component | Disposition affected cards, index and runbook; assign missing work. Put the dated verdict in the card's open gaps and index's recent updates. The document is at most `[sourced]` to the audit; never advance `last_verified`. |
 | Only documentation is wrong | Correct the owning artifact and affected links from dated evidence; preserve `last_verified`, without unrelated card/index changes or operational work. |
-| An alert is approved or materially changes | Create or update its card and the alert's knowledge-index row, including its `Status` cell; link the service card and authoritative definition, and disposition the service card and runbook. Paging requires a valid, approved runbook target; without one the alert remains `proposed`. An alert card never substitutes for the runbook or copies its commands. |
-| An alert fires or an incident is active | Return to the human responder with `incident-investigation`; `sre-assistant` takes only a dispatched read. Dispositions stay `proposed` or `blocked`, with no retrospective or KB preparation before resolution. |
+| An alert is approved or materially changes | Create or update its card and index row, including the documentation status. Link the service card and authoritative definition, and disposition the service card and runbook. A paging alert needs a valid, approved runbook to become `active` in the KB. Use `proposed` for a pager that lacks this prerequisite, even if it already pages. Keep procedures in the runbook. |
+| An alert needs active incident response or the incident is still active | Return the closeout to the human responder with `incident-investigation`. Authorized operational reads follow that incident's routing and authority. Closeout dispositions stay `proposed` or `blocked` until resolution. |
 | A runbook is missing or contradicted, including a failed drill | Use `scribe` with the [runbook method](./runbook.md) and supplied evidence; unsupported commands remain `[unverified]`. A drill exposing a bad step cannot verify the repaired version. |
-| A resolved incident reveals a systemic lesson | Assign a missing postmortem separately with an owner; continue authorized knowledge closeout and its follow-ups. |
+| A resolved incident reveals a systemic lesson | Continue the requested knowledge closeout and reuse its Follow-ups. Give a requested postmortem its own assignment and owner. |
 | A fleet prompt, agent or skill has an accepted behavioral failure | Send divergence, evidence and proposed named regression to `agent-authoring`; do not rewrite fleet definitions through operational content. |
 
 ## One-time disposition states
@@ -68,8 +68,11 @@ a reviewable repository change or a tracked, owned handoff. Use the
 A proposed/blocked disposition becomes repository state only when it lands. A bound prepared diff
 records it in **Open knowledge gaps** in the index, or the component card's open-gaps table if the
 index has none. Keep gap, artifact, status, owner, tracking link and evidence label, not the blocking
-excerpt. Whenever no such diff can be prepared, the handoff's `Follow-up:` supplies the caller's
-tracker reference or names who will file it.
+excerpt. For an alert with divergent or materially unknown backend state, use that same gap to
+record what the supplied evidence shows about provisioning, enablement, or page delivery, the
+source/receipt and observation time, what remains unknown, and the owner and next authorized check.
+Whenever no such diff can be prepared, the handoff's `Follow-up:` supplies the caller's tracker
+reference or names who will file it.
 
 ## Default paths when the repository has no convention
 
@@ -87,6 +90,10 @@ targets and paths outside caller-authorized documentation roots.
   An export is evidence/recovery material unless it owns provisioning. Cards summarize and link
   definitions rather than copying configuration. Definition identity does not replace KB checkout
   binding, human closeout approval or dirty-path controls, and grants scribe no live lookup.
+- Alert card `status` and the matching index column (`Documentation status` or existing `Status`)
+  describe the knowledge record's lifecycle and readiness. Report actual provisioning and paging
+  separately from supplied, target-specific readback or delivery evidence. Use the definition for
+  intended behavior and retain missing observations as unknown.
 - Prefer exact-target-revision evidence. For conflicts, state both claims, explain the disagreement,
   mark the affected claim `[unverified]` and assign a resolution owner.
 - Review and execution stamps follow the [shared evidence rules](../SKILL.md#evidence-and-authority).

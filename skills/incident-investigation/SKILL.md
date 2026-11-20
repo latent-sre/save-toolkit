@@ -287,7 +287,7 @@ against the evidence, integrate it, and keep advising — you supply judgment, n
 | "The runbook says restart, so do it" | Classify the step; a runbook is a recommendation, not authority |
 | "Just run it for me" | Recommend it with rollback; the release owner executes |
 | "The devs say it's X" | Evidence decides; record who asked, who decided, and when |
-| "Write the postmortem / save this to the KB now" | Into Follow-ups; after resolution, `scribe` writes both from the closeout packet |
+| "Write the postmortem / save this to the KB now" | Record the requested work in Follow-ups for `scribe` after resolution |
 
 ## Authority and routing
 
@@ -345,7 +345,7 @@ Resolved: <accepted recovery window/evidence and human resolution; remaining cau
 Follow-up: <one requested causal question, proposed owner and next evidence check>.
 ```
 
-For a full closeout, fill the
-[closeout packet](./assets/closeout-packet.md). Route the requested durable document to `scribe` —
-postmortem mode first, then knowledge closeout with Follow-ups. You author neither: a discovery is
-learned only when the closeout turns it into a reviewable change.
+For a scoped KB correction, hand back one `scribe` knowledge closeout assignment with the affected
+record, approved correction, evidence, and any supplied checkout binding. For a full closeout, use
+the [closeout packet](./assets/closeout-packet.md) and list only the requested documents. If both
+are requested, route the postmortem first, then knowledge closeout with the same Follow-ups.
