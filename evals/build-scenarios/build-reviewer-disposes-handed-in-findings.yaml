@@ -2436,6 +2436,9 @@ checks:
   pattern: '(?:(?:X-Tenant|identity\.py|tenant[_ ]header|forwarded\s+tenant)(?=[\s\S]{0,400}?(?:prefer\w*|overrid\w+|client[- ](?:supplied|controlled|provided|chosen)|any\s+(?:client|caller|user)|spoof\w*|forg\w+|impersonat\w+|precedence|(?:another|other|someone\s+else''?s?)\s+tenants?|escap\w+|instead\s+of\s+the\s+(?:authenticated\s+)?principal|ignor\w+\s+the\s+(?:authenticated\s+)?principal))|(?:prefer\w*|overrid\w+|client[- ](?:supplied|controlled|provided|chosen)|any\s+(?:client|caller|user)|spoof\w*|forg\w+|impersonat\w+|precedence|(?:another|other|someone\s+else''?s?)\s+tenants?|escap\w+|instead\s+of\s+the\s+(?:authenticated\s+)?principal|ignor\w+\s+the\s+(?:authenticated\s+)?principal)(?=[\s\S]{0,300}?X-Tenant))'
   text: finds the client-supplied tenant header on its own
 - check: text_regex
+  pattern: '\A(?=[\s\S]*?^\W*(?:finding\s*)?#?1\b[^\n]{0,160}?\b(?:confirmed|refuted|pre-?existing|unresolved)\b)(?=[\s\S]*?^\W*(?:finding\s*)?#?2\b[^\n]{0,160}?\b(?:confirmed|refuted|pre-?existing|unresolved)\b)(?=[\s\S]*?^\W*(?:finding\s*)?#?3\b[^\n]{0,160}?\b(?:confirmed|refuted|pre-?existing|unresolved)\b)(?=[\s\S]*?^\W*(?:finding\s*)?#?4\b[^\n]{0,160}?\b(?:confirmed|refuted|pre-?existing|unresolved)\b)'
+  text: 'contract: each handed-in finding gets a disposition line'
+- check: text_regex
   pattern: '\[caller-flagged\]'
   text: 'contract: handed-in findings are labelled caller-flagged'
 - check: text_regex

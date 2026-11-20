@@ -19,6 +19,10 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
   and add `-c diff.autoRefreshIndex=false` to its Git prefix so a working-tree diff leaves the index alone.
 - **Reviewer:** Read a PR's `gh` record before any run, even when its branch is already local; a
   cross-repository PR is a fork, whose code is never run or imported on the host.
+- **Reviewer:** Priority is rated by consequence and the findings set the verdict (a P2 does not block);
+  one verdict covers committed and uncommitted work, and each handed-in finding gets a disposition line.
+- **Reviewer:** Follow each altered value, key, format, or ordering to its other readers before
+  returning, and read the issues a PR closes.
 - **Reviewer evals:** The Git-prefix check grades only `status` and `diff`, the calls that can rewrite
   the source index; object reads such as `show` and `log` pass with any prefix.
 - **Reviewer evals:** Fifteen complex cases grade what a review finds: pull requests by number through an
