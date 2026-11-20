@@ -37,6 +37,8 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
 - **pcf-ops, grafana:** Trim always-loaded `pcf-ops` text by moving rollback revision evidence into its
   state-changing reference and folding the database tunnel tip into the `cf ssh` rule; reduce the
   `gcx` migration narrative to its rule.
+- **pcf-ops, grafana:** Second trim on merit: drop general practice, restated authority lists and
+  duplicated rules (Grafana prose about 5,760 to 5,310 words; `pcf-ops` about 2,970 to 2,660).
 
 ## [0.52.10] - 2026-11-19
 

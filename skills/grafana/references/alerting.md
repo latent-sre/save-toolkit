@@ -66,10 +66,10 @@ immediately before writing, and stop on drift.
    deadline, and owner (use a silence for temporary suppression). Resume can notify immediately.
 2. **Capture prior state** (existing rule, group, route; for create, prove UID absence and existing
    group, and name the recovery owner).
-3. **Prepare and validate.** Establish owner, severity, and `runbook_url` (required for paging);
-   never put secrets in rules, labels, annotations, or provider files. Convert dashboard variables
-   and macros to explicit alert-compatible expressions. Backtest on bounded healthy/bad windows
-   where available and show full diff, notification/route impact, and recovery.
+3. **Prepare and validate.** Convert dashboard variables and macros to explicit alert-compatible
+   expressions; `obs-alerting` owns paging fields such as owner and `runbook_url`. Backtest on
+   bounded healthy/bad windows where available and show full diff, notification/route impact, and
+   recovery.
 4. **Write once, read back, verify evaluation.** On `409` (rule provenance/lock/UID conflict) or
    `403` (notification provenance conflict), stop and re-read; do not retry. Read back into a fresh
    result to confirm fields, UID, folder/group, provenance, and pause state; wait one evaluation

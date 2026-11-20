@@ -7,20 +7,16 @@ Grafana Alertmanager.
 
 ## Prepare, apply, verify
 
-1. **Bind scope:** instance/org, Alertmanager, service/environment or rule UID, exact matchers,
-   explicit UTC `startsAt`/`endsAt` (resolve durations to absolute UTC right before writing), human
-   owner, and reason/change reference. Never infer creator from the service-account name. Missing
-   expiry or ambiguous environment → ask first.
-2. **Check blast radius:** inspect rule/alert labels and existing silences; show currently affected
-   instances and wider matcher scope. Prefer exact service/environment or rule-specific matchers.
-   Explain regex, negative, or missing-label matchers before use; an empty preview does not prove a
-   matcher is harmless. Never broaden a failed matcher to make it match.
-3. **Update / early expiry:** read the exact silence ID and preserve its prior body; never modify
-   another owner's silence merely because it overlaps. For create, verify no identical active/pending
-   silence already covers it.
-4. **Coordinate and write once:** show target, matchers, UTC window, affected scope, and recovery.
-   These endpoints have no compare-and-swap — coordinate a single-writer window for shared silences,
-   re-read immediately before writing, and stop on drift.
+1. **Bind scope:** Alertmanager, exact matchers, absolute UTC `startsAt`/`endsAt` (resolve a
+   duration right before writing), human owner and reason. Never infer the creator from the
+   service-account name; ask when expiry or environment is missing.
+2. **Check blast radius:** show currently affected instances and existing silences. An empty
+   preview does not prove a regex, negative or missing-label matcher harmless; never broaden a
+   failed matcher to make it match.
+3. **Update or expire** only the exact silence ID, preserving its prior body and its owner's
+   silences; for a create, check that no identical active or pending silence exists.
+4. **Write once:** these endpoints have no compare-and-swap, so coordinate a single-writer window
+   for shared silences, re-read immediately before writing, and stop on drift.
 5. **Read back and verify:** fetch the returned ID from the same Alertmanager and verify matchers,
    timestamps, owner/comment, and active/pending/expired state.
    - **ID replacement rule:** an update keeps its ID *only* when unexpired with unchanged matchers

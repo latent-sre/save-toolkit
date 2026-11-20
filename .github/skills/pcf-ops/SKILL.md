@@ -28,10 +28,8 @@ to a human release owner with exact approval evidence.
 > Work the rows in that order, and confirm the foundation, org, and space against the expected ones
 > before reading any app or log data — evidence from the wrong target is worse than none.
 
-These first-look views do not establish coverage of the requested incident window. Record their
-actual covered interval and retention, pagination, or truncation limits before shortening the
-presentation. If the requested history is missing, obtain it through another permitted source or
-report the gap; absence from recent or incomplete records cannot exclude an event or cause.
+These views cover only what they retain: record each one's actual interval and truncation, and an
+event missing from a partial record is not excluded.
 
 For `sre-assistant`, the command grant is bare `cf target`, `cf app <app>`, `cf events <app>`,
 `cf logs <app> --recent`, and `cf revisions <app>` for the named app; no live tail, target flags,
@@ -48,19 +46,11 @@ observed platform failure.
   platform and relevant dependency owners. Shared databases, networks, or releases can affect many
   apps; broad impact alone does not establish platform fault.
 
-**Escalation packet (a case the platform team can act on, not a hunch):**
-
-- **Symptom + observed window** (UTC) and **trend** (growing / steady / recovering); distinguish
-  confirmed onset from the first available observation.
-- **Blast radius** showing it is not just our app: affected apps/routes/orgs/spaces and the common
-  symptom, with timestamps.
-- **App-side observations and limits:** instance states, events, captured log window, and known
-  deploy/config changes. Running instances and clean logs do not establish successful user requests.
-- **Hypotheses checked and still open:** deploy, config, shared dependency, and capacity; name the
-  evidence that narrows each, not a blanket app-health clearance.
-- **Platform signals, if available:** evacuating/failing Diego cells, foundation-wide 502s,
-  cert/NTP symptoms, or `cf ssh`-to-`2222` timeouts. Name the missing observation the receiving owner
-  can supply; lack of a confirmed cause does not block escalation. Label causal gaps `[unverified]`.
+**Escalation packet** for the platform team: symptom, UTC window and trend (confirmed onset versus
+first observation); the affected apps, routes, orgs and spaces showing it is not just ours; our
+instance states, events, log window and recent changes; the hypotheses checked and still open; and
+any platform signals (evacuating or failing Diego cells, foundation-wide 502s, cert/NTP symptoms,
+`cf ssh` timeouts to port 2222). An unconfirmed cause does not block escalation.
 
 ## "What changed?" — the highest-value read
 
@@ -79,17 +69,13 @@ varies with log volume; Apps Manager's **Logs** view has no guaranteed window ei
 ## Read only the detail the symptom needs
 
 A human or approved network capture point supplies route headers; agents do not turn an untrusted
-route into an egress request. Load every row whose predicate matches the current request or any
-evidence gathered so far in this triage, and no others.
+route into an egress request. Load every row that matches the request or the evidence so far.
 
 | If the request involves… | Read first |
 |---|---|
 | App crashes, status 137, OOM evidence, JVM memory sizing, `$PORT`, or liveness/readiness health checks | [Application crashes and health checks](./references/application-crashes-and-health-checks.md) |
 | `X-Cf-RouterError`, 404/502/503 interpretation, keep-alive failures, connection limits, route services, or certificate/clock-skew symptoms | [Router errors](./references/router-errors.md) |
 | Recommending or classifying a restart, restage, scale, push, or rollback (including its revision evidence), or a memory/disk resize | [State-changing command effects](./references/state-changing-effects.md) |
-
-These references supply interpretation only. They do not widen the application-side lane or
-authorize a state-changing command.
 
 ## Drill in (read-only)
 

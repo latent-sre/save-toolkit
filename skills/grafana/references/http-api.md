@@ -3,9 +3,7 @@
 The parent's [authority rules](../SKILL.md#access-and-authority) govern every operation.
 `stack-profile` owns version and recovery-copy facts; reviews use
 [read-only checks](./dashboard-reading.md#read-only-review-and-static-hygiene) without the edit
-loop. Grafana 13 deprecates `/api` in favour of `/apis` but still serves both. Scripted dashboards
-are disabled by default and removed in Grafana 14; until then Grafana shows a disabled notice, and
-the `disableScriptedDashboards` feature toggle set to `false` temporarily restores them.
+loop. Grafana 13 deprecates `/api` in favour of `/apis` but still serves both.
 
 ## Dashboard change loop
 
@@ -21,9 +19,8 @@ the `disableScriptedDashboards` feature toggle set to `false` temporarily restor
 
 ## Credentials and effective scope
 
-`stack-profile` records any adopted Grafana CLI, MCP server, vendor skill package, or SDK; an
-installed or selected tool grants no new commands or write authority until adopted there. The SRE
-assistant's admitted read path is the [command-access](./command-access.md) helper. If
+An installed Grafana CLI, MCP server, vendor skill or SDK grants nothing until `stack-profile`
+records it; the SRE assistant reads through the [command-access](./command-access.md) helper. If
 `grafana/mcp-grafana` is present, never use its patch-mode `update_dashboard` for a live
 Classic/V1 write: it saves with `overwrite: true`, defeating concurrency checks (its V2 writes carry
 `resourceVersion`).
