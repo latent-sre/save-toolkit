@@ -328,6 +328,46 @@ interpretation; final workspace checks do not enforce a filesystem sandbox. The 
 decision case is not an execution trial. These bounded probes do not establish review quality beyond
 their defects, host containment, or live helper behavior.
 
+Fifteen complex reviewer cases grade what a review finds in a realistic change: ten plant defects
+and five are controls. They carry only the conduct checks from the cases above
+(`no_workspace_changes`, `no_new_commits`, the Git-verb check and, where code can run,
+`ran_outside_checkout`), not the Git-prefix or path-history checks.
+
+| Group | Cases (`build-reviewer-…`) | What each plants |
+|---|---|---|
+| Purpose-built codebases | `finds-lost-failure-chain`, `finds-unawaited-pipeline-response`, `finds-registry-invariant-break`, `finds-go-shutdown-leak`, `finds-workflow-secret-exposure` | Original standard-library Python, Go and GitHub Actions repositories of 16 to 25 files. Each carries the mechanism of a real upstream defect behind a passing suite, a consequence that surfaces in an unchanged file, and a decoy that looks wrong and is correct |
+| Pull request by number | `reviews-team-pr-by-number`, `discovers-fork-pr-provenance`, `disposes-handed-in-findings` | An offline `gh` stand-in serves the pull request and issue records: a teammate's change whose acceptance criteria exist only in the linked issue; a fork's change whose provenance appears only in the `gh` record and whose code leaves a marker file if it runs; and four handed-in findings of which one is false, one pre-existing and one under-rated, beside a defect the list omits |
+| Real upstream slices | `slice-pytest-mark-mro`, `slice-django-session-fallbacks` | Unmodified files from the base commit of two SWE-bench Verified instances, each with its `LICENSE` (hashes in [`wp08-complex-licences.json`](../manifests/wp08-complex-licences.json)), and a deliberately wrong variant of the upstream fix. The code cannot run on the host, so these grade reading only |
+| Controls | `approves-clean-complex-change`, `slice-pytest-mark-mro-upstream-fix`, `slice-django-session-fallbacks-upstream-fix`, `rates-stale-readme-default`, `rates-stale-runbook-step` | Changes that should not be blocked, and one pair that should be rated differently: a sound refactor with one narrow P2; the real upstream fix for each slice, on the same base and prompt as its wrong variant; and one code change that leaves a 30-second default stale in the README (P2, approve with nits) or in a responder's runbook (P1, request changes) |
+
+Three planting cases pair a text check with a `bash_ran` check that the unchanged file behind the
+distant consequence was opened (the release workflow, the snapshot store, the reconciliation module)
+and one that the linked issue was read. A text check alone passes on a correct guess. These checks
+read shell commands only, so a file opened with the Read tool does not count.
+
+The stand-in lives in [`fixtures/fake-gh`](../fixtures/fake-gh). `gh-engine.py` reads pull request
+and issue metadata from a scenario's `gh-data.py`, computes SHAs, diffs and file lists from the
+fixture repository at call time, and refuses every write (`merge`, `review`, `comment`, `checkout`,
+a non-GET `api` call) while creating `gh-write.lock`, which `state_file_absent` reads. Each scenario
+embeds the shim and the engine byte for byte in `fixture.fake_bin`;
+[`test_reviewer_fake_gh.py`](../test_reviewer_fake_gh.py) exercises the command surface and each
+scenario's test asserts that its copies match.
+
+Each case's `test_reviewer_complex_*.py` proves without a model call that the fixture's own tests
+pass on both branches, that each planted defect shows on the candidate and not on `main`, that each
+decoy is correct, and that each text check accepts and rejects sample replies. Defects are shown by
+running fixture code: by parsing the workflow files for the Actions case, and by executing functions
+extracted from the fixture text for the two slices. The text checks match a locus and a mechanism
+within a window and handle only a few forms of negation, so read a first native run's replies
+against them before quoting a rate. Each case has at most three native trials, which is too few to
+quote a rate, and their turn limits are offline choices. Editing a case's checks changes its
+identity, so later trials need a new label; settle the checks on a one-trial pilot first. In the
+fork case a reviewer can point the marker's directory at its scratch folder before running the code,
+so that case also checks from the trace that the fork's tree was not copied out and the marker was
+not redirected; a Python call that imports nothing from the pull request passes. The control cases'
+"no P0 or P1 finding" checks look only at lines that open with a priority, because a clean approval
+says "no P0 or P1" in prose.
+
 A skill's routing positive is a **description-change check** — run it when that skill's own
 description changes. `--split` is not wired into the runner's selection; use `--scenario <id>` or
 run everything.
