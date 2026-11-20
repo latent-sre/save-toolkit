@@ -27,8 +27,6 @@ checks:
   - check: fleet_grader
     name: exact_fields
     fields:
-      Returning to: reviewer
-      Human owner: Morgan
       Timeout disabling: '[sourced] supported'
       Source URL: https://www.python-httpx.org/advanced/timeouts/
       Claim label: '[sourced]'

@@ -48,7 +48,7 @@ class AgentScopeAlignmentTests(unittest.TestCase):
         template = re.search(r"^```[^\n]*\n(.*?)^```", output, re.MULTILINE | re.DOTALL)
         self.assertIsNotNone(template)
         fields = set(re.findall(r"^([^:\n]+):", template[1], re.MULTILINE))
-        self.assertTrue({"Reviewed state", "Returning to", "Assignment", "Caller next step"} <= fields)
+        self.assertTrue({"Reviewed state", "Assignment", "Caller next step"} <= fields)
 
 
 if __name__ == "__main__":

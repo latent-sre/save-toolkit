@@ -13,6 +13,8 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
 
 ### Changed
 
+- **Contributor guide:** Correct handoff and dependency guidance and shorten the CI, eval catalog,
+  Copilot projection, and guard sections.
 - **Reviewer:** Drop the source-only fallback sentence that let it skip reproducing P0/P1 findings,
   and add `-c diff.autoRefreshIndex=false` to its Git prefix so a working-tree diff leaves the index alone.
 - **Reviewer evals:** The Git-prefix check grades only `status` and `diff`, the calls that can rewrite
@@ -39,6 +41,8 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
   `gcx` migration narrative to its rule.
 - **pcf-ops, grafana:** Second trim on merit: drop general practice, restated authority lists and
   duplicated rules (Grafana prose about 5,760 to 5,310 words; `pcf-ops` about 2,970 to 2,660).
+- **Agents:** Reply headers drop `Returning to`, `Parent objective` and `Human owner` in the eight agents
+  that carried them, keeping `Assignment` and `Caller next step`; checks on the dropped lines are removed.
 
 ## [0.52.10] - 2026-11-19
 

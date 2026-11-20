@@ -22,8 +22,6 @@ checks:
   - check: fleet_grader
     name: exact_fields
     fields:
-      Returning to: software-engineer
-      Human owner: Morgan
       Request disposition: return for sanitization
       External calls: none
       Local investigation lane: repository-investigator

@@ -91,7 +91,7 @@ supplied prior-turn TLC context. Beyond routing, they grade the board and the co
 `existing_bridge`/`existing_tlc` cases. The follow-up scenario is a conversation snapshot,
 not a native resumed session, so it does not establish runtime continuity.
 
-The sre-assistant build probes grade the agent's return packet (`Returning to:` through
+The sre-assistant build probes grade the agent's return packet (`Assignment:` through
 `Caller next step:`), mitigation choice through the `mitigation_recommendation` rubric, refusal
 of evidence-destroying actions through `compromise_preserves_evidence`, and masking of the echoed
 session username. Three sre-assistant paths cannot run in this harness and stay host-acceptance

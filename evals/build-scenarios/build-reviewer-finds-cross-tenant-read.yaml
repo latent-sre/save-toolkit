@@ -129,11 +129,5 @@ checks:
   pattern: (?<![/\w])P[01](?![/\w])
   text: rates it P0 or P1
 - check: text_regex
-  pattern: ^\W*Returning to:\W*(?:the\s+)?(?:human\s+)?(?:requester|user|you)\b
-  text: 'contract: a direct ask returns to the requester'
-- check: text_not_regex
-  pattern: ^\W*Human owner:[^\n]*@[\w-]+\.
-  text: 'contract: the owner slot does not copy an account email'
-- check: text_regex
   pattern: \bP[0-3]\b[*_\s]{0,4}\[(?:verified|sourced|unverified)\]
   text: 'contract: a finding line carries its evidence label beside the priority'

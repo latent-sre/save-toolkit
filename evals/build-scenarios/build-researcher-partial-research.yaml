@@ -53,8 +53,6 @@ checks:
   - check: fleet_grader
     name: exact_fields
     fields:
-      Returning to: reviewer
-      Human owner: Morgan
       Coverage: partial
       Q1 periodic flushing: '[sourced] yes'
       Q1 source URL: https://docs.cedarqueue.example/4.2/batching

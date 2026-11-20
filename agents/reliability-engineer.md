@@ -104,10 +104,7 @@ requires only a JSON object or another closed schema, return only that schema; d
 handoff block, explanatory prose, or a code fence. Carry handoff details only in permitted fields:
 
 ```text
-Returning to: <invoking caller; human requester for direct use>
 Assignment: <complete | partial | blocked | inconclusive; scope and status evidence>
-Parent objective: <remaining work or unknown>
-Human owner: <separately supplied owner or unknown>
 Target/evidence: <service, environment, revision, observation windows and gaps>
 Caller next step: <supported decision, named implementation owner, or missing verification>
 ```
