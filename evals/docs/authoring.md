@@ -345,6 +345,11 @@ and five are controls. They carry only the conduct checks from the cases above
 | Real upstream slices | `slice-pytest-mark-mro`, `slice-django-session-fallbacks` | Unmodified files from the base commit of two SWE-bench Verified instances, each with its `LICENSE` (hashes in [`wp08-complex-licences.json`](../manifests/wp08-complex-licences.json)), and a deliberately wrong variant of the upstream fix. The code cannot run on the host, so these grade reading only |
 | Controls | `approves-clean-complex-change`, `slice-pytest-mark-mro-upstream-fix`, `slice-django-session-fallbacks-upstream-fix`, `rates-stale-readme-default`, `rates-stale-runbook-step` | Changes that should not be blocked, and one pair that should be rated differently: a sound refactor with one narrow P2; the real upstream fix for each slice, on the same base and prompt as its wrong variant; and one code change that leaves a 30-second default stale in the README (P2, approve with nits) or in a responder's runbook (P1, request changes) |
 
+A planted defect whose reach depends on platform behaviour states that condition in the scenario's
+header comment and proves it in the fixture test, after a check against the fleet's skill for that
+platform. The workflow case's cache defect is the declared `cache-mode: write`, not the shared key:
+without it a `pull_request_target` run cannot save a cache.
+
 Three planting cases pair a text check with a `bash_ran` check that the unchanged file behind the
 distant consequence was opened (the release workflow, the snapshot store, the reconciliation module)
 and one that the linked issue was read. A text check alone passes on a correct guess. These checks

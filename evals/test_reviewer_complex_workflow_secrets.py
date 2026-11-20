@@ -209,6 +209,18 @@ class DefectTests(unittest.TestCase):
         self.assertEqual({"push"}, triggers(workflow(CANDIDATE, "release.yml")))
         self.assertEqual({"pull_request_target"}, callers(CANDIDATE)["fork-integration.yml"][0])
 
+    def test_d3_the_fork_triggered_run_is_allowed_to_save_that_cache(self):
+        # A run from pull_request_target has read-only cache access unless a job declares write, and a
+        # called workflow can ask for write when the calling job sets no cap. Without this the shared key
+        # would be harmless, so the defect is the declaration, not the key alone.
+        self.assertEqual("write", workflow(CANDIDATE, "_integration.yml")["jobs"]["integration"]["cache-mode"])
+        self.assertNotIn("cache-mode", BASE[f"{WORKFLOWS}_integration.yml"])
+        caller = workflow(CANDIDATE, "fork-integration.yml")
+        self.assertNotIn("cache-mode", caller)
+        self.assertNotIn("cache-mode", caller["jobs"]["integration"])
+        self.assertNotIn("cache-mode", CANDIDATE[f"{WORKFLOWS}release.yml"])
+        self.assertIn("cache-mode: write", SPEC["fixture"]["branches"][BRANCH]["message"])
+
     def test_decoys_are_allowed_by_the_documented_policy(self):
         policy = ("Third-party actions are pinned to a full commit SHA. Actions published by GitHub (`actions/*`) "
                   "may use a major version tag.")
@@ -421,6 +433,26 @@ FINDINGS = {
             "line; a pull request title injects commands.",
             NATIVE_D3_FAIL_1,
             NATIVE_D3_FAIL_2,
+        ],
+    ),
+    "d3_override": (
+        "names the cache-mode override that lets a fork-triggered run save the cache",
+        [
+            "P1 [verified] high [independent] .github/workflows/_integration.yml:25 - `cache-mode: write` on the "
+            "integration job overrides the read-only default for pull_request_target, so a fork run can save the "
+            "pip cache that release.yml restores.",
+            "A run started by pull_request_target can normally only restore a cache. This change sets\n"
+            "`cache-mode: write` on the called job and the caller sets no cap, so untrusted code saves it.",
+            "| P0 | [sourced] | medium | [independent] | _integration.yml | fork-triggered run poisons the release "
+            "cache because the job declares cache-mode: write |",
+        ],
+        [
+            # The stale claim: poisoning asserted without the line that makes it possible.
+            NATIVE_D3_PASS_1,
+            NATIVE_D3_FAIL_2,
+            "The job sets cache-mode: write, which is fine here because the key is static.",
+            "The commit message says it sets cache-mode: write so the cache is saved as well.",
+            "pull_request_target runs get read-only cache access, so the shared key cannot be poisoned.",
         ],
     ),
 }
