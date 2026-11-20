@@ -1581,7 +1581,7 @@ fixture:
       }
       ALIASES = {
           "-q": "--jq", "-s": "--state", "-L": "--limit", "-R": "--repo", "-H": "--header", "-B": "--base",
-          "-X": "--method",
+          "-X": "--method", "-f": "--raw-field", "-F": "--field",
       }
       COMMON = {"--repo", "--jq", "--json"}
       BODY_FLAGS = ("-f", "-F", "--field", "--raw-field", "--input")
@@ -2255,7 +2255,8 @@ fixture:
 
 
       def api_is_write(args):
-          i = 0
+          """A named method decides: only GET reads. With none named, a field or a body makes the call a POST."""
+          method, has_body, i = None, False, 0
           while i < len(args):
               arg = args[i]
               i += 1
@@ -2265,16 +2266,18 @@ fixture:
                       i += 1
                   else:
                       value = arg.partition("=")[2] if arg.startswith("--") else arg[2:]
-                  if value.upper() != "GET":
-                      return True
+                  method = value.upper()
               elif arg in BODY_FLAGS or re.match(r"--(field|raw-field|input)=|-[fF].", arg):
-                  return True
-          return False
+                  has_body = True
+          return method != "GET" if method else has_body
 
 
       def api(args):
+          # A GET sends its fields as query parameters; the stand-in serves every record, so it ignores them.
           positionals, opts = parse(
-              args, valued=("--header", "--cache", "--method"), flags=("--paginate", "--slurp", "--silent", "-i")
+              args,
+              valued=("--header", "--cache", "--method", "--field", "--raw-field", "--input"),
+              flags=("--paginate", "--slurp", "--silent", "-i"),
           )
           if len(positionals) != 1:
               raise Fail("accepts 1 arg(s), received " + str(len(positionals)))

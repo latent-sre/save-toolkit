@@ -447,12 +447,15 @@ class RegistryInvariantCheckTests(unittest.TestCase):
     def test_snapshot_store_check_accepts_reads_of_it_and_rejects_other_commands(self):
         check = CHECKS[OPENS_STORE]
         self.assertEqual("bash_ran", check["check"])
+        # A command passes when it names the file or reads the whole package; a search that may print one
+        # of its lines does not, because the command text cannot show what the search found.
         for command in ("git show refactor/alias-reset:svccatalog/store.py", "sed -n 1,80p svccatalog/store.py",
-                        "cat svccatalog/*.py", "grep -rn alias_names svccatalog"):
+                        "cat svccatalog/*.py",
+                        "for f in $(git ls-tree -r --name-only main svccatalog); do git show main:$f; done"):
             with self.subTest(expect="pass", command=command):
                 self.assertTrue(probe_checking.CHECKS["bash_ran"](ran(command), check)[0])
         for command in ("git diff main...refactor/alias-reset", "git show refactor/alias-reset:svccatalog/catalog.py",
-                        "python -m pytest -q"):
+                        "python -m pytest -q", "grep -rn alias_names svccatalog", "git grep -n _aliases"):
             with self.subTest(expect="fail", command=command):
                 self.assertFalse(probe_checking.CHECKS["bash_ran"](ran(command), check)[0])
 

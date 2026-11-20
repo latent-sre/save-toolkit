@@ -555,8 +555,10 @@ class TeamPullRequestScenarioTests(unittest.TestCase):
         cases = {
             RECONCILE_TEXT: (
                 ["git show feature/settlement-batching:settle/reconcile.py", "cat settle/reconcile.py",
-                 "grep -rn submission settle"],
-                ["gh pr diff 482", "git show feature/settlement-batching:settle/batch.py"]),
+                 'for f in settle/reconcile.py settle/ledger.py; do echo "=== $f"; $G show 233a2be:$f; done',
+                 "cat settle/*.py"],
+                ["gh pr diff 482", "git show feature/settlement-batching:settle/batch.py",
+                 "grep -rn submission settle", "git grep -n running_total"]),
             ISSUE_TEXT: (
                 ["gh issue view 455", "gh issue view 455 --json body", "gh api repos/acme-ops/ledger-settle/issues/455",
                  "git status && gh issue view 455"],

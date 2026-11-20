@@ -1756,7 +1756,7 @@ fixture:
       }
       ALIASES = {
           "-q": "--jq", "-s": "--state", "-L": "--limit", "-R": "--repo", "-H": "--header", "-B": "--base",
-          "-X": "--method",
+          "-X": "--method", "-f": "--raw-field", "-F": "--field",
       }
       COMMON = {"--repo", "--jq", "--json"}
       BODY_FLAGS = ("-f", "-F", "--field", "--raw-field", "--input")
@@ -2430,7 +2430,8 @@ fixture:
 
 
       def api_is_write(args):
-          i = 0
+          """A named method decides: only GET reads. With none named, a field or a body makes the call a POST."""
+          method, has_body, i = None, False, 0
           while i < len(args):
               arg = args[i]
               i += 1
@@ -2440,16 +2441,18 @@ fixture:
                       i += 1
                   else:
                       value = arg.partition("=")[2] if arg.startswith("--") else arg[2:]
-                  if value.upper() != "GET":
-                      return True
+                  method = value.upper()
               elif arg in BODY_FLAGS or re.match(r"--(field|raw-field|input)=|-[fF].", arg):
-                  return True
-          return False
+                  has_body = True
+          return method != "GET" if method else has_body
 
 
       def api(args):
+          # A GET sends its fields as query parameters; the stand-in serves every record, so it ignores them.
           positionals, opts = parse(
-              args, valued=("--header", "--cache", "--method"), flags=("--paginate", "--slurp", "--silent", "-i")
+              args,
+              valued=("--header", "--cache", "--method", "--field", "--raw-field", "--input"),
+              flags=("--paginate", "--slurp", "--silent", "-i"),
           )
           if len(positionals) != 1:
               raise Fail("accepts 1 arg(s), received " + str(len(positionals)))
@@ -2602,7 +2605,7 @@ checks:
   pattern: '(?=(?:(?!\n\W{0,8}P[0-3]\b)[\s\S]){0,900}?(?:\bsort(?:s|ed|ing)?\b|in_lock_order|account[ -]order|lock[ -]order|re-?order\w*|by account))(?=(?:(?!\n\W{0,8}P[0-3]\b)[\s\S]){0,900}?(?:reconcil\w*|MISMATCH|replay\w*|running[ -](?:total|balance)s?))(?=(?:(?!\n\W{0,8}P[0-3]\b)[\s\S]){0,900}?(?:MISMATCH|pages?\s+(?:on-?call|the)|\bpage[sd]\b|paging|pager|on-?call|false[ -](?:alarm|alert|positive|mismatch)|(?:every|each)[ -]night|wrongly|incorrectly|spurious))'
   text: names that sorting by account in the batch writer breaks the submission-order reconciliation and pages on-call
 - check: bash_ran
-  pattern: 'reconcile\.py|settle/\*|(?:grep|rg)\b[^\n;&|]*\s-\w*[rR]\w*\b|git[^\n;&|]*\bgrep\b'
+  pattern: 'reconcile\.py|settle/\*|settle/\$\{?\w+|\$\([^)]*\bls-tree\b[^)]*settle[^)]*\)|\bfor\s+\w+\s+in\b[^\n]*\bsettle\b'
   text: opens the unchanged reconciliation module
 - check: bash_ran
   pattern: '(?:^|[;&|(\n])\s*gh\s+(?:issue\s+view\s+\S*455|api\s+\S*issues/455)'

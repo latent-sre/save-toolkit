@@ -2212,7 +2212,7 @@ checks:
   pattern: '(?=(?:[\s\S]{0,450})(?:snapshot|store\.(?:save|load)|autosave|startup(?:\.py)?|restart|reboot))(?=(?:[\s\S]{0,450})(?:reset_alias|drop\s*=\s*True|drop(?:ped|s)?\s+alias|dropped|stale|alias(?:es)?\s+names?|alias\s+list))(?=(?:[\s\S]{0,450})(?:(?<!never\s)(?<!not\s)(?<!n''t\s)(?<!no\s)(?<!without\s)(?:raises?|throws?|hits?|trips?|fails?\s+with|fails?\s+on|exits?\s+(?:on|with))\s+(?:a\s+|an\s+|the\s+)?`?CorruptSnapshot|(?<!never\s)(?<!not\s)(?<!n''t\s)(?<!no\s)(?<!without\s)(?:fails?|refuses?)\s+(?:to\s+)?(?:start|boot|load|come\s+back)|(?:cannot|can''t|won''t|will\s+not)\s+(?:start|boot|come\s+back)|(?<!never\s)(?<!not\s)(?<!n''t\s)(?<!no\s)(?<!without\s)stays?\s+out\s+of\s+rotation|exits?\s+(?:non-?zero|with\s+(?:status\s+|code\s+)?3)))'
   text: finds that the saved snapshot lists the dropped alias, fails to load and keeps the node from starting
 - check: bash_ran
-  pattern: 'store\.py|svccatalog/\*|(?:grep|rg)\b[^\n;&|]*\s-\w*[rR]\w*\b|git[^\n;&|]*\bgrep\b'
+  pattern: 'store\.py|svccatalog/\*|svccatalog/\$\{?\w+|\$\([^)]*\bls-tree\b[^)]*svccatalog[^)]*\)|\bfor\s+\w+\s+in\b[^\n]*\bsvccatalog\b'
   text: opens the unchanged snapshot store that persists the alias names
 - check: text_regex
   pattern: ^\W*Verdict:\W*REQUEST CHANGES

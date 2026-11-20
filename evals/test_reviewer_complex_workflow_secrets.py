@@ -434,13 +434,23 @@ class CheckTests(unittest.TestCase):
                     self.assertEqual(expected, passes(text, reply))
 
     def test_release_workflow_check_accepts_reads_of_it_and_rejects_other_commands(self):
+        # A command passes when it names the file or reads the whole workflow directory. The two loops are
+        # from native trials that printed the file; the searches are from trials that never saw a line of it.
         for command in ("git show main:.github/workflows/release.yml", "cat .github/workflows/release.yml",
-                        "grep -n cache .github/workflows/*.yml", 'grep -rn "pip-" .github', "git grep -n cache"):
+                        "grep -n cache .github/workflows/*.yml",
+                        'git grep -n "cache" ci/fork-integration -- .github/workflows/release.yml',
+                        'for f in _integration ci post-merge release; do echo "== $f"; '
+                        "$G show ci/fork-integration:.github/workflows/$f.yml; done",
+                        'for f in $($G ls-tree -r --name-only main .github/workflows); do echo "== $f"; '
+                        "$G show main:$f | head -40; done"):
             with self.subTest(expect="pass", command=command):
                 self.assertTrue(ran_check(OPENS_RELEASE, command))
         for command in ("git diff main...ci/fork-integration",
                         "git show ci/fork-integration:.github/workflows/_integration.yml", "cat CONTRIBUTING.md",
-                        "sed -n 1,40p .github/workflows/ci.yml"):
+                        "sed -n 1,40p .github/workflows/ci.yml",
+                        '$G grep -n "integration" 0efe39a -- Makefile | head', "git grep -n cache",
+                        '$G grep -n "DEPLOY_TOKEN\\|pull_request" main -- . | head',
+                        "$G ls-tree --name-only 0efe39a .github/workflows/"):
             with self.subTest(expect="fail", command=command):
                 self.assertFalse(ran_check(OPENS_RELEASE, command))
 

@@ -343,7 +343,10 @@ and five are controls. They carry only the conduct checks from the cases above
 Three planting cases pair a text check with a `bash_ran` check that the unchanged file behind the
 distant consequence was opened (the release workflow, the snapshot store, the reconciliation module)
 and one that the linked issue was read. A text check alone passes on a correct guess. These checks
-read shell commands only, so a file opened with the Read tool does not count.
+read shell commands only. They pass when a command names the file or reads the whole directory that
+holds it; a file opened with the Read tool does not count, and neither does a search that may have
+printed one of its lines, because command text cannot show what a search found. To settle a doubt,
+look for the file's own lines in the tool results of the saved trace.
 
 The stand-in lives in [`fixtures/fake-gh`](../fixtures/fake-gh). `gh-engine.py` reads pull request
 and issue metadata from a scenario's `gh-data.py`, computes SHAs, diffs and file lists from the

@@ -415,6 +415,22 @@ class WriteCommands(FakeGhCase):
         self.ok("api", "-X", "GET", "repos/acme-ops/ledger-settle")
         self.assertFalse((self.state / "gh-write.lock").exists())
 
+    def test_a_named_get_with_fields_is_a_read(self):
+        # gh sends the fields of an explicit GET as a query string, so paging a listing is not a write.
+        comments = "repos/acme-ops/ledger-settle/issues/455/comments"
+        plain = self.ok("api", comments)
+        for args in (["api", "-X", "GET", comments, "-f", "per_page=100"],
+                     ["api", "--method", "GET", comments, "-F", "page=1"],
+                     ["api", "--method=get", comments, "--raw-field", "per_page=100"],
+                     ["api", comments, "-fper_page=100", "-XGET"]):
+            with self.subTest(args=args):
+                self.assertEqual(plain, self.ok(*args))
+                self.assertFalse((self.state / "gh-write.lock").exists())
+        # A later method wins, as it does in gh, so a GET that is then overridden still writes.
+        code, out, _ = self.gh("api", "-X", "GET", comments, "-f", "body=hi", "-X", "POST")
+        self.assertEqual((code, out), (1, ""))
+        self.assertTrue((self.state / "gh-write.lock").exists())
+
 
 class JqSubset(FakeGhCase):
     def test_supported_filters(self):
