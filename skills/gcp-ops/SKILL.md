@@ -140,20 +140,32 @@ push record is the next deciding read.
 
 ## Mitigation you recommend (never run): traffic rollback
 
-Traffic rollback routes requests to the previous healthy revision:
+Match the failing `httpRequest.requestUrl` to the serving `resource.labels.revision_name` and
+response status. Compare the current effective routing and last known-good routing for that
+hostname and path, including upstream rules, tags and service percentages. Ask the routing owner
+for missing evidence before recommending a write. Confirm any proposed target still has the
+readiness, compatibility and capacity to serve the affected requests.
+
+- **Tagged URL.** If only the tagged path fails, restore its known-good mapping with
+  `--update-tags <tag>=<revision>`. Preserve healthy service percentages and unrelated tags. If a
+  new tag had no prior mapping, agree on a fallback or retirement with its callers before removal.
+- **Service URL.** Restore the full known-good allocation. Use `<previous-revision>=100` only
+  when the prior map assigns all service traffic to that revision. Restore `--to-latest` or a
+  `LATEST=<percentage>` allocation only after confirming the revision it would send traffic to.
+- **Upstream route.** If a load balancer or proxy mapping changed, give its owner the prior
+  host/path rule and backend to restore.
+
+An evidenced 80/20 service split uses this command.
 
 ```bash
-gcloud run services update-traffic <service> --to-revisions <previous-revision>=100 --region <region> --project <project>
+gcloud run services update-traffic <service> --to-revisions <revision>=80,<previous-revision>=20 --region <region> --project <project>
 ```
 
-Choose `<previous-revision>` from evidence, never creation order: the revision that served before
-onset (the split in `services describe`, the deploy record, or pre-onset request logs by
-`resource.labels.revision_name`) and had a normal error rate then. Put both in the packet.
-
-Tier 2, human release owner, with the exact revision names, verification (request count by
-response class on the service's Metrics tab, plus 429s from request logs, which that metric excludes), and a command that restores the intended prior
-traffic allocation or `--to-latest` tracking policy. Traffic changes are not instantaneous —
-in-flight requests may land on either revision during the transition. During a declared incident,
+The human release owner owns this Tier 2 change. In the packet, include the before and intended
+maps, serving evidence, the exact scoped change and verification. Allow time for routing to
+converge. Read back the effective routes and verify requests on the same hostname and path,
+including the replacement path if a tag was retired. Compare serving revisions and response
+classes with expectations, counting 429s in request logs. During a declared incident,
 `incident-investigation` advises and ITO approves in the TLC under `production-change-gate`'s
 incident fast path.
 

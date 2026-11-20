@@ -47,6 +47,11 @@ VS Code also does not forward `model-policy`; its selected-chat enforcement is a
 Measure repository-instruction delivery in both selected and delegated execution paths. Carry
 essential lane rules in the agent body and verify their delivery.
 
+The researcher projection carries its public-query rules in the body. It emits neither Claude's
+`omitClaudeMd` nor a Copilot context filter. For strict private-context exclusion, select the
+trusted researcher in a fresh session with a neutral workspace and clean profile. Verify the
+applicable instructions, memory, attached context, and effective tools on that entry point.
+
 Canonical grants use full plugin names such as `Agent(save-toolkit:reviewer)`. The generator
 validates those targets and emits the `agent` alias; Copilot delegates through native `task`.
 No equivalent per-parent target restriction has been established for this projection. Keep the

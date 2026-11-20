@@ -14,8 +14,9 @@ with one narrow exception: an invoked `observability-engineer` may apply scoped 
 folder, and alert-rule writes and temporary silences under its
 [change-authority rule](agents/observability-engineer.md#change-authority).
 
-> **Pre-release (0.52.10).** Installs track `main` and may change without notice. The repository has
-> no supported immutable release channel.
+> **Pre-release.** New Claude Code installs resolve the plugin from the fetched GitHub
+> marketplace. Existing installs receive updates when the plugin manifest version changes.
+> Commits merged to `main` under the same version leave those installs on their cached copy.
 
 ## Install (Claude Code)
 
@@ -27,6 +28,16 @@ PowerShell call if its guard hook fails to start, crashes, or times out.
 claude plugin marketplace add latent-sre/save-toolkit
 claude plugin install save-toolkit@latent-sre
 ```
+
+To update an existing install, refresh the marketplace and then update the plugin.
+
+```sh
+claude plugin marketplace update latent-sre
+claude plugin update save-toolkit@latent-sre
+```
+
+Start a new session to load the update. Check the installed version with `claude plugin list`.
+[Claude Code plugin updates](https://code.claude.com/docs/en/plugins/host-marketplace#release-a-new-version)
 
 ## Then just describe the problem
 

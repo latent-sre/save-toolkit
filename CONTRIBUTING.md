@@ -186,6 +186,12 @@ Add one `CHANGELOG.md` entry per change under `[Unreleased]`, at most two lines 
 for someone using the fleet; measurements, test counts, and byte deltas belong in the pull request
 or a `docs/reviews/` record. Keep the last two releases and drop older ones, which Git retains.
 
+For a Claude marketplace update, increment `version` in
+[`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) and match it in [`plugin.json`](plugin.json).
+Use one version per set of shipping plugin files and record the full source commit in the release
+record. Before announcing the update, upgrade an installed previous version in a disposable
+Claude configuration. Check the installed version and read back a changed agent, skill, or hook.
+
 Confirm the diff and commit list hold only the intended work. `main` takes pull requests only;
 Save Toolkit maintainers merge. Production deployment of new bytes is a separate, exact-candidate
 decision under

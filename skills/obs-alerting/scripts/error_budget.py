@@ -48,6 +48,18 @@ def _decimal_percentage(text: str) -> Decimal:
     return value
 
 
+def _decimal_count(text: str) -> Decimal:
+    """Preserve the event count's decimal digits within the CLI's existing numeric range."""
+    try:
+        approximate = float(text)
+        # Canonicalize underflow and overflowing exponents before any fixed-point arithmetic.
+        if approximate == 0 or not math.isfinite(approximate):
+            return Decimal(approximate)
+        return Decimal(text)
+    except (ValueError, InvalidOperation):
+        raise argparse.ArgumentTypeError(f"invalid float value: {text!r}") from None
+
+
 def _burn_cutoff(slo: Decimal, threshold: float) -> Decimal:
     """The highest SLI percent that meets the threshold; below zero, no SLI can."""
     with localcontext() as context:
@@ -71,9 +83,12 @@ def fmt_minutes(minutes: float) -> str:
     return f"{minutes:.1f} min"
 
 
-def fmt_count(count: float) -> str:
-    """Format a request count."""
-    return f"{count:,.0f}"
+def fmt_count(count: Decimal) -> str:
+    """Format a request count without rounding or trailing fractional zeros."""
+    if not count:
+        return "0"
+    formatted = f"{count:,f}"
+    return formatted.rstrip("0").rstrip(".") if "." in formatted else formatted
 
 
 def _finite(name, value, *, minimum=None, exclusive_min=None, maximum=None):
@@ -96,15 +111,15 @@ def _finite(name, value, *, minimum=None, exclusive_min=None, maximum=None):
 class Inputs:
     """Validated calculator inputs; construction raises ValueError naming the first unusable flag.
 
-    Percentages stay exact Decimals so the alert boundary is inclusive without rounding. Range
-    checks, budget arithmetic and display use their float values.
+    CLI percentages and event counts retain their decimal precision for alert boundaries and
+    request-budget arithmetic. Numeric range checks and time-budget arithmetic use floats.
     """
 
     slo: Decimal
     window_days: float
     bad_minutes: float | None
-    bad_events: float | None
-    total_events: float | None
+    bad_events: Decimal | float | None
+    total_events: Decimal | float | None
     sli_long: Decimal | None
     sli_short: Decimal | None
     long_window: str
@@ -143,12 +158,12 @@ class Inputs:
 
 
 @dataclass(frozen=True)
-class BudgetStatus:
+class BudgetStatus[Count: (float, Decimal)]:
     """Budget consumption in the SLI's own unit: minutes, or failed requests."""
 
-    budget: float
-    consumed: float
-    remaining: float  # exactly 0.0 within floating-point residue of zero, so never "-0.0"
+    budget: Count
+    consumed: Count
+    remaining: Count
     percent: float  # of the budget consumed
     state: str  # "ok", "EXHAUSTED" or "OVER BUDGET"
     observed_availability: float | None = None  # request-based status only
@@ -189,20 +204,32 @@ def _remaining(budget: float, consumed: float) -> tuple[float, str]:
     return remaining, "OVER BUDGET" if remaining < 0 else "ok"
 
 
-def time_status(slo: Decimal, window_days: float, bad_minutes: float) -> BudgetStatus:
+def time_status(slo: Decimal, window_days: float, bad_minutes: float) -> BudgetStatus[float]:
     """A time-based SLI's budget: minutes of the status window."""
     budget = window_days * 24 * 60 * budget_fraction(slo)
     remaining, state = _remaining(budget, bad_minutes)
     return BudgetStatus(budget, bad_minutes, remaining, bad_minutes / budget * 100, state)
 
 
-def request_status(slo: Decimal, total_events: float, bad_events: float) -> BudgetStatus:
-    """A request-based SLI's budget: a count of failed requests."""
-    budget = total_events * budget_fraction(slo)
-    remaining, state = _remaining(budget, bad_events)
-    percent = bad_events / budget * 100 if budget else float("inf")
-    observed = (1 - bad_events / total_events) * 100
+def _request_status(slo: Decimal, total_events: Decimal, bad_events: Decimal) -> BudgetStatus[Decimal]:
+    with localcontext() as context:
+        # Keep every place in the balance, including a fraction immediately below a whole failure.
+        budget_place = total_events.as_tuple().exponent + min(slo.as_tuple().exponent, 0) - 2
+        last_place = min(budget_place, bad_events.as_tuple().exponent)
+        context.prec = max(28, total_events.adjusted() - last_place + 1)
+        budget = total_events * (Decimal(100) - slo).scaleb(-2)
+        remaining = budget - bad_events
+        percent = float(bad_events / budget * 100)
+        observed = float((1 - bad_events / total_events) * 100)
+    state = "EXHAUSTED" if remaining == 0 else "OVER BUDGET" if remaining < 0 else "ok"
     return BudgetStatus(budget, bad_events, remaining, percent, state, observed)
+
+
+def request_status(slo: Decimal, total_events: float, bad_events: float) -> BudgetStatus[float]:
+    """A request-based SLI's budget, with JSON-serializable numbers for adapters."""
+    status = _request_status(slo, Decimal(str(total_events)), Decimal(str(bad_events)))
+    return BudgetStatus(float(status.budget), float(status.consumed), float(status.remaining),
+                        status.percent, status.state, status.observed_availability)
 
 
 def burn_verdict(slo: Decimal, sli_long: Decimal, sli_short: Decimal,
@@ -258,11 +285,11 @@ def _parser() -> argparse.ArgumentParser:
         help="TIME-based: bad minutes consumed in the budget-status window",
     )
     status.add_argument(
-        "--bad-events", type=float,
+        "--bad-events", type=_decimal_count,
         help="REQUEST-based: failed requests in the window (needs --total-events)",
     )
     status.add_argument(
-        "--total-events", type=float,
+        "--total-events", type=_decimal_count,
         help="REQUEST-based: total valid requests in the window",
     )
 
@@ -311,17 +338,19 @@ def main(argv=None) -> int:
         print(f"  remaining: {fmt_minutes(status.remaining)}")
 
     if inputs.request_mode:
-        status = request_status(inputs.slo, inputs.total_events, inputs.bad_events)
+        total_events = Decimal(str(inputs.total_events))
+        request = _request_status(inputs.slo, total_events, Decimal(str(inputs.bad_events)))
         print(
-            f"  [request-based SLI] {fmt_count(inputs.total_events)} requests  ->  "
-            f"budget = {fmt_count(status.budget)} failed requests"
+            f"  [request-based SLI] {fmt_count(total_events)} requests  ->  "
+            f"budget = {fmt_count(request.budget)} failed requests"
         )
         print(
-            f"  consumed:  {fmt_count(status.consumed)} bad  "
-            f"({status.percent:.1f}% of budget)  [{status.state}]"
+            f"  consumed:  {fmt_count(request.consumed)} bad  "
+            f"({request.percent:.1f}% of budget)  [{request.state}]"
         )
-        print(f"  remaining: {fmt_count(status.remaining)} bad requests")
-        print(f"  observed availability: {status.observed_availability:.4f}%")
+        print(f"  remaining: {fmt_count(request.remaining)} bad requests")
+        print(f"  additional whole failures permitted (fixed denominator): {max(0, math.floor(request.remaining)):,}")
+        print(f"  observed availability: {request.observed_availability:.4f}%")
 
     # Burn rate: a pair selects one threshold, and both windows must cross it.
     if inputs.sli_long is not None:

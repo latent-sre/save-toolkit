@@ -13,9 +13,8 @@ Claude frontmatter contracts live here. Re-verify after CLI upgrades against the
 
 ## Agents
 
-`validate_fleet.py` accepts exactly four keys in canonical agent frontmatter — `name`,
-`description`, `tools`, `model` — and fails on any other. This is the fleet's selected subset,
-not the full host schema; other fields are either inert in a plugin or unused here.
+`validate_fleet.py` accepts `name`, `description`, `tools`, and `model` in canonical agent
+frontmatter. It also requires `omitClaudeMd: true` for the researcher. Other keys fail validation.
 
 A plugin agent with invalid YAML can still appear under its filename while every frontmatter
 field is ignored. Discovery alone does not establish that its grants or model were applied;
@@ -30,7 +29,7 @@ hosts do. Double-quote a `description` containing `: `.
 | `model` | Generation aliases `haiku \| sonnet \| opus \| fable \| inherit` only — `validate_fleet.py` rejects full IDs. No agent pins one. Cost-justified tiering may lower mechanical, high-volume lanes; review, root-cause, and authority lanes inherit. State a pin's reason in the same change. Check `CLAUDE_CODE_SUBAGENT_MODEL`, `CLAUDE_CODE_SUBAGENT_MODEL_FORCE`, and `CLAUDE_CODE_SUBAGENT_EFFORT` before attributing a lane result to the session model or effort. Generated Copilot adapters carry no `model` |
 | `hooks`, `mcpServers`, `permissionMode` | Plugin-packaged agents **ignore** all three. The fleet ships `hooks/hooks.json` session-wide, self-scoped to exact guarded `agent_type` values; canonical frontmatter containing `hooks` fails validation |
 | `initialPrompt` | Ignored for plugin subagents |
-| `omitClaudeMd` | Unused here; adopting it for trusted-base review needs a `validate_fleet.py` key decision and a host check |
+| `omitClaudeMd` | Required only for the researcher. Since Claude Code 2.1.271, ordinary non-fork delegation can skip user, project, and local instructions at startup. See the context limits below |
 | `disallowedTools`, `skills`, `maxTurns`, `autoCompactWindow`, `memory`, `background`, `effort`, `isolation`, `color`, `experimental` | Supported for plugin agents, unused here. `maxTurns` and `memory` are decided against below |
 
 Scoped Bash specifiers in agent `tools:` did not narrow commands on the hosts tested. In `disallowedTools`,
@@ -54,6 +53,29 @@ PowerShell tool for the session unless `CLAUDE_CODE_USE_POWERSHELL_TOOL=1` is se
 adds a scoped `PowerShell(...)` permission rule. Availability depends on the host/provider configuration; see the [PowerShell tool](https://code.claude.com/docs/en/tools-reference#powershell-tool).
 Use the available shell's syntax and runtime paths. A generated Copilot `execute` grant represents
 host execution capability, not a promise that Bash is installed.
+
+### Researcher context
+
+Managed policy can still load with `omitClaudeMd`. Path-scoped rules can load on later file access.
+The non-fork launch still includes the task prompt, environment details, and, inside a Git checkout,
+a status snapshot unless the session disables it with `includeGitInstructions: false`. A fork of
+the conversation inherits parent context and tools. `--agent` uses the researcher's instructions
+and tool grants in the main session while loading instruction files and project memory normally.
+
+For strict private-context exclusion, start a fresh session outside any repository or private
+workspace with a clean profile containing the trusted installed researcher and only approved public
+retrieval tools. Keep the private workspace unavailable. Select `claude --agent save-toolkit:researcher`
+from that environment and submit only the standalone public question. Check mandatory policy and
+automatic context as well as profile settings. If they can introduce private material or the effective
+tools cannot be restricted, use a qualified environment before starting research.
+
+To qualify a host, use a disposable fixture and an offline recorder for model requests and tool
+arguments. Put distinct synthetic markers in project instructions, Git metadata, parent history,
+and, where controllable, managed instructions. Compare ordinary non-fork delegation with the field
+unset and set to `true`. With the flag set, expect the project marker absent and the Git marker still
+present when its snapshot is enabled. No private marker may reach external tool arguments in either
+case. In the neutral session, check that no private marker reaches either surface and that a public
+question still works. Repeat on the actual entry points when relying on the boundary.
 
 ## Skills
 

@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
 import subprocess
 import sys
 import unittest
+from dataclasses import asdict
 from decimal import Decimal
 from pathlib import Path
 
@@ -53,20 +55,57 @@ class ErrorBudgetCliTests(unittest.TestCase):
         self.assertIn("budget = 1,000 failed requests", report)
         self.assertIn("consumed:  200 bad  (20.0% of budget)  [ok]", report)
         self.assertIn("remaining: 800 bad requests", report)
+        self.assertIn("additional whole failures permitted (fixed denominator): 800", report)
         self.assertIn("observed availability: 99.9800%", report)
+
+    def test_fractional_request_budget_and_deficit_keep_their_sign_and_units(self) -> None:
+        for bad, remaining, verdict in (("0", "0.6", "0.0% of budget)  [ok]"),
+                                        ("1", "-0.4", "166.7% of budget)  [OVER BUDGET]")):
+            with self.subTest(bad=bad):
+                report = self.report("--slo", "99.9", "--bad-events", bad, "--total-events", "600")
+                self.assertIn("budget = 0.6 failed requests", report)
+                self.assertIn(f"remaining: {remaining} bad requests", report)
+                self.assertIn("additional whole failures permitted (fixed denominator): 0\n", report)
+                self.assertIn(verdict, report)
+
+    def test_whole_failures_follow_the_exact_budget_boundary(self) -> None:
+        for slo, bad, remaining, whole, state in (
+            ("99.7", "2", "1", 1, "ok"),
+            ("99.7", "3", "0", 0, "EXHAUSTED"),
+            ("99.7000000000000001", "2", "0.999999999999999", 0, "ok"),
+            ("99.7000000000000001", "3", "-0.000000000000001", 0, "OVER BUDGET"),
+            ("99.7", "2.25", "0.75", 0, "ok"),
+        ):
+            with self.subTest(slo=slo, bad=bad):
+                report = self.report("--slo", slo, "--bad-events", bad, "--total-events", "1000")
+                self.assertIn(f"  consumed:  {bad} bad", report)
+                self.assertIn(f"  remaining: {remaining} bad requests", report)
+                self.assertIn(f"additional whole failures permitted (fixed denominator): {whole}\n", report)
+                self.assertIn(f"[{state}]", report)
 
     def test_request_budget_overspend_reports_over_budget(self) -> None:
         report = self.report("--slo", "99.9", "--bad-events", "2000", "--total-events", "1000000")
         self.assertIn("(200.0% of budget)  [OVER BUDGET]", report)
         self.assertIn("remaining: -1,000 bad requests", report)
 
+    def test_cli_preserves_event_counts_beyond_float_integer_precision(self) -> None:
+        report = self.report("--slo", "99.9", "--bad-events", "9007199254740", "--total-events", "9007199254740993")
+        self.assertIn("9,007,199,254,740,993 requests", report)
+        self.assertIn("budget = 9,007,199,254,740.993 failed requests", report)
+        self.assertIn("remaining: 0.993 bad requests", report)
+        self.assertIn("additional whole failures permitted (fixed denominator): 0\n", report)
+
     def test_unusable_counts_and_flag_combinations_are_usage_errors(self) -> None:
         for options, message in (
             (("--bad-events", "11", "--total-events", "10"), "cannot exceed --total-events"),
+            (("--bad-events", "9007199254740993", "--total-events", "9007199254740992"),
+             "cannot exceed --total-events"),
             (("--bad-events", "0", "--total-events", "0"), "--total-events must be > 0"),
             (("--bad-events", "-1", "--total-events", "10"), "--bad-events must be >= 0"),
             (("--bad-events", "nan", "--total-events", "10"), "--bad-events must be a finite number"),
             (("--bad-events", "1", "--total-events", "nan"), "--total-events must be a finite number"),
+            (("--bad-events", "0", "--total-events", "1e999999999999999999999"),
+             "--total-events must be a finite number"),
             (("--bad-minutes", "-1"), "--bad-minutes must be >= 0"),
             (("--bad-minutes", "nan"), "--bad-minutes must be a finite number"),
             (("--window-days", "0", "--bad-minutes", "0"), "--window-days must be > 0"),
@@ -235,6 +274,17 @@ class StructuredResultTests(unittest.TestCase):
     def test_time_status_reports_an_exhausted_budget_as_exactly_zero(self) -> None:
         status = self.calculator.time_status(Decimal("99.9"), 28.0, 40.32)
         self.assertEqual(("EXHAUSTED", 0.0), (status.state, status.remaining))
+
+    def test_request_status_retains_json_serializable_fields(self) -> None:
+        status = self.calculator.request_status(Decimal("99.9"), 600.0, 0.0)
+        self.assertEqual(json.loads(json.dumps(asdict(status))), {
+            "budget": 0.6,
+            "consumed": 0.0,
+            "remaining": 0.6,
+            "percent": 0.0,
+            "state": "ok",
+            "observed_availability": 100.0,
+        })
 
 
 if __name__ == "__main__":
