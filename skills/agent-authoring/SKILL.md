@@ -65,20 +65,19 @@ summary becomes a shortcut that displaces the body.
 | Wrong lane | Name the neighboring owner, whose own description or body must accept that work |
 | Triggers, then follows the wrong steps | Move procedural choreography from the description into the body |
 
-**2. Match the form to the failure.**
+### 2. Match the form to the failure
 
-| Observed failure | Right form |
+Trace what the model received, what it chose, and what the harness executed or delivered. Repair
+the first layer that diverged from expected behavior. If the result meets the task contract but the
+evaluator rejects it, fix the evaluator.
+
+| Observed failure | Repair |
 |---|---|
-| Knows the rule, breaks it under pressure | Hard prohibition + rationalization table + red-flag list |
-| Machine-consumed output or tool arguments have the wrong shape | Runtime schema plus validation |
-| Human-facing output has the wrong shape | Positive recipe: state what the output IS, part by part |
-| Omits a required element | Required slot in a template it must fill |
-| Behavior should depend on a condition | Conditional keyed to an observable predicate |
-
-Before editing instructions, locate the layer that owns the failure — routing metadata, instructions, context
-assembly, tool/output schema, orchestration, wrapper/model/runtime, or the evaluator — and fix it
-there: strict schema for machine-consumed shape, code or a tool gate for fixed branches and effects,
-the harness for context selection.
+| The skill or rule never reached the model | Fix discovery or how the harness selects and delivers context. Check the loaded skill and reference. |
+| The model saw the rule and chose poorly | Identify the competing instruction or missing decision signal. State the deciding condition and the action it calls for. Use a short example if it distinguishes similar cases. |
+| A fixed branch or authority boundary depends on model compliance | Enforce it in the owning code, tool gate, or runtime. Check both permitted and denied cases. |
+| Machine-consumed output or tool arguments have the wrong shape | Validate against a runtime schema. |
+| Human-facing output has the wrong shape or omits a required element | Describe the intended output or add a required slot to the template. |
 
 **3. Check each artifact or roster change:** owner and authority, instructions and output/tool
 shape, the smallest trusted state, work and verification, budgets and termination, and ownership

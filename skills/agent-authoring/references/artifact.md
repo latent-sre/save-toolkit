@@ -43,13 +43,12 @@ prevents.
 
 ## Writing the artifact
 
-Retain choices and instructions that change decisions, not known explanations. A tools-off knowledge
-answer does not establish task compliance.
-Remove a behavioral instruction only when representative task evidence or an enforced replacement
-supports the removal; known facts and reliable execution are different claims. A rule the model
-reads and does not apply ships as a copied test or asset, not a stronger sentence.
+Keep guidance that changes a decision. Use the [failure-to-repair table](../SKILL.md#2-match-the-form-to-the-failure)
+to choose the repair. A regression test checks task behavior. An asset helps produce a repeatable
+result. Enforce fixed authority and effect boundaries where the action runs.
 
-Use evaluated examples and concrete thresholds rather than edge-case lists or vague qualifiers.
+Before removing a behavioral instruction, check representative task evidence or verify its enforced
+replacement. A knowledge answer with tools disabled only establishes recall.
 
 ## Tool contracts
 

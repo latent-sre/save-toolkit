@@ -20,6 +20,9 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
 - Merge and release checks follow repository policy and trace reviewed changes to the tested artifact.
 - Frontend retries preserve the original request, and runbook imports keep nested rollback steps under recovery.
 - Database and PCF migration plans cover concurrent writers, replay and cutover reconciliation.
+- **agent-authoring:** Fix missed instructions at the layer that failed and enforce fixed authority
+  boundaries where actions run.
+- **akamai-edge:** Interpret cache status by hop and confirm an origin forward before attributing load.
 - **Contributor guide:** Correct handoff and dependency guidance and shorten the CI, eval catalog,
   Copilot projection, and guard sections.
 - **Reviewer:** Drop the source-only fallback sentence that let it skip reproducing P0/P1 findings,
