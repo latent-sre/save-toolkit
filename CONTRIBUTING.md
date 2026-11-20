@@ -20,9 +20,8 @@ python scripts/generate_platform_adapters.py --write
 ```
 
 Before changing frontmatter, tool authority, delegation, or guard wiring, read the
-[frontmatter reference](skills/agent-authoring/references/claude-code-frontmatter.md). Declare
-third-party dependencies in `pyproject.toml` and lock them with `uv lock`; `uv.lock` is the only
-exact pin set. Commands using `python` here mean the verified project
+[frontmatter reference](skills/agent-authoring/references/claude-code-frontmatter.md).
+Commands using `python` here mean the verified project
 interpreter; activate that environment or use its full executable path. A bare `python` or `py -3`
 can select a different version on Windows; avoid the Store stub.
 `rg` hides generated projections through [`.ignore`](.ignore); pass `--no-ignore` to inspect them.
@@ -37,29 +36,16 @@ A model-call edge `A → B` is the `Agent(save-toolkit:B)` grant in `agents/A.md
 that grant, pinned by `EXPECTED_DELEGATION` in `scripts/validate_fleet.py` and rendered as the
 "Delegates to" column of the `README.md` roster; never re-tabulate edges elsewhere. Change all
 three in one commit, regenerate, then run Gate A: the source check, the roster render check, and
-the byte-for-byte adapter gate must all pass. Copilot receives the `agent` tool alias, not a
-per-parent target allowlist; preserve that limitation in the projection documentation.
+the byte-for-byte adapter gate must all pass. The [Copilot projection](docs/copilot-projection.md)
+grants the `agent` tool without enforcing each parent's list of delegation targets.
 
-The default Copilot projection omits Local-only agent fields (`agents`, `handoffs`, `argument-hint`,
-`advancedOptions`); see [copilot-projection.md](docs/copilot-projection.md) for the projection
-contract and `COPILOT-HARNESS-001` delegation limits. Skill and command `argument-hint` metadata
-remains supported.
-
-Agent bodies are the runtime copy of the `AGENTS.md` handoff contract; `AGENTS.md` reaches only
-sessions in this repository. Each delegating agent keeps a short handoff core. Add a generic handoff
-rule to a body only when a handoff build probe in `evals/build-scenarios/` shows the agent failing
-without that rule; otherwise the rule costs every run context and changes nothing.
+Keep handoff instructions short. Add a generic handoff rule to a delegating agent only when a
+build probe in `evals/build-scenarios/` shows the agent failing without it.
 
 ### Read-only guard scoping
 
-Hook matchers can express an agent-scoped hook; the read-only guard deliberately does not use one.
-A matcher can silently stop matching after an upstream rename. The guard instead runs on every
-Bash or PowerShell call and scopes itself in Python. PowerShell uses a separate literal-command
-grammar and native launcher; it is not parsed as arbitrary POSIX shell code. Its canaries deny a
-guarded name under a changed plugin namespace, or a recognized guarded identity in another
-top-level key containing `agent` when `agent_type` is absent. A renamed key such as `role` is not
-detected. Re-probe the live PreToolUse payload after host upgrades; offline tests cover known
-shapes, not every upstream rename.
+After a host upgrade, re-probe the live `PreToolUse` payload to verify that the guard still
+recognizes the agent.
 
 Python 3.14 is the minimum supported version for all repository Python, including installed
 hooks and bundled skill scripts; a host whose `python3` is older is unsupported, and the guarded
@@ -120,9 +106,9 @@ Live evals run from `evals/build_probe.py` in a manual clean room, not CI. Raw t
 summary stay private under `.eval-runs/`; quote the numbers you rely on into the PR or review that
 uses them.
 
-The whole suite passes under an elevated account, such as a root container: a test that binds a
-runtime to the host reads it through `probe_testkit.unelevated_host`, which leaves the hostname real
-and the account ordinary. A failure attributed to "running as root" is a defect, not a known state.
+The suite must also pass under an elevated account. Tests that bind a runtime to the host use
+`probe_testkit.unelevated_host` to retain the real hostname and model an ordinary account.
+
 Behavioral campaign plans include Sonnet, Sol, Luna and Terra coverage. Start with the
 [four-model testing block](docs/fleet-evaluation/multi-model-testing.md) to check the supported
 paths, then name the exact models, cases and limits for the campaign. Record unsupported profile
@@ -134,13 +120,12 @@ comparison explaining every changed verdict (see [running](evals/docs/running.md
 [internals](evals/docs/internals.md)). Oracle changes also exercise the supervised completion path,
 including candidate failure and early exit, unavailable measurement, and oracle crash.
 
-Before pushing, run the structural gate once:
+Before pushing, run the structural gate once and invoke it directly so the shell reports its exit code.
 
 ```powershell
 python scripts/gate_a.py
 ```
 
-Run it once, at the push boundary, and never through a pipe — a pipe masks its exit code.
 Choose local verification from the changed behavior, not the directory alone:
 
 - Agent/skill/command prose, descriptive frontmatter, bundled reference text, and scenario data
@@ -178,33 +163,12 @@ runs once. The default skips `HEAVY` files in `conftest.py` (`--heavy` includes 
 selects only them, naming a file runs it directly). Use `python -m pytest <affected files>` for
 focused work and `scripts/local_tests.py` once at the final boundary.
 
-For recurring focused checks, `python scripts/local_tests.py --list-suites` lists named groups and
-`python scripts/local_tests.py --suite python-craft` resolves their explicit test paths. Repeat
-`--suite` to combine groups. Pytest filters remain available and are recorded as filtered runs;
-extra positional test paths cannot be combined with a suite. Named suites do not replace the final
-suite requirements above. The [eval catalog](evals/README.md#find-and-run-checks) also lists native
-cases and links existing benchmark campaigns without executing them. Run `python evals/catalog.py
-check` when editing suite membership or the track index; `coverage` exposes unassigned cases and
-test files. Add new root tests and native scenarios to explicit capability suites in the same change.
-Finalize definitions before exporting fingerprints for a new
-campaign; keep historical result identities intact.
+Use the [eval catalog](evals/README.md#find-and-run-checks) for focused checks and follow the final
+suite rules above. Add new root tests and native scenarios to capability suites in the same change.
+Run `python evals/catalog.py check` when changing suite membership or the track index.
 
-`uv sync --locked` removes packages the lock does not
-name, so a package installed by hand for an experiment disappears at the next sync; add it to a
-group instead. CI installs the same lock with `setup-uv` and `uv sync --locked`, bound to the
-`setup-python` interpreter, and caches uv downloads keyed on `uv.lock`.
-
-[`.github/workflows/validate.yml`](.github/workflows/validate.yml) runs one job on every pull
-request: `component-tests (ubuntu-latest)`, the required check. It proves what the plugin ships:
-Gate A, the `scripts/` suite (the guard, hooks and bundled skill scripts) on the Python floor, and
-npm's latest Claude Code release, with its resolved version recorded in the job log, validating
-`.claude-plugin/marketplace.json` with `--strict` and `.claude-plugin/plugin.json` without it:
-plugin errors fail the job; warnings remain visible.
-GitHub's Dependabot alerts report published advisories against dependencies; CI runs no advisory
-scan. Action references use a floating major tag where published (`actions/checkout@v7`), otherwise
-an exact release tag; Dependabot's actions updater moves both.
-The root `CLAUDE.md` intentionally provides repository authoring context and produces a warning
-because installed plugins do not load it. Report what ran and what remains unverified.
+The required [`component-tests (ubuntu-latest)` check](.github/workflows/validate.yml) runs Gate A,
+the `scripts/` suite on the supported Python floor, and Claude Code's marketplace and plugin validators.
 
 ## 4. Publish the intended change
 
