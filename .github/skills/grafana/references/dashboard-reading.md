@@ -56,8 +56,9 @@ Confirm actual grants; documented Viewer/Editor capabilities do not establish ta
    `panel_count`, `findings` (`rule`, `where`, `detail`, `severity`), `query_analysis`, and `errors`.
    Severity is `advisory` (presentation/portability) or `review` (query/missing-target). Exit 0 means
    no review-required findings, 1 requires review, 2 means uncheckable (including `unsupported_v2`).
-   Fixed UIDs are portability advice; `_total` is a name heuristic, not type evidence. For V2 schema
-   validation, use `dashboard-linter` v0.5.2+ or record the gap.
+   Fixed UIDs are portability advice; `_total` is a name heuristic, not type evidence. For V2,
+   `dashboard-linter` v0.5.2+ adds only basic checks (required fields, element references); full
+   schema validation remains a recorded gap.
 4. **Sample queries and presentation.** Exercise a bounded query sample (`POST /api/ds/query` with
    real variables, window, and step) and follow [visual verification](./visual-verification.md) where
    available. Do not save, import, restore, create snapshots/test resources, trigger alerts, or alter

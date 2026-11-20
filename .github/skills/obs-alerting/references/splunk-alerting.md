@@ -16,9 +16,11 @@ dispatch.latest_time = -2m@m
   and deduplication. Check skipped runs and event-time gaps before claiming complete coverage.
 - **Timezone:** Splunk Cloud evaluates cron in UTC; Splunk Enterprise uses the search head's
   timezone. Record which applies next to every schedule.
-- Trigger conditions are `counttype` with `relation` and `quantity`, or `alert_condition`, a
-  secondary search; do not combine the two; `alert_type`, `alert_comparator`, and
-  `alert_threshold` are the REST API's names and configure nothing in the file.
+- Trigger conditions are `counttype` (default `always`, which takes no `relation`/`quantity`;
+  also `custom`) with `relation` and `quantity`, or `alert_condition`, a secondary search that
+  triggers on a non-empty result. The spec does not define how the two interact, so set one;
+  `alert_type`, `alert_comparator`, and `alert_threshold` do not appear in `savedsearches.conf` and
+  configure nothing in the file.
   `alert.digest_mode` decides whole-result-set versus per-result actions.
 
 ## Throttling is part of the design

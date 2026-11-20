@@ -5,8 +5,8 @@ installed release and support contract against
 [product notices](https://docs.moogsoft.com/v9/en/product-notices.html) before upgrade advice.
 Cloud terminology differs from Onprem **Situations**.
 
-[Maintenance](https://docs.moogsoft.com/v9/en/schedule-maintenance-downtime.html) still deduplicates
-events into `In Maintenance` alerts, excluded from Situations by default but configurable.
+[Maintenance](https://docs.moogsoft.com/v9/en/schedule-maintenance-downtime.html) still correlates
+events into alerts labelled `In Maintenance`, excluded from Situations by default but configurable.
 Confirm local fields/algorithms/maintenance behavior. Correlation and time order rank hypotheses,
 not cause: promote one only with a disprovable mechanism, corroboration from an independent signal
 class, and a disconfirmation test; below that bar, call it a leading hypothesis and keep the
