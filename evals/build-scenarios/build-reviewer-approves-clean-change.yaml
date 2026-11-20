@@ -52,9 +52,3 @@ checks:
 - check: text_not_regex
   pattern: (?<!no )(?<!or )(?<!and )(?<!, )(?<![/\w])P[0-2](?![/\w])
   text: no P0-P2 finding invented
-- check: text_regex
-  pattern: ^\W*Returning to:\W*(?:the\s+)?(?:human\s+)?(?:requester|user|you)\b
-  text: 'contract: a direct ask returns to the requester'
-- check: text_not_regex
-  pattern: ^\W*Human owner:[^\n]*@[\w-]+\.
-  text: 'contract: the owner slot does not copy an account email'

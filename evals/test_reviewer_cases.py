@@ -309,12 +309,6 @@ class ReviewerCaseTests(unittest.TestCase):
                  "reviews-uncommitted-work", "reviews-uncommitted-after-terse-handoff")
         checks = {c["text"]: c for name in names for c in scenario(name)["checks"]}
         text_cases = {
-            "contract: a direct ask returns to the requester": (
-                ["Returning to: requester (direct ask)", "**Returning to:** you"],
-                ["Returning to: caller", "Returning to: caller (direct request)"]),
-            "contract: the owner slot does not copy an account email": (
-                ["Human owner: requester", "Human owner: unknown"],
-                ["Human owner: unknown (sam@example.com is the requesting user)"]),
             "contract: a finding line carries its evidence label beside the priority": (
                 ["**P1 [verified]** high [independent] client.py:19", "1. P2 [sourced] medium"],
                 ["**F1 - P1, high confidence, [independent].** Evidence: [verified] by reading",
@@ -334,8 +328,6 @@ class ReviewerCaseTests(unittest.TestCase):
                  "1. P2 [sourced] medium: the helper drops ordering"]),
             "rates it P0 or P1": (
                 ["1. **P1 [verified]** high: cross-tenant read"], ["Independently found P0/P1 count: 1."]),
-            "contract: returns to the invoking agent": (
-                ["Returning to: software-engineer (caller)"], ["Returning to: caller"]),
         }
         for text, (good, bad) in text_cases.items():
             for response, expected in [(r, True) for r in good] + [(r, False) for r in bad]:

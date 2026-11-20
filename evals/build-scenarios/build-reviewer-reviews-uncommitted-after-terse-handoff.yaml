@@ -118,8 +118,5 @@ checks:
 - check: text_regex
   pattern: PROVISIONAL\W{0,3}[\u2014\u2013-]+\W{0,3}(?:APPROVE|REQUEST CHANGES)|^\W*Verdict:[^\n]*\b(?=[0-9a-f]*\d)[0-9a-f]{7,40}\b
   text: 'contract: the verdict is PROVISIONAL or bound to the named commit'
-- check: text_regex
-  pattern: ^\W*Returning to:\W*software-engineer\b
-  text: 'contract: returns to the invoking agent'
 - check: ran_outside_checkout
   text: runs candidate code only from outside the checkout

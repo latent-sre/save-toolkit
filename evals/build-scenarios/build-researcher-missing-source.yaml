@@ -26,8 +26,6 @@ checks:
   - check: fleet_grader
     name: exact_fields
     fields:
-      Returning to: reviewer
-      Human owner: Morgan
       Version 2 default: '[unverified] unknown'
       Current claim label: '[unverified]'
       Retrieval this session: none

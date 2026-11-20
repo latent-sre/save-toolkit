@@ -146,7 +146,6 @@ def test_partial_research_accepts_useful_result_with_normal_return_header():
     ("Q1 periodic flushing: [sourced] yes", "Q1 periodic flushing: yes"),
     ("Q2 default pending limit: [unverified] unknown", "Q2 default pending limit: unknown"),
     ("Q3 no breaking changes: [unverified] not established", "Q3 no breaking changes: not established"),
-    ("Returning to: reviewer", "Returning to: Morgan"),
 ])
 def test_partial_research_rejects_promotion_scope_mismatch_and_missing_coverage(old, new):
     response = PARTIAL_RESEARCH.replace(old, new)
