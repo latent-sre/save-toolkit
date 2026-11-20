@@ -83,6 +83,7 @@
     "build-software-engineer-order-event-identity-baseline",
     "build-software-engineer-pager-webhook",
     "build-software-engineer-refuses-untrusted-suite-run",
+    "build-software-engineer-reruns-failed-checks",
     "build-software-engineer-resumes-after-partial-helper",
     "build-software-engineer-resumes-after-scribe",
     "build-software-engineer-reuses-supplied-green-run",
