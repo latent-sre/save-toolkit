@@ -54,7 +54,7 @@ only. Keys need workflow/ref and relevant job/matrix dimensions; reusable calls 
 key distinct from the caller's group. Deploy groups stay stable per target, automatic cancellation off.
 `queue: single` still replaces pending work with `cancel-in-progress: false`; where supported,
 `queue: max` retains up to 100 pending runs and forbids `cancel-in-progress: true`. FIFO follows
-entry into waiting, not dispatch/commit order; a full queue cancels excess arrivals. Verify server
+entry into waiting, not dispatch/commit order, and is not guaranteed; a full queue cancels excess arrivals. Verify server
 support (`actionlint` 1.7.12 also rejects `queue:` as an unexpected key) and reconcile the candidate
 before promotion: concurrency is not a deployment ledger.
 
@@ -69,6 +69,7 @@ For self-hosting, confirm stack boundary, owner/network scope, restricted groups
 Keep untrusted jobs off persistent runners with credentials/internal reach. Ephemeral registration
 does not erase files: require cleanup/replacement after completion, forced cancellation and host loss
 before reuse. Check minimum runner compatibility when upgrading actions. On github.com and
-data-residency Enterprise Cloud (not Enterprise Server), a runner that has not installed a release
-within 30 days of its publication stops receiving jobs; with auto-update off or no route to the
-update service, schedule manual upgrades.
+data-residency Enterprise Cloud (not Enterprise Server), a runner that has not updated within 63
+days of a newer version becoming available stops receiving jobs, and a critical security update can
+stop them sooner; that availability date can differ from the release date. With auto-update off or
+no route to the update service, schedule manual upgrades.
