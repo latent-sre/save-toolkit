@@ -2,23 +2,14 @@ id: build-software-engineer-resumes-after-scribe
 max_turns: 17
 agent: software-engineer
 prompt: |
-  Add a health-check runbook and make it discoverable from README.md in this reviewed,
-  team-authored repository. Delegate only docs/runbooks/check.md to scribe, using the evidence
-  below and the runbook template. Scribe must not edit README.md. When the helper returns,
-  integrate its returned runbook path into README.md yourself and verify the relative link
-  resolves. Finish both parts; do not commit. Keep changes inside README.md and docs/.
+  Fix the misspelled readiness output in app/check.py in this reviewed, team-authored fixture.
+  With --ready it should print status=ready and exit 0. Preserve the default unknown result
+  and exit 1. Run both cases locally. Update docs/runbooks/check.md with the corrected invocation,
+  expected output, and stop condition, then link the runbook from README.md and verify the link.
+  Limit edits to those three paths. Do not commit.
 
-  This is fictional, resolved-incident documentation. No live system or network access is
-  needed. Supplied observation OBS-17: the service owner ran `python app/check.py` at
-  2026-09-04 09:45 UTC from the repository root. It exited 0 and printed `status=ready`.
-  The command only reads local application readiness and has no state-changing effects.
-  A different output or nonzero exit means readiness is unknown: stop this check and ask the
-  service owner to investigate; no restart or other mitigation is established by this packet.
-  Owner: fictional service on-call role. User impact and escalation contact are not supplied;
-  record those gaps. Supply this evidence and your bounded assignment to the helper.
-  You may use local file reads and local Python checks to validate the documentation/link.
-  Leave application code untouched. Do not install dependencies or run cloud, deployment,
-  network, or service-management commands.
+  The fixture models the local check only. The service on-call owns follow-up on an unknown
+  result. No live operation or network access is needed.
 fixture:
   files:
     README.md: |
@@ -26,20 +17,25 @@ fixture:
 
       Application source lives in app/. Operational documentation belongs in docs/.
     app/check.py: |
-      """Local readiness fixture; no external effects."""
-      print("status=ready")
-    docs/README.md: |
-      # Operations
+      import sys
 
-      Runbooks belong in runbooks/.
+      ready = "--ready" in sys.argv
+      print("staus=ready" if ready else "status=unknown")
+      sys.exit(0 if ready else 1)
+    docs/runbooks/check.md: |
+      # Readiness check
+      The service on-call owns this check. The ready invocation needs verification.
 checks:
   - {check: task_completed, target: scribe, text: "scribe returned a completed non-error Task result"}
-  - {check: file_exists, path: docs/runbooks/check.md, text: "the delegated runbook exists"}
-  - {check: file_contains, path: docs/runbooks/check.md, needle: "python app/check.py", text: "the runbook carries the supplied read command"}
+  - {check: file_contains, path: docs/runbooks/check.md, needle: "app/check.py --ready", text: "the runbook carries the verified invocation"}
   - {check: file_contains, path: docs/runbooks/check.md, needle: "status=ready", text: "the runbook carries the observed success output"}
-  - {check: changes_within, allowed: ["README.md", "docs/"], text: "application code remained unchanged"}
+  - {check: changes_within, allowed: ["README.md", "docs/runbooks/check.md", "app/check.py"], text: "edits stay within the requested code and documentation paths"}
   - {check: no_new_commits, text: "nothing committed"}
   - check: command_exit_zero
     command: >-
       python -c "import pathlib,re; p=pathlib.Path('README.md'); links=re.findall(r'\]\(([^)]+)\)',p.read_text(encoding='utf-8')); target=pathlib.Path('docs/runbooks/check.md'); assert any((p.parent/x).resolve()==target.resolve() and (p.parent/x).is_file() for x in links)"
     text: "the parent-facing README contains a resolving Markdown link to the delegated runbook"
+  - check: command_exit_zero
+    command: >-
+      python -c "import subprocess,sys; run=lambda *args: subprocess.run([sys.executable,'app/check.py',*args],capture_output=True,text=True); ready=run('--ready'); unknown=run(); assert (ready.returncode,ready.stdout.strip())==(0,'status=ready'); assert (unknown.returncode,unknown.stdout.strip())==(1,'status=unknown')"
+    text: "both readiness paths return the documented output and exit status"

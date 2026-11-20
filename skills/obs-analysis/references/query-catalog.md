@@ -18,24 +18,33 @@ Use SPL's [deploy comparison](./spl.md#compare-before-vs-after-a-deploy) and
 ### Is the Akamai edge failing or missing cache for one hostname or region?
 
 Use DataStream 2 JSON client-request logs only when `stack-profile` records Splunk as the destination.
-The query measures five-minute hostname shares; `cacheStatus=0` means not in cache. Missing buckets
-may be delivery gaps, not healthy zero.
+For each hostname and five-minute bucket, compare the known status and cache counts with requests.
+Report each share only when its field covers every client request in that bucket. An absent bucket
+may indicate a delivery gap.
 
 With midgress enabled, emit `isMidgress` and select `0` (client-to-edge), excluding `1` (internal
 edge-to-edge). Omit that predicate only for an independently verified client-only stream lacking
-the field. Missing is not `0`: unknown composition/extraction blocks rates. `statusCode=0` means
-the client left before a response; include it in requests, not 5xx.
+the field. Verify flag coverage before filtering. Unknown composition or flag extraction blocks
+both rates. A literal `statusCode=0` counts as a known non-5xx request because the connection
+ended before a response. For cache, `0` means absent and `1` means present.
 
 ```spl
 index=<datastream_index> sourcetype=<datastream_sourcetype> earliest=<start_epoch> latest=<end_epoch> isMidgress=0
 | bin _time span=5m
-| stats count AS requests, count(eval(statusCode>=500 AND statusCode<600)) AS errors_5xx, count(eval(cacheStatus=0)) AS not_in_cache by _time, reqHost
-| eval pct_5xx=round(100*errors_5xx/requests, 2), pct_not_in_cache=round(100*not_in_cache/requests, 2)
+| eval status=if(match(statusCode, "^(0|[1-5][0-9]{2})$"), tonumber(statusCode), null()),
+       cache=if(match(cacheStatus, "^[01]$"), tonumber(cacheStatus), null())
+| stats count AS requests, count(status) AS status_known, count(cache) AS cache_known,
+        count(eval(status>=500)) AS errors_5xx, count(eval(cache=0)) AS not_in_cache by _time, reqHost
+| eval pct_status_known=round(100*status_known/requests, 2), pct_cache_known=round(100*cache_known/requests, 2),
+       pct_5xx=if(status_known=requests, round(100*errors_5xx/requests, 2), null()),
+       pct_not_in_cache=if(cache_known=requests, round(100*not_in_cache/requests, 2), null())
 ```
 
 Acceptance: 100 client responses, all 200 with 80 cache hits, plus 20 internal 503/cache-miss
-records must yield 100 requests, 0% 5xx, 20% not-in-cache. Verify this and missing/unknown-flag
-refusal before use; it does not prove live extraction.
+records must yield 100 requests, 0% 5xx, 20% not-in-cache. Remove the status field from ten
+client records: 90 of 100 statuses are known (90% coverage) and the 5xx share is null. Cache
+coverage stays at 100% and the cache-absence share stays at 20%. With both fields absent throughout
+the bucket, both coverage percentages are zero and both shares are null. Verify extraction on the target.
 
 Add `country` (client origin) or `serverCountry` (serving location) for regional grouping;
 `stats count by errorCode` narrows a spike. Inspect `reqHost` shape before filtering (it mirrors

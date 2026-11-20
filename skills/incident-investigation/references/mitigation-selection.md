@@ -15,7 +15,20 @@ and follow the human security incident owner's exact direction instead.
 
 ## Pick the fastest safe, reversible action
 
-Start in Apps Manager: open the app from its foundation, org, and space, and match that identity to
+Confirm which runtime serves the affected request from the service card, route evidence, or its owner.
+If the runtime is unknown, ask the owner to identify the serving target before suggesting platform
+controls. For Cloud Run, use `gcp-ops` to match the failing hostname and path to the serving revision
+in the confirmed project, region and service. Compare the effective routing with the last known-good
+mapping before proposing a traffic change. For another confirmed runtime, use its owner's runbook.
+
+Across runtimes, disabling a flag through its owner's control can qualify for the fast path in a
+declared incident. Dependency failover, graceful degradation or load shedding follows the dependency
+owner's procedure and full gate unless covered by that flag action. Loss of queued or in-flight
+work is destructive.
+
+### Confirmed PCF app
+
+In Apps Manager, open the app from its foundation, org, and space, and match that identity to
 the approved packet. The human paths below are conditional navigation from the current Apps Manager guide;
 controls, permissions, and revision support on this foundation remain unconfirmed. If a control
 is absent or its effect is unclear, give the release owner the same target, action, backout, and
@@ -38,8 +51,6 @@ fast-path classification, not other confirmed already-live rollback options.
 | Bad variable read only at process start | Revert and restart | Full gate | Human executor uses **Settings** privately for the exact approved variable, then the confirmed restart path; carry no secret value into the incident packet | `cf set-env <app> KEY <old>` then `cf restart <app> --strategy rolling` (a plain restart stops every instance first — see the restart row); first confirm the consumer and package/droplet state |
 | Bad buildpack or staging-time configuration | Revert and restage through the full release gates | Full gate | Human executor uses the approved configuration/pipeline path; a **Restage** control creates new staged bytes | `cf set-env <app> KEY <old>` then `cf restage <app>`; unknown consumer blocks the restart/restage choice |
 | Load or capacity saturation | Scale out | Fast path (instance count only) | On **Overview**, select the affected process's **Scale** control and approved **Instances** count, if exposed | `cf scale <app> --process <process-type> -i <approved-count>`; preserve the selected process because the CLI defaults to `web`. Manually scaling an app bound to App Autoscaler unbinds that instance from the app: add a Follow-up to re-bind it and confirm its rules |
-| Bad behavior is feature-flag gated | Disable the flag | Fast path | Use the owning flag system's approved control | Follow that system's operating evidence; no deploy is required |
-| Downstream dependency is failing | Fail over, degrade gracefully, or shed load | Full gate; a flag-controlled degrade follows the flag row | Use the dependency owner's approved console or operating procedure | Follow the dependency's approved operating evidence; queued/in-flight work loss is destructive |
 
 Rollback runs as a rolling deployment by default in the current CLI (the installed version is
 unconfirmed), so until it completes both revisions serve and `cf cancel-deployment` during a
@@ -48,6 +59,8 @@ droplet, and the new revision's description, not that the current revision numbe
 rollback is another rollback: redeploy the revision that was live before it, which stays in
 **Revisions** while its droplet is retained, or roll forward with a fix through the full gate.
 
+## Decision rules
+
 After an attempt, retain separate evidence for execution, timestamped effective state, and the
 affected-user outcome. Obtain missing readback from the human or a bounded `sre-assistant` read;
 reuse supplied receipts for the claims and windows they cover. An execution receipt alone does not
@@ -55,12 +68,11 @@ establish user recovery, while measured recovery does not establish effective co
 causal benefit. Reconcile uncertainty
 under [Read back an interrupted attempt](#read-back-an-interrupted-attempt).
 
-## Decision rules
-
 1. **Reversible first.** Prefer route remap or flag flip over a change that cannot be undone quickly.
 2. **Disposition perishable evidence.** Restart/restage discard heap, thread and connection state;
-   scale-in removes the instance; rollback discards the running bad build. Before a proposed action,
-   request capture or the human's decision to forgo it. For a reported action, record capture,
+   scale-in removes the instance. Check whether rollback replaces running instances or only redirects
+   traffic. Before a proposed action, request capture or the human's decision to forgo it.
+   For a reported action, record capture,
    an explicitly supplied waiver, or unknown; missing capture is not evidence of a waiver.
    An instance-scoped restart can hold one instance back for
    diagnosis; whole-app restart cannot. Confirm serving headroom; unknown headroom blocks restart.
@@ -101,8 +113,10 @@ human on-call continues causal work, the human release owner executes fixes, and
 
 ## Read back an interrupted attempt
 
-Read back the effective flag value or route mapping for those actions. For revision rollback,
-confirm completed deployment and the intended droplet on the expected instances: rollback creates
+Read back the effective flag value or route mapping for those actions. For a Cloud Run traffic
+change, verify the effective mapping and serving revision for requests on the affected hostname
+and path. For a PCF revision rollback, confirm completed deployment and the intended droplet on
+the expected instances: rollback creates
 a new, higher revision described `Rolled back to revision <n>`, so a matching target number is not
 required and a description alone is insufficient. Recheck any environment-based mitigation the
 rollback could have undone, using sanitized results.

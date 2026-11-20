@@ -13,6 +13,10 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
 
 ### Changed
 
+- Akamai edge-rate queries report classification coverage for HTTP status and cache outcomes.
+- Incident guidance checks caller and dependency evidence and selects mitigation for the confirmed runtime.
+- The software engineer hands requested runbook updates to scribe with the code change and verification evidence.
+- Reliability owns service-local resilience decisions. Principal handles decisions spanning shared contracts or owners.
 - **gcp-ops:** Choose Cloud Run rollback from the affected request path and restore the prior
   tag, traffic split, or upstream route.
 - **Researcher:** Skip inherited user and project instructions in supported Claude delegation

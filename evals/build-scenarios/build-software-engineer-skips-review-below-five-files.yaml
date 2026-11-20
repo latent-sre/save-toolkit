@@ -55,6 +55,7 @@ fixture:
     scratch-note.txt: |
       Human note: ask operations about the next reconciliation window.
 checks:
+- {check: no_task_dispatch, target: scribe, text: "a code-only request creates no documentation assignment"}
 - check: no_task_dispatch
   target: reviewer
   text: a four-file change spawns no reviewer

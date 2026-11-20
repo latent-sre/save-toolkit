@@ -18,9 +18,14 @@ dependency, demand, or change that produced it.
   many times it is called — count the calls instead; its own flat dashboard clears only the series
   it covers, so it stays open until timings split by the failing region, route, or account type
   are compared;
-- throttling (429), connection refused or reset, or certificate errors from a dependency point at
-  its limits, availability, or credentials rather than the app's code — unless your own call volume
-  rose: check its status, recent changes, and certificate dates with its team;
+- for a 429, identify which component enforced the limit and compare its scope and window with
+  the caller's request and retry volume;
+- a refused or reset connection can reflect the caller's endpoint selection or connection reuse,
+  an intermediary, or the dependency's listener. Compare callers attempting the same endpoint in
+  the same window and match their attempts to proxy or listener records;
+- for a certificate error, compare the hostname and chain presented to failing and healthy callers
+  with their trust stores and, for mutual TLS, their client certificates. A caller trust change and
+  a dependency certificate change remain possible even at steady call volume;
 - retries against a struggling dependency multiply its load and can keep it down after the trigger
   is gone: compare the caller's retry rate with the dependency's load;
 - a normal status code and latency do not prove correct content: a stale quote, wrong price, or
