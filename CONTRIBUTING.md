@@ -39,8 +39,10 @@ python scripts/generate_platform_adapters.py --write
 ```
 
 `rg` hides the generated projections through [`.ignore`](.ignore); pass `--no-ignore` to inspect
-them. Before changing frontmatter, tool authority, delegation, or guard wiring, read the
-[frontmatter reference](skills/agent-authoring/references/claude-code-frontmatter.md).
+them. For host-specific frontmatter, consult the [Claude Code reference](skills/agent-authoring/references/claude-code-frontmatter.md)
+or the [Copilot projection decisions](docs/copilot-projection.md) for the target you are changing.
+Changes to a fleet guard or read-only boundary need independent review of which actions become
+allowed or denied, including changes expressed through instructions.
 
 - **After a host upgrade,** re-probe the live `PreToolUse` payload to verify that the guard still
   recognizes the agent.

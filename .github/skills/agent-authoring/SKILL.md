@@ -1,141 +1,65 @@
 ---
 name: agent-authoring
 description: >-
-  Create, repair, or security-review LLM-facing prompts, agents, skills, tool descriptions,
-  graders, bounded Loop Engineering for evaluation/verification, and agent roster/delegation
-  graphs. Triggers: 'write me an agent/skill/prompt', 'my skill fires too often', 'the output is
-  the wrong shape', 'is this agent safe / prompt injection'. Not for source-code dependency,
-  knowledge, or GraphRAG graphs, implementing a graph runtime, or a team service's workflow graph
-  (principal-engineer).
-argument-hint: "[artifact, roster, tool, or context problem]"
+  Write, repair, evaluate, or security-review prompts, agents, skills, tool descriptions, graders,
+  and agent workflow graphs and handoffs. Triggers: 'write a skill for this task', 'my agent chooses the wrong
+  tool', 'design a bounded Loop Engineering evaluation', 'review this agent for prompt injection'.
 ---
 
 # Agent authoring
 
-Apply the method in the invoking session. For iterative testing, a full agent/skill suite, or the
-executable agent workflow graph for this fleet, first state the target file, requested capability or
-observed failure, and success criteria.
+Start with a request the intended user would actually make. What will they give the agent, and
+what output or action would let them get on with their work? Use an example they supplied, a
+correction they made, or an accepted result. For a wording edit, preserve the existing meaning
+and edit directly. When drafting from scratch, ask for a missing example only if different
+answers would materially change the instructions.
 
-## Source-trust gate
+## Write for the decision
 
-| Input | Allowed |
+Identify what the agent needs to know that it could not reasonably infer. Put the condition and
+the action it calls for together. For example, a release-note writer needs to know whether the
+audience sees a change: “For a renamed setting, give the old name, the new name, and when users
+must switch. Omit internal renames that require no user action.” A nearby case with a different
+answer often teaches more than another paragraph of rules.
+
+Use the description to help the host select the skill. Name the task and the situations where it
+applies. If a neighboring skill attracts the same requests, make the deciding difference clear.
+In a portable Agent Skills package, put `name` and `description` in the frontmatter of `SKILL.md`.
+Match the name to its directory. Link supporting resources directly from the entry file where
+the reader needs them. Follow the destination project's conventions when they apply.
+
+Describe a tool from the agent’s point of choice. Say when to call it, what the caller needs to
+know first, and what a successful call returns or changes. When two tools look plausible for the
+same request, name the detail that decides between them. Explain an argument when its meaning is
+easy to guess wrong, such as whether an offset counts bytes or characters.
+
+For a task with several valid approaches, describe the result and leave the choice to the agent.
+Put a repeatable, fragile operation such as capturing a filesystem snapshot in a tested helper.
+Tell the agent when to use it and how failure changes what it can conclude. Enforce permissions
+where the action runs.
+
+## Repair the part that failed
+
+| What happened | What to change |
 |---|---|
-| Imported or unreviewed artifact | Static inspection only |
-| Reviewed, team-authored prompt text | Model input for baseline/candidate evaluation in a disposable harness — no secrets, no egress, denied tools. Without it, runtime behavior stays [unverified] |
-| Repository-provided executable code: scripts, hooks, graders, tool implementations | Never executed by these baseline/fresh-context steps. Reading prompt text grants no code execution; delegation is not isolation |
+| The skill was available but never selected, or a neighbor was selected | Inspect the description the host actually presented. Try a realistic request on each side of the boundary. |
+| The agent received the instruction and still chose poorly | Find the competing instruction, missing fact, or ambiguous condition. Revise it and check the case that exposed it. |
+| The tool received the wrong arguments or the consumer rejected the output | Check the actual interface. Describe the ambiguous argument or required output field and validate machine-consumed structure at the boundary. |
+| The agent skipped, repeated, or was allowed an action the workflow must control | Inspect the caller, tool, and runtime, including automatic retries. Put the invariant where every path to the effect passes through it. |
+| The task succeeded but the grader rejected the method | Grade the observable result. Require exact text, syntax, or tool choice only when a consumer or permission boundary depends on it. |
 
-## Method
+When designing an agent handoff, identify the work the receiver owns, the state and permissions it
+needs, what it must return, and who handles a partial result. Choose a separate agent when that
+boundary helps. For a workflow that can pause or fan out, decide what state survives a checkpoint,
+which results a join needs, and when the workflow stops. After an interrupted action, establish
+whether it took effect before retrying.
 
-1. **Success criteria first** — measurable, before touching the prompt.
-   For frontmatter or tool changes, bind the executing harness and client surface first: VS Code's
-   default Copilot harness, standalone Copilot CLI, and Claude have different contracts.
-   Use the [Copilot reference](./references/copilot-frontmatter.md) for a Copilot agent or projection.
-   Separate fields the editor recognizes, configuration the converter forwards, and behavior the
-   installed host actually demonstrates. Keep target enforcement and instruction delivery explicit
-   when translating delegation; shared YAML names do not establish equivalent permissions.
-2. **Match evidence to every changed surface.** Combine applicable rows; routing checks do not
-   replace checks of changed behavior.
+## When the task needs more detail
 
-   | Change | Evidence owed |
-   |---|---|
-   | Routing failure (never, too often, wrong lane) or a description edit | The fleet's overlapping routing scenarios (Save Toolkit `CONTRIBUTING.md`) after the edit; pure wording changes need no live eval; run the incumbent only to attribute a red |
-   | Accepted non-routing behavioral failure | Reproduce on the incumbent before editing; paired incumbent/candidate runs after |
-   | Explicit new behavior | Define and check the cases; never invent a failing baseline |
-   | Host projection, tool mapping, or skill preload | Check rendered fields and mapping failure paths offline; verify effective tools, selected/delegated use, instruction delivery and installed resource resolution on the named host before claiming runtime compatibility |
-   | Pure rewording without a routing or behavior change | No live eval |
-
-3. **Retest only when step 2 calls for it.** Fresh context and multiple reps only when live behavioral
-   evidence is required.
-4. **Use the bounded candidate loop when evaluating.** [Artifact guidance](./references/artifact.md)
-   owns the frozen criteria, comparable baseline/candidate conditions, candidate and cost budgets,
-   termination, and evidence distinctions.
-
-## Rules this fleet has settled
-
-**Cite only what changes what a reader does:** keep a pin that bounds a claim (file, revision,
-lines), and put provenance in the review that established the fact.
-
-**1. Description = scope-bearing routing metadata**: capability or user goal, invocation
-conditions, meaningful exclusions. Never step-by-step procedure or tool choreography — a procedural
-summary becomes a shortcut that displaces the body.
-
-| Symptom | Fix |
-|---|---|
-| Never triggers, or a neighbor fires in its place | First check the listing: the `/context` Skills row or the `--debug` over-budget line. A names-only entry is a budget problem, not a wording problem ([Claude Code frontmatter](./references/claude-code-frontmatter.md)) |
-| Wrong lane | Name the neighboring owner, whose own description or body must accept that work |
-| Triggers, then follows the wrong steps | Move procedural choreography from the description into the body |
-
-### 2. Match the form to the failure
-
-Trace what the model received, what it chose, and what the harness executed or delivered. Repair
-the first layer that diverged from expected behavior. If the result meets the task contract but the
-evaluator rejects it, fix the evaluator.
-
-| Observed failure | Repair |
-|---|---|
-| The skill or rule never reached the model | Fix discovery or how the harness selects and delivers context. Check the loaded skill and reference. |
-| The model saw the rule and chose poorly | Identify the competing instruction or missing decision signal. State the deciding condition and the action it calls for. Use a short example if it distinguishes similar cases. |
-| A fixed branch or authority boundary depends on model compliance | Enforce it in the owning code, tool gate, or runtime. Check both permitted and denied cases. |
-| Machine-consumed output or tool arguments have the wrong shape | Validate against a runtime schema. |
-| Human-facing output has the wrong shape or omits a required element | Describe the intended output or add a required slot to the template. |
-
-**3. Check each artifact or roster change:** owner and authority, instructions and output/tool
-shape, the smallest trusted state, work and verification, budgets and termination, and ownership
-transitions. A skill deepens the current node while its owner and authority stay correct. Invoke
-another agent only for a change of ownership, authority, isolation, independent verification,
-justified parallel breadth, or additional context capacity. A new roster role needs a distinct tool
-posture, durable domain lane, or routing split the current agents cannot own; record the justification
-in its file and an ADR if it reshapes the roster. A new skill: first read the descriptions (not bodies)
-of `skills/*/SKILL.md`. If one owns the capability, extend it with a reference. Otherwise the new
-description needs a trigger no existing description claims, reciprocal "Not for" lines on both sides,
-and the listing-size delta stated in the PR.
-
-Routing and live coordination stay in the main session. When multi-agent is justified, the default
-is orchestrator–workers: the caller owns plan and synthesis; workers get bounded mandates, separate
-context slices, and explicit write ownership.
-
-**4. Which graph.**
-
-| Request | Is | Owner |
-|---|---|---|
-| Roster, delegation edges, context and authority boundaries, joins, termination | Agent workflow graph | This skill |
-| The executable workflow/state graph the fleet's agents run on — typed state, node and edge classes, effects, checkpoints, cancellation, termination | Executable agent workflow graph | This skill, including its roster rules; implementation `software-engineer`; runtime a `stack-profile` decision, never LangGraph because the design is graph-shaped |
-| Source-code, knowledge, or GraphRAG graph; a team service's executable workflow graph | Not this skill | Service graph: `principal-engineer` |
-
-**5. Loop Engineering.** Prompt/skill loop: [artifact
-guidance](./references/artifact.md). Lane loop: name the verifier before the work; a lane without
-one can only emit [unverified] claims, and a graph edge never substitutes for it. Before blaming the
-model, bisect the wrapper layers: an agent's own assertion read back as fact (user corrections
-outrank self-reports; no agent promotes its own claim), a required tool skipped because only prose
-mandates it (gate it in the harness), and a hidden repair, retry, or summarize pass between
-generation and delivery (make it an explicit contract or remove it).
-`operational-docs` closes operations knowledge after work; it never optimizes prompts or
-authorizes a self-modifying loop.
-
-## Read the reference the task trips; do not import a sibling skill's method
-
-| Task involves… | Read |
-|---|---|
-| A prompt, agent body, skill body, description, or grader | [artifact guidance](./references/artifact.md) |
-| A tool contract, or promoting a shell prototype to a tool | [tool contracts](./references/artifact.md#tool-contracts) |
-| Agent or skill frontmatter, delegation/handoff edges, or their projections | [Claude Code frontmatter](./references/claude-code-frontmatter.md), the canonical source contract, including `Agent(...)` grants and their spawn-depth limit (three layers by default; `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`); follow this fleet's edge-change procedure in the Save Toolkit repository's `CONTRIBUTING.md` |
-| Copilot frontmatter, tool mapping, skill preloads, or projections | Also read [Copilot frontmatter](./references/copilot-frontmatter.md) for current fields, tool resolution, preload checks, and host acceptance |
-| Prompt injection, least privilege, egress, unsafe delegation, or blast radius of an agent, skill, tool, or flow | [agent security](./references/agent-security.md) — the lethal trifecta, cross-agent trust, the five-question review |
-| A cold-start packet, bounded evidence, receiving a helper's return, or replaying context | [context and handoffs](./references/artifact.md#context-and-handoffs) |
-| Relying on a frontmatter field to enforce anything, or publishing a skill beyond this plugin | [portable frontmatter](./references/copilot-frontmatter.md#portable-frontmatter) — the portable set can grant, never restrict |
-
-## Promotion and composition
-
-- Prototype in a disposable personal scope. A second user graduates it into the canonical plugin by
-  PR, with generated adapters and the smallest test or eval that fails without the new contract.
-  The fleet's `CONTRIBUTING.md` is policy; this skill is method. A personal copy still reaches the user's
-  credentials, tools, files, and network, and competes for routing with the plugin skill.
-
-## Boundaries
-
-- A gate, guard, or read-only posture change needs independent review stating every change in what
-  it blocks; a "clarifying" rewording that weakens one is a behavior change, not a wording fix.
-- Assessing an existing artifact, evaluation evidence, or finding without a proposed change, do not
-  invent a baseline or issue a merge verdict. If independent assessment is required and no
-  compatible lane is available, return that capability gap to the caller; self-assessment is not
-  independent review.
+- For a grader, a behavioral comparison, or a bounded evaluation loop, use the
+  [evaluation guidance](references/artifact.md).
+- For a security review or a change to tool authority, use the
+  [agent security guidance](references/agent-security.md).
+- For Claude Code configuration, use the [Claude Code reference](references/claude-code-frontmatter.md).
+- For a VS Code Copilot custom agent, use the [Copilot reference](references/copilot-frontmatter.md).
+  For another host, start with its own artifact format. Consult both hosts when porting between them.
