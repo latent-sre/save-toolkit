@@ -1,24 +1,29 @@
 # Save Toolkit
 
 A Claude Code plugin that helps a human SRE do their job on this team's stack: PCF (through Apps
-Manager), Splunk, PCF App Metrics, Grafana, Akamai, with Cloud Run migration guidance.
-The GCP landing runtime remains undecided in `stack-profile`. It fits together in
-three layers. **You own the work**: the incident, the change, the runbook. **An advisor thinks with
-you**: `incident-investigation` asks what to check next, says what each result means, and tells you
-when to mitigate. **Agents are your helpers**, dispatched by you or the invoking workflow for bounded jobs:
-`sre-assistant` performs a read-only lookup or investigation, `observability-engineer` tunes an alert, `scribe` writes the runbook
-afterward. The skills serve you and the agents alike: the same logs skill hands you a paste-ready
-Splunk search and hands the `sre-assistant` agent the method to build one, which is why a PCF check is always
-the Apps Manager view with the `cf` command beside it. A human executes every production action,
-with one narrow exception: an invoked `observability-engineer` may apply scoped Grafana dashboard,
-folder, and alert-rule writes and temporary silences under its
-[change-authority rule](agents/observability-engineer.md#change-authority).
+Manager), Splunk, PCF App Metrics, Grafana, and Akamai, with Cloud Run migration guidance. The GCP
+landing runtime remains undecided in `stack-profile`.
 
-> **Pre-release.** New Claude Code installs resolve the plugin from the fetched GitHub
-> marketplace. Existing installs receive updates when the plugin manifest version changes.
-> Commits merged to `main` under the same version leave those installs on their cached copy.
+It fits together in three layers:
 
-## Install (Claude Code)
+- **You own the work:** the incident, the change, the runbook.
+- **An advisor thinks with you:** `incident-investigation` asks what to check next, says what each
+  result means, and tells you when to mitigate.
+- **Agents are your helpers:** you or the invoking workflow dispatch them for bounded jobs, such as
+  a read-only lookup, an alert tune, or a runbook.
+
+A human executes every production action, with one narrow Grafana exception described under
+[Limits](#limits).
+
+> **Pre-release.** An install updates only when the plugin version changes; commits merged to
+> `main` under the same version leave it on its cached copy.
+
+## Install
+
+The fleet is not distributed to Codex, which picks up the root [`AGENTS.md`](AGENTS.md) when
+working in this repository ([ADR](docs/decisions/2026-08-23-retire-codex-distribution-target.md)).
+
+### Claude Code
 
 Use Claude Code 2.1.295 or later. Starting with that version, the plugin can block a Bash or
 PowerShell call if its guard hook fails to start, crashes, or times out.
@@ -29,215 +34,107 @@ claude plugin marketplace add latent-sre/save-toolkit
 claude plugin install save-toolkit@latent-sre
 ```
 
-To update an existing install, refresh the marketplace and then update the plugin.
+To update an existing install, refresh the marketplace, update the plugin, and start a new
+session. Check the installed version with `claude plugin list`.
+[Claude Code plugin updates](https://code.claude.com/docs/en/plugins/host-marketplace#release-a-new-version)
 
 ```sh
 claude plugin marketplace update latent-sre
 claude plugin update save-toolkit@latent-sre
 ```
 
-Start a new session to load the update. Check the installed version with `claude plugin list`.
-[Claude Code plugin updates](https://code.claude.com/docs/en/plugins/host-marketplace#release-a-new-version)
+### VS Code and GitHub Copilot (beta)
 
-## Then just describe the problem
+Confirm `chat.plugins.enabled` is on, run **Chat: Install Plugin from Source**, and enter
+`https://github.com/latent-sre/save-toolkit`. VS Code clones the repository and loads the skills
+plus the generated Copilot agents and hooks in `com.github.copilot/`.
 
-Routing is by description; there are no commands to memorize.
-
-- *"walk me through INC-4132, checkout is 502-ing since 14:02 UTC"* → `incident-investigation`
-  sits beside you: what to check next in Apps Manager, Splunk, Grafana, or PCF App Metrics, what each result would
-  mean, when to mitigate, who to page, and a board so nothing learned is lost.
-- *"why is orders 502-ing in prod?"* → `incident-investigation` again; you own it, it advises.
-- *"check cf events and recent logs for orders since 14:00 UTC"* → the `sre-assistant` agent gathers
-  the requested evidence and limits, then returns to its caller.
-- *"investigate the checkout latency dashboard while I check the database"* → `sre-assistant`
-  interprets available evidence, follows related leads within the assignment, and returns findings
-  and recommendations. Missing browser/API access stays explicit; a prompt cannot supply it.
-- *"this alert is too noisy"* → `observability-engineer` with `obs-alerting`.
-- *"write a runbook for the checkout deploy"* → the `scribe` agent with `operational-docs` in runbook mode.
-- *"is PR #42 ready to merge?"* → `production-change-gate`'s merge-readiness checklist, including
-  disposition of any known blocking findings; independent exact-SHA review is reserved for
-  production deployments.
-
-To select the advisor explicitly, start with `/save-toolkit:incident-investigation INC-4132` and
-describe the symptom. This is a fallback when automatic selection misses, not a requirement for
-ordinary use. A direct request for specific counts or logs stays a bounded helper job; asking the
-advisor to use a helper keeps the original incident question with the advisor and you.
-
-**Before first use:** the canonical [`stack-profile` skill bundle](skills/stack-profile/) declares
-*this* team's stack and pending migration decisions. Every platform-touching skill
-routes through it — if that is not your stack, update its entrypoint and matching references first
-or the fleet will confidently recommend someone else's tools.
-
-Two entry points are manual only, so type them: `/save-toolkit:adr` (ADR scaffold) and
-`/save-toolkit:pcf-deploy` (PCF/TAS deploy plan — model invocation is disabled, so nothing
-will offer it).
-
-## The fleet
-
-| Agent | Lane | Routing |
-|---|---|---|
-| `sre-assistant` | Bounded read-only lookup or investigation (guarded Bash/PowerShell on Claude), dispatched by a human or invoking workflow | Returns findings and recommendations; the caller retains the broader investigation; delegates only sanitized public fact checks to `researcher` |
-| `observability-engineer` | Observability and dispatched Grafana changes (unguarded Bash; applies scoped dashboards, alert rules, and silences) | Delegates docs to `scribe` and sanitized public lookups to `researcher`; active diagnosis stays with the responder using `incident-investigation` (bounded investigative work to `sre-assistant`), and automation goes to `software-engineer` |
-| `scribe` | Write evidence-bound runbooks, resolved-incident postmortems, and approved service/application/alert knowledge | Local document writer with no shell, web, external MCP, or delegation authority |
-| `software-engineer` | Build, fix, refactor, modernize, and test code or operations tooling | Routes requested or risk-triggered review to `reviewer`, operational docs to `scribe`, and sanitized public lookups to `researcher` |
-| `principal-engineer` | System design and architecture before code: contract changes, migrations, new-service architecture, and tool or platform selection | Returns a design record or proposed ADR for the human owner to accept; bounded facts from `repository-investigator`, protected observations from `sre-assistant`, and sanitized research from `researcher`; implementation goes to `software-engineer` |
-| `repository-investigator` | Local-only answers about private, current, or uncommitted checkout behavior | Cites `file:line`; no shell, write, web, external MCP, skill, or delegation |
-| `reliability-engineer` | Service reliability assessment, resilience design, and toil reduction | Local evidence and design documents; bounded facts from `repository-investigator`, protected observations from `sre-assistant`, and sanitized research from `researcher`; implementation stays with its existing owner |
-| `researcher` | Extended public research or bounded external-source help for another agent | Returns cited evidence from official docs, upstream code, packages, and advisories; quick lookups stay with a caller that already has evidence or approved retrieval tools |
-| `reviewer` *(for maintainers and builders)* | Independent investigation, isolated verification, and correctness/security review | Gathers Git/PR evidence and uses focused evidence helpers; owns the verdict, while its caller dispatches fixes to `software-engineer` |
-
-The skills, by area (each `skills/<name>/SKILL.md` carries its own description and triggers):
-
-- **Incident and operations** — `incident-investigation`, `root-cause`, `operational-docs`
-  (runbooks, postmortems, knowledge closeout, and ownership lookups)
-- **Observability** — `obs-analysis` (logs, metrics, and traces), `obs-alerting`,
-  `obs-pipeline`, `grafana` (dashboard design and Grafana UI/API operations)
-- **Platform** — `stack-profile`, `pcf-ops`, `pcf-deploy`, `gcp-ops`, `akamai-edge`
-- **Change gates** — `production-change-gate`
-- **Reliability improvement** — `resilience-analysis` (including existing service readiness), `toil-reduction`
-- **Engineering craft** — `api-craft`, `python-craft`, `go-craft`, `frontend-craft`, `operator-cli`,
-  `cicd-github`, `database-reliability`
-- **For maintainers: the fleet itself and the graphs it designs** — `agent-authoring`
-
-The enforcement model and design disciplines are in [AGENTS.md](AGENTS.md); the repository layout
-and its consequences are under **Start here**.
-
-### Tools and delegation
-
-The last column is the Claude delegation graph, validated against each agent's frontmatter by
-Gate A.
-
-| Agent | Lane | Tools posture | Delegates to |
-|---|---|---|---|
-| `software-engineer` | Code and operator tooling | Local read/write + unguarded Bash/PowerShell for team-authored code; no web tools | `reviewer`, `scribe`, `researcher` |
-| `reviewer` | Independent investigation, verification, and review | Git/PR reads, scratch writes and checks, trusted skills; no direct web tools | `repository-investigator` |
-| `repository-investigator` | Bounded checkout questions | Read/Grep/Glob only; terminal | — |
-| `reliability-engineer` | Service reliability analysis, design, and toil reduction | Local reads + design-document writes; no execution or direct external access | `repository-investigator`, `sre-assistant`, `researcher` |
-| `principal-engineer` | System design and architecture: contract changes, migrations, new-system architecture, and tool or platform selection | Local reads + design-document and proposed-ADR writes; no execution or direct external access | `repository-investigator`, `sre-assistant`, `researcher` |
-| `sre-assistant` | Bounded read-only lookup or investigation, dispatched by a human or invoking workflow | Allowlist-guarded Bash/PowerShell and bundled Grafana helper; interactive browser tools that no hook guards; recommends mitigation | `researcher` |
-| `observability-engineer` | Observability and dispatched Grafana changes | Unguarded Bash; writes config and scoped Grafana dashboards, folders, alert rules, and silences | `scribe`, `researcher` |
-| `scribe` | Evidence-bound operational documents | Local document write; no Bash or web; terminal | — |
-| `researcher` | Cited public research | External-only; no local read, Bash, Write, Skill, or Agent | — |
-
-## How it works
-
-Save Toolkit is a host-loaded control layer, not a background orchestrator. The host supplies the
-model and executes tools; the plugin supplies the specialist roles, reusable methods, routing, and
-authority boundaries. Claude Code reads the canonical [`agents/`](agents) and [`skills/`](skills)
-directly; GitHub Copilot/VS Code receives a committed projection from one deterministic generator,
-never edited by hand.
-
-```text
-agents/ + skills/ (canonical)
-  |-- Claude Code reads them directly
-  `-- generator -> .github/agents/ + .github/skills/ -> VS Code/Copilot
-```
-
-- An **agent** owns a lane with a distinct prompt, tool posture, and return contract.
-- A **skill** adds a method or checklist without changing the current owner.
-- **Model delegation** uses the host's subagent tool to give a bounded task to a named child, which
-  returns its result to the caller. The calling agent checks that result against the assignment,
-  combines the evidence, and continues the original task within its authority; the human need not
-  relay reports between helpers. Canonical Claude `Agent(save-toolkit:target, ...)` grants map to
-  Copilot's `agent` tool alias, without an equivalent per-parent target restriction.
-  [COPILOT-HARNESS-001](docs/fleet-roadmap.md#copilot-harness-001--decide-fleet-delegation-on-the-default-copilot-harness)
-  retains that unresolved installed-host requirement.
-- Local-only `agents`, `handoffs`, `argument-hint`, and `advancedOptions` are omitted from generated
-  agent headers. Human ownership transfers still require a bounded assignment and appropriate approval.
-- Production-facing or materially irreversible effects remain human decisions. An invoked
-  [`observability-engineer`](agents/observability-engineer.md#change-authority) may apply requested
-  Grafana dashboard/folder changes, individual Grafana-managed alert-rule create/update or
-  pause/resume, and temporary silence create/update/expire under its complete change-authority
-  rule. The [`grafana`](skills/grafana/SKILL.md) skill covers operational reads and alert/silence
-  procedures, dashboard design and implementation. A handoff alone does not authorize a write.
-- **The team's own inventories are not in this repository.** The query references under
-  `skills/obs-analysis` use `<app>`/`<index>` placeholders, the PCF and GCP skills take the
-  foundation or project from the caller, and service cards, alert cards, and runbooks are read
-  from `operations/`, `runbooks/`, and `postmortems/` under the team's knowledge repository root.
-  Until those are supplied, "where are the dashboards, logs, and runbooks for this service" has no answer
-  here by design; the skills say so rather than guess.
-
-### Host guarantees and limits
-
-A field present in an agent file proves what the plugin requested, not what every host enforces.
-Treat these as build-bound evidence, and rerun the linked probe after host upgrades.
-
-| Host surface | Contract shipped | Current evidence boundary |
-|---|---|---|
-| Claude Code | Canonical agents and skills load directly; tool absence is the primary role boundary, with the plugin-level read-only Bash guard for `sre-assistant` | Claude has the richest enforceable contract, but `Agent(target)` is enforced only on the main thread; subagent-depth restrictions remain documentary. See [`AGENTS.md`](AGENTS.md#enforcement-boundaries) |
-| Historical VS Code Local 1.137.0 | Earlier generated agents, skills, model-call `agents:`, and human-selected `handoffs:`; these agent fields are no longer emitted | `[verified]` On 2026-09-10 the maintainer ran the acceptance cases against an installed 0.40.0 candidate and reported all passing, including the forbidden-child case that ran anyway on 1.135.0. Owner-reported from a live session; no transcript was filed, so this row is the record. The separate agent-scoped hook canary remains unrun and `hooks/copilot-hooks.json` still ships empty |
-| Historical Local enforcement change `d679b159` | Upstream adds prepare/invoke rejection outside `agents:` and forwards each child's own list | `[sourced]` The [upstream change](https://github.com/microsoft/vscode/commit/d679b159e16d15d24e364b627ab85e144899ead0) is merged; `[unverified]` the installed plugin path until the `RELEASE-001` acceptance run passes on that exact build |
-
-[unverified] The current default Copilot projection has no equivalent per-parent child restriction.
-The historical Local results above do not qualify the current projection or default harness.
-
-### Other hosts
-
-For read-only observability without MCP, see [Windows/macOS command access](skills/grafana/references/command-access.md).
-The bundled Grafana read helper takes its credentials from the environment or, when the environment
-sets no `GRAFANA_*` variable, from `~/.config/save-toolkit/grafana.env`. Create a Grafana service
-account with the **Viewer** role, add a token, and write the file yourself, one `NAME=value` per line
-with no quotes or spaces around `=`: `GRAFANA_URL` (the HTTPS origin), `GRAFANA_ORG_ID` and
-`GRAFANA_SA_TOKEN`. On macOS and Linux, `chmod 600` it; the helper refuses a file other accounts
-can read. Setting any `GRAFANA_*` variable, even an empty one, makes the helper ignore the file.
-Claude's candidate supports a small native command set and the bundled Grafana read/query helper.
-Selected native VS Code and Playwright browser interactions require a protected read-only session.
-The standard
-Copilot profile remains without terminal tools; its command preview must pass the
-installed-host canary before adoption.
-
-**VS Code / Copilot Chat (beta plugin):** confirm `chat.plugins.enabled` is on, run
-**Chat: Install Plugin From Source**, and enter `https://github.com/latent-sre/save-toolkit`.
-VS Code clones the repository and loads it as an Agent Plugins 1.0 plugin, which the root
-[`plugin.json`](plugin.json) declares: canonical `skills/` plus the generated Copilot agents and
-hooks in `com.github.copilot/`. Alternatively, install the same marketplace through GitHub Copilot
-CLI v1.0.85 or later (earlier versions do not discover `com.github.copilot/agents/`); VS Code
-automatically discovers Copilot CLI-installed plugins:
+Alternatively, install through GitHub Copilot CLI v1.0.85 or later; VS Code discovers Copilot
+CLI-installed plugins automatically:
 
 ```sh
 copilot plugin marketplace add latent-sre/save-toolkit
 copilot plugin install save-toolkit@latent-sre
 ```
 
-For an unpublished local branch, use an isolated VS Code profile and register the branch worktree
-with `chat.pluginLocations` instead:
+Opening this repository without installing the plugin discovers `.github/agents/` and
+`.github/skills/` directly.
 
-```json
-{
-  "chat.pluginLocations": {
-    "/absolute/path/to/save-toolkit": true
-  }
-}
-```
+## Set up
 
-Open a neutral test workspace for that plugin check; opening this repository itself also discovers
-`.github/agents/` and `.github/skills/` as workspace customizations and can hide duplicate-install
-mistakes. Opening the repository without installing the plugin discovers those standard
-directories directly; no custom skill-location setting is needed.
+**Declare your stack.** The [`stack-profile` skill bundle](skills/stack-profile/) declares *this*
+team's stack and pending migration decisions, and every platform-touching skill routes through it.
+If that is not your stack, update it first or the fleet will confidently recommend someone else's
+tools.
 
-**Codex:** the fleet is not distributed to Codex. Codex working *in* this repository picks up the
-root [`AGENTS.md`](AGENTS.md) automatically, which is all it needs
-([ADR](docs/decisions/2026-08-23-retire-codex-distribution-target.md)).
+**Give the Grafana read helper its credentials.** The helper reads them from the environment or,
+when none of its `GRAFANA_*` settings is set there, from `~/.config/save-toolkit/grafana.env`:
 
-## Validate
+1. Create a Grafana service account with the **Viewer** role and add a token.
+2. Write the file yourself, one `NAME=value` per line with no quotes or spaces around `=`:
+   `GRAFANA_URL` (the HTTPS origin), `GRAFANA_ORG_ID`, and `GRAFANA_SA_TOKEN`.
+3. On macOS and Linux, `chmod 600` it; the helper refuses a file other accounts can read.
 
-One structural gate, run with the project interpreter (see
-[CONTRIBUTING.md](CONTRIBUTING.md#2-change-the-source-of-truth)):
+Setting any of those variables in the environment, even to an empty value, makes the helper ignore
+the file. For command-line access without MCP, see
+[Windows/macOS command access](skills/grafana/references/command-access.md).
 
-```sh
-python scripts/gate_a.py                                # the whole structural gate
-python scripts/generate_platform_adapters.py --write    # after any canonical edit
-python scripts/test_platform_adapters.py                 # Copilot projection + plugin contract
-claude plugin validate . --strict                       # Claude platform contract
-```
+## Use it
 
-Gate A proves the fleet is well-formed, never that it is correct — the change-shaped checks in
-[CONTRIBUTING.md](CONTRIBUTING.md)'s verification table are separate. Active behavioral and routing
-evals live in [`evals/README.md`](evals/README.md). Accepted fleet failures become focused
-regressions and ordinary PR evidence.
+Describe the problem. Routing is by description; there are no commands to memorize.
+
+- *"walk me through INC-4132, checkout is 502-ing since 14:02 UTC"* → `incident-investigation`
+  sits beside you: what to check next in Apps Manager, Splunk, Grafana, or PCF App Metrics, what
+  each result would mean, when to mitigate, and who to page.
+- *"check cf events and recent logs for orders since 14:00 UTC"* → the `sre-assistant` agent
+  gathers the requested evidence, then returns to its caller.
+- *"this alert is too noisy"* → `observability-engineer` with `obs-alerting`.
+- *"write a runbook for the checkout deploy"* → the `scribe` agent with `operational-docs`.
+- *"is PR #42 ready to merge?"* → `production-change-gate`'s merge-readiness checklist.
+
+If automatic selection misses, start the advisor yourself with
+`/save-toolkit:incident-investigation INC-4132`. Two entry points are manual only, so type them:
+`/save-toolkit:adr` (ADR scaffold) and `/save-toolkit:pcf-deploy` (PCF/TAS deploy plan).
+
+## The fleet
+
+The host supplies the model and executes tools; the plugin supplies the roles, methods, routing,
+and authority boundaries. An agent owns a job with its own tools, and a skill adds a method without
+changing who owns the work. An agent that delegates checks the helper's result itself, so you need
+not relay reports between helpers.
+
+| Agent | What it does | Tools |
+|---|---|---|
+| `sre-assistant` | Read-only lookup or investigation; returns findings and recommendations to its caller | Guarded Bash/PowerShell and the Grafana helper; browser tools that no hook guards |
+| `observability-engineer` | Observability work and scoped Grafana changes | Unguarded Bash; writes config and Grafana dashboards, folders, alert rules, and silences |
+| `scribe` | Runbooks, postmortems, and service and alert knowledge | Document writes; no shell, web, or delegation |
+| `software-engineer` | Builds, fixes, refactors, and tests code and operations tooling | Read/write and unguarded Bash/PowerShell; no web tools |
+| `principal-engineer` | System design before code; returns a design record or proposed ADR for a human to accept | Reads and design-document writes; no execution or external access |
+| `repository-investigator` | Answers questions about the current checkout, citing `file:line` | Read, Grep, and Glob only |
+| `reliability-engineer` | Reliability assessment, resilience design, and toil reduction | Reads and design-document writes; no execution or external access |
+| `researcher` | Cited public research | Web and documentation tools only; no local files or shell |
+| `reviewer` | For maintainers and builders: independent verification and correctness/security review; owns the verdict | Git/PR reads and scratch-copy checks; no web tools |
+
+The skills live in [`skills/`](skills) and cover incident work, observability, the platform, change
+gates, reliability, and engineering craft; each `SKILL.md` carries its own description and
+triggers.
+
+## Limits
+
+- **A human executes production changes.** A handoff alone does not authorize a write. The one
+  exception: an invoked `observability-engineer` may apply requested Grafana dashboard, folder,
+  alert-rule, and temporary-silence changes under its
+  [change-authority rule](agents/observability-engineer.md#change-authority).
+- **The team's own inventories are not in this repository.** Query references use placeholders
+  such as `<app_index>` and `<project>`, and service cards, alert cards, and runbooks are read from
+  `operations/`, `runbooks/`, and `postmortems/` in the team's knowledge repository. Until those
+  are supplied, the skills say so rather than guess.
+- **Enforcement differs by host.** A field in an agent file shows what the plugin requested, not
+  what every host enforces; see [`AGENTS.md`](AGENTS.md#enforcement-boundaries) and the
+  [Copilot projection](docs/copilot-projection.md).
 
 ## Contribute
 
-Start with [AGENTS.md](AGENTS.md) (the fleet guide and conditional rule map, loaded into every
-session) and [CONTRIBUTING.md](CONTRIBUTING.md) (authoring, verification, and promotion policy).
-Live and deferred work is tracked solely in [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md).
+Start with [AGENTS.md](AGENTS.md) (the fleet-wide rules, loaded into every session) and
+[CONTRIBUTING.md](CONTRIBUTING.md) (authoring, verification, and promotion policy). Live and
+deferred work is tracked solely in [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md).

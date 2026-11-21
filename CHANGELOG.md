@@ -13,6 +13,10 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
 
 ### Changed
 
+- The README, fleet guide, and contributor guide are shortened and reorganized, with one agent
+  table in the README; the rules for changing evals move to the evals README.
+- The README agent table no longer lists delegation targets, and the check that compared them to
+  the agents' grants is removed; each agent's frontmatter is where its targets are stated.
 - Operator CLI guidance covers recovery when a process dies after an effect and before reporting its outcome.
 - PCF escalation guidance accepts scoped platform evidence from a responder who can see only one app.
 - Frontend guidance scopes browser and serving checks to the change and gives Vue tooling one compatibility policy.

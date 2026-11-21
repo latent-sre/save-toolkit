@@ -43,7 +43,7 @@ defaults below.
 
 ## Rules vs. state vs. evidence
 - Instructions files hold only durable, imperative rules. Current state (what's paused, what's next, branch names) lives in the project's ledger or tracker; forensic narrative lives in per-task reports. Never let state or narrative leak into instructions — stale lines teach future sessions to distrust the file.
-- Report an operational discovery with its evidence. Follow the [fleet learning rule](AGENTS.md#shared-conventions) when an operational closeout is invoked.
+- Report an operational discovery with its evidence. Follow the [fleet learning rule](AGENTS.md#fleet-rules) when an operational closeout is invoked.
 - No meta-prose: an instructions file carries no provenance narrative, methodology notes, date stamps, citations, or self-justification — comments included. A rule is its trigger, its imperative, and the failure it prevents; where it came from belongs in the report that proposed it.
 
 ## Finish with a review packet

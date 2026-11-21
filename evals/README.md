@@ -52,6 +52,53 @@ one filter are OR, different filters are AND. A component is the pinned agent/sk
 including negative routing targets. It does not imply coverage of every indirectly loaded skill.
 Conversation profile is separate from runner kind. Use named suites for cross-cutting workflows.
 
+## Change the evals
+
+CI runs no `evals/` tests, so local runs are the only evidence for an eval change; quote them in
+the pull request. Live evals run from `evals/build_probe.py` in a manual clean room. Raw traces and
+the batch summary stay private under `.eval-runs/`; quote the numbers you rely on into the PR or
+review that uses them.
+
+| Change | Evidence |
+|---|---|
+| Scenario data, prompt, target, or expected result | `python evals/build_probe.py validate` and the matching scenario/grader contract tests; execute changed fixture code or check commands through their affected behavioral tests |
+| Eval harness, grader, or runner | The affected `evals/test_*.py`; `python -m ruff check`, `python -m ruff format --check` and `python -m mypy` for a change to the runner (`evals/build_probe.py`, `evals/probe/`), `evals/compare_runs.py`, `evals/graders.py`, `evals/inspect_pilot.py` or an `evals/test_*.py`; `python evals/judge.py --calibrate` after a rubric edit |
+| Judge, clean room or oracle Python | The affected behavioral tests and `python -m ruff check --isolated --select E9,F63,F7,F82 evals/judge.py evals/clean_room.py evals/oracles`; preserve byte-bound formatting and incremental typing unless a broader migration has a measured benefit |
+
+- **Heavy suite:** the default run skips the `HEAVY` files listed in `conftest.py`. Run
+  `scripts/local_tests.py --heavy` in place of the default run when changing the evaluator, oracle,
+  grader, runner, shared eval fixtures/helpers, or heavy-test selection, and on the exact candidate
+  before an eval campaign's first trial. A scenario-only change needs its affected heavy file when
+  relevant, not every heavy file.
+- **Suites:** add new root tests and native scenarios to capability suites in the same change, and
+  run `python evals/catalog.py check` when changing suite membership or the track index.
+- **Scenarios and runner:** every active scenario declares `max_turns`, and runner edits retain a
+  saved-run `rescore`/`diff` comparison explaining every changed verdict (see
+  [running](docs/running.md) and [internals](docs/internals.md)). Oracle changes also exercise the
+  supervised completion path, including candidate failure and early exit, unavailable measurement,
+  and oracle crash.
+- **Accounts:** the suite must also pass under an elevated account. Tests that bind a runtime to
+  the host use `probe_testkit.unelevated_host` to retain the real hostname and model an ordinary
+  account.
+- **Vitest UI calibrations:** pass `--dist loadfile` so each module's matrix runs once.
+
+Behavioral campaign plans include Sonnet, Sol, Luna and Terra coverage. Start with the
+[four-model testing block](../docs/fleet-evaluation/multi-model-testing.md) to check the supported
+paths, then name the exact models, cases and limits for the campaign. Record unsupported profile
+coverage explicitly; a structured Codex artifact result does not establish native routing, hooks or
+helper continuation. Keep model and host results separate. This coverage requirement does not
+authorize automatic model calls, extra trials or spend beyond the owner's campaign budget.
+
+The eval dependency pins each live in one file: the `swt` group's exact pins, which
+`evals/swt_adapter/verifier.py` reads; Harbor's version and wheel hash in `uv.lock`, which
+`evals/harbor_adapter/contracts.py` reads; and each sandbox image's `requirements.txt`, which that
+sandbox's validators, probe and tests read. A test checks the package set, that each pin is exact,
+and that the installed or reported version matches the one source, so a version bump is one edit.
+The `swebench` group installs on top of the project environment
+(`uv sync --locked --group swebench`); `harbor` and `swt` are declared conflicting with it and
+install only into a separate environment, for example
+`UV_PROJECT_ENVIRONMENT=.eval-runs/harbor-sdk uv sync --locked --only-group harbor`.
+
 ## Freeze a native selection
 
 Organize cases first. After definitions are finalized, export exact case fingerprints and trial slots:
