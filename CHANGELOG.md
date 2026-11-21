@@ -13,6 +13,8 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
 
 ### Changed
 
+- Agent-authoring now works from the user's task and target host. Personal skills, prompt edits, and
+  native agent definitions can be authored independently of the toolkit's roster and release process.
 - Remove `scripts/validate_fleet.py`, its tests, and the principal/reliability authority contract
   tests; Gate A now runs `scripts/generate_platform_adapters.py` beside `scripts/check_links.py`.
 - The README, fleet guide, and contributor guide are shortened and reorganized, with one agent

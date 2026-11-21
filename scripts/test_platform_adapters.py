@@ -313,10 +313,12 @@ class PlatformAdapterTests(unittest.TestCase):
         for source in sorted((ROOT / "skills").glob("*/SKILL.md")):
             projected = adapters.COPILOT_SKILLS / source.parent.name / source.name
             fields = fleet_frontmatter.parse(outputs[projected].decode("utf-8"), projected).fields
-            expected = fleet_frontmatter.parse_file(source).fields["argument-hint"]
+            authored = fleet_frontmatter.parse_file(source).fields
             with self.subTest(skill=source.parent.name):
-                self.assertTrue(expected)
-                self.assertEqual(expected, fields["argument-hint"])
+                if "argument-hint" in authored:
+                    self.assertEqual(authored["argument-hint"], fields["argument-hint"])
+                else:
+                    self.assertNotIn("argument-hint", fields)
         command = Path("commands/adr.md")
         projected = adapters.COPILOT_PLUGIN_COMMANDS / command.name
         fields = fleet_frontmatter.parse(outputs[projected].decode("utf-8"), projected).fields
@@ -523,17 +525,20 @@ class PlatformAdapterTests(unittest.TestCase):
         self.assertIn("/pcf-deploy", workspace)
 
     def test_platform_authoring_references_preserve_the_original_host_syntax(self) -> None:
-        outputs = adapters.expected_outputs(ROOT)
-        for name, example in (
-            ("claude-code-frontmatter.md", "Agent(save-toolkit:reviewer, save-toolkit:scribe)"),
-            ("copilot-frontmatter.md", "Agent(save-toolkit:reviewer)"),
-        ):
-            relative = Path("agent-authoring/references") / name
-            with self.subTest(reference=name):
-                source = (ROOT / "skills" / relative).read_text(encoding="utf-8")
-                projected = outputs[adapters.COPILOT_SKILLS / relative].decode("utf-8")
-                self.assertIn(example, projected)
-                self.assertEqual(source, projected)
+        root = self._canonical_root()
+        references = [
+            Path("agent-authoring/references/claude-code-frontmatter.md"),
+            Path("agent-authoring/references/copilot-frontmatter.md"),
+        ]
+        # Ordinary skill prose has Claude workspace paths rewritten for Copilot.
+        example = b"Read the definition in `.claude/agents/worker.md`.\n"
+        for relative in references:
+            (root / "skills" / relative).write_bytes(example)
+
+        outputs = adapters.expected_outputs(root)
+        for relative in references:
+            with self.subTest(reference=relative):
+                self.assertEqual(example, outputs[adapters.COPILOT_SKILLS / relative])
 
     def test_each_platform_manifest_is_required(self) -> None:
         manifests = (
