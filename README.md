@@ -103,20 +103,17 @@ and authority boundaries. An agent owns a job with its own tools, and a skill ad
 changing who owns the work. An agent that delegates checks the helper's result itself, so you need
 not relay reports between helpers.
 
-The last column is the Claude delegation graph, validated against each agent's frontmatter by
-Gate A.
-
-| Agent | What it does | Tools | Delegates to |
-|---|---|---|---|
-| `sre-assistant` | Read-only lookup or investigation; returns findings and recommendations to its caller | Guarded Bash/PowerShell and the Grafana helper; browser tools that no hook guards | `researcher` |
-| `observability-engineer` | Observability work and scoped Grafana changes | Unguarded Bash; writes config and Grafana dashboards, folders, alert rules, and silences | `scribe`, `researcher` |
-| `scribe` | Runbooks, postmortems, and service and alert knowledge | Document writes; no shell, web, or delegation | — |
-| `software-engineer` | Builds, fixes, refactors, and tests code and operations tooling | Read/write and unguarded Bash/PowerShell; no web tools | `reviewer`, `scribe`, `researcher` |
-| `principal-engineer` | System design before code; returns a design record or proposed ADR for a human to accept | Reads and design-document writes; no execution or external access | `repository-investigator`, `sre-assistant`, `researcher` |
-| `repository-investigator` | Answers questions about the current checkout, citing `file:line` | Read, Grep, and Glob only | — |
-| `reliability-engineer` | Reliability assessment, resilience design, and toil reduction | Reads and design-document writes; no execution or external access | `repository-investigator`, `sre-assistant`, `researcher` |
-| `researcher` | Cited public research | Web and documentation tools only; no local files or shell | — |
-| `reviewer` | For maintainers and builders: independent verification and correctness/security review; owns the verdict | Git/PR reads and scratch-copy checks; no web tools | `repository-investigator` |
+| Agent | What it does | Tools |
+|---|---|---|
+| `sre-assistant` | Read-only lookup or investigation; returns findings and recommendations to its caller | Guarded Bash/PowerShell and the Grafana helper; browser tools that no hook guards |
+| `observability-engineer` | Observability work and scoped Grafana changes | Unguarded Bash; writes config and Grafana dashboards, folders, alert rules, and silences |
+| `scribe` | Runbooks, postmortems, and service and alert knowledge | Document writes; no shell, web, or delegation |
+| `software-engineer` | Builds, fixes, refactors, and tests code and operations tooling | Read/write and unguarded Bash/PowerShell; no web tools |
+| `principal-engineer` | System design before code; returns a design record or proposed ADR for a human to accept | Reads and design-document writes; no execution or external access |
+| `repository-investigator` | Answers questions about the current checkout, citing `file:line` | Read, Grep, and Glob only |
+| `reliability-engineer` | Reliability assessment, resilience design, and toil reduction | Reads and design-document writes; no execution or external access |
+| `researcher` | Cited public research | Web and documentation tools only; no local files or shell |
+| `reviewer` | For maintainers and builders: independent verification and correctness/security review; owns the verdict | Git/PR reads and scratch-copy checks; no web tools |
 
 The skills live in [`skills/`](skills) and cover incident work, observability, the platform, change
 gates, reliability, and engineering craft; each `SKILL.md` carries its own description and

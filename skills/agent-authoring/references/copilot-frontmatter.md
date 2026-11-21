@@ -55,7 +55,7 @@ applicable instructions, memory, attached context, and effective tools on that e
 Canonical grants use full plugin names such as `Agent(save-toolkit:reviewer)`. The generator
 validates those targets and emits the `agent` alias; Copilot delegates through native `task`.
 No equivalent per-parent target restriction has been established for this projection. Keep the
-canonical graph in the README roster and preserve that unresolved boundary; do not substitute
+canonical graph in the agents' frontmatter grants and preserve that unresolved boundary; do not substitute
 visibility flags, prompt instructions, or a hook timeout fallback for enforcement.
 
 ## Tool mapping and discovery
