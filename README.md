@@ -20,6 +20,9 @@ A human executes every production action, with one narrow Grafana exception desc
 
 ## Install
 
+The fleet is not distributed to Codex, which picks up the root [`AGENTS.md`](AGENTS.md) when
+working in this repository ([ADR](docs/decisions/2026-08-23-retire-codex-distribution-target.md)).
+
 ### Claude Code
 
 Use Claude Code 2.1.295 or later. Starting with that version, the plugin can block a Bash or
@@ -56,12 +59,6 @@ copilot plugin install save-toolkit@latent-sre
 
 Opening this repository without installing the plugin discovers `.github/agents/` and
 `.github/skills/` directly.
-
-### Codex
-
-The fleet is not distributed to Codex. Codex working *in* this repository picks up the root
-[`AGENTS.md`](AGENTS.md) automatically
-([ADR](docs/decisions/2026-08-23-retire-codex-distribution-target.md)).
 
 ## Set up
 
@@ -111,26 +108,19 @@ Gate A.
 
 | Agent | What it does | Tools | Delegates to |
 |---|---|---|---|
-| `sre-assistant` | Bounded read-only lookup or investigation, dispatched by a human or invoking workflow; returns findings and recommendations while the caller keeps the broader investigation | Allowlist-guarded Bash/PowerShell and bundled Grafana helper; interactive browser tools that no hook guards | `researcher` |
-| `observability-engineer` | Observability and dispatched Grafana changes; active diagnosis stays with the responder, and automation goes to `software-engineer` | Unguarded Bash; writes config and scoped Grafana dashboards, folders, alert rules, and silences | `scribe`, `researcher` |
-| `scribe` | Writes evidence-bound runbooks, resolved-incident postmortems, and approved service, application, and alert knowledge | Local document write; no Bash, web, external MCP, or delegation | — |
-| `software-engineer` | Builds, fixes, refactors, modernizes, and tests code or operations tooling | Local read/write and unguarded Bash/PowerShell for team-authored code; no web tools | `reviewer`, `scribe`, `researcher` |
-| `principal-engineer` | System design and architecture before code: contract changes, migrations, new-service architecture, and tool or platform selection; returns a design record or proposed ADR for the human owner to accept | Local reads plus design-document and proposed-ADR writes; no execution or direct external access | `repository-investigator`, `sre-assistant`, `researcher` |
-| `repository-investigator` | Local-only answers about private, current, or uncommitted checkout behavior, citing `file:line` | Read/Grep/Glob only | — |
-| `reliability-engineer` | Service reliability assessment, resilience design, and toil reduction; implementation stays with its existing owner | Local reads plus design-document writes; no execution or direct external access | `repository-investigator`, `sre-assistant`, `researcher` |
-| `researcher` | Cited public research from official docs, upstream code, packages, and advisories | External-only; no local read, Bash, Write, Skill, or Agent | — |
-| `reviewer` *(for maintainers and builders)* | Independent investigation, isolated verification, and correctness/security review; owns the verdict while its caller dispatches fixes to `software-engineer` | Git/PR reads, scratch writes and checks, trusted skills; no direct web tools | `repository-investigator` |
+| `sre-assistant` | Read-only lookup or investigation; returns findings and recommendations to its caller | Guarded Bash/PowerShell and the Grafana helper; browser tools that no hook guards | `researcher` |
+| `observability-engineer` | Observability work and scoped Grafana changes | Unguarded Bash; writes config and Grafana dashboards, folders, alert rules, and silences | `scribe`, `researcher` |
+| `scribe` | Runbooks, postmortems, and service and alert knowledge | Document writes; no shell, web, or delegation | — |
+| `software-engineer` | Builds, fixes, refactors, and tests code and operations tooling | Read/write and unguarded Bash/PowerShell; no web tools | `reviewer`, `scribe`, `researcher` |
+| `principal-engineer` | System design before code; returns a design record or proposed ADR for a human to accept | Reads and design-document writes; no execution or external access | `repository-investigator`, `sre-assistant`, `researcher` |
+| `repository-investigator` | Answers questions about the current checkout, citing `file:line` | Read, Grep, and Glob only | — |
+| `reliability-engineer` | Reliability assessment, resilience design, and toil reduction | Reads and design-document writes; no execution or external access | `repository-investigator`, `sre-assistant`, `researcher` |
+| `researcher` | Cited public research | Web and documentation tools only; no local files or shell | — |
+| `reviewer` | For maintainers and builders: independent verification and correctness/security review; owns the verdict | Git/PR reads and scratch-copy checks; no web tools | `repository-investigator` |
 
-The skills, by area (each `skills/<name>/SKILL.md` carries its own description and triggers):
-
-- **Incident and operations** — `incident-investigation`, `root-cause`, `operational-docs`
-- **Observability** — `obs-analysis`, `obs-alerting`, `obs-pipeline`, `grafana`
-- **Platform** — `stack-profile`, `pcf-ops`, `pcf-deploy`, `gcp-ops`, `akamai-edge`
-- **Change gates** — `production-change-gate`
-- **Reliability improvement** — `resilience-analysis`, `toil-reduction`
-- **Engineering craft** — `api-craft`, `python-craft`, `go-craft`, `frontend-craft`, `operator-cli`,
-  `cicd-github`, `database-reliability`
-- **For maintainers** — `agent-authoring`
+The skills live in [`skills/`](skills) and cover incident work, observability, the platform, change
+gates, reliability, and engineering craft; each `SKILL.md` carries its own description and
+triggers.
 
 ## Limits
 
@@ -143,10 +133,7 @@ The skills, by area (each `skills/<name>/SKILL.md` carries its own description a
   `operations/`, `runbooks/`, and `postmortems/` in the team's knowledge repository. Until those
   are supplied, the skills say so rather than guess.
 - **Enforcement differs by host.** A field in an agent file shows what the plugin requested, not
-  what every host enforces. On Claude Code, missing tools are the main boundary, a read-only guard
-  covers `sre-assistant`, and `Agent(target)` lists are enforced only on the main thread. The
-  Copilot copies do not restrict which agent may call which. See
-  [`AGENTS.md`](AGENTS.md#enforcement-boundaries) and the
+  what every host enforces; see [`AGENTS.md`](AGENTS.md#enforcement-boundaries) and the
   [Copilot projection](docs/copilot-projection.md).
 
 ## Contribute
