@@ -1,7 +1,7 @@
 # Contributing
 
-The short path for repository changes. [`AGENTS.md`](AGENTS.md) owns fleet-wide authority and the
-rule map; [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md) is the only live backlog.
+The short path for repository changes. [`AGENTS.md`](AGENTS.md) owns the fleet-wide
+rules; [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md) is the only live backlog.
 
 ## 1. Protect current work
 
@@ -96,6 +96,7 @@ Gate A rejects uncited review packets; citation alone does not establish that a 
 | Eval harness, grader, or runner | The affected `evals/test_*.py`; `python -m ruff check`, `python -m ruff format --check` and `python -m mypy` for a change to the runner (`evals/build_probe.py`, `evals/probe/`), `evals/compare_runs.py`, `evals/graders.py`, `evals/inspect_pilot.py` or an `evals/test_*.py`; `python evals/judge.py --calibrate` after a rubric edit |
 | Judge, clean room or oracle Python | The affected behavioral tests and `python -m ruff check --isolated --select E9,F63,F7,F82 evals/judge.py evals/clean_room.py evals/oracles`; preserve byte-bound formatting and incremental typing unless a broader migration has a measured benefit |
 | Read-only guard or hook wiring | `python -m pytest scripts/test_readonly_guard.py scripts/test_hook_wiring.py`; exit codes stay 42 allow, 43 deny, 44 indeterminate |
+| Adapter generator or plugin manifest | `python scripts/test_platform_adapters.py` (Copilot projection and plugin contract) and `claude plugin validate . --strict` (Claude platform contract) |
 | Large agent, skill, or reference growth | State the byte delta and why the task needs it in the PR; no mechanical ceiling remains, so reviewers own the context-cost judgment |
 
 When the acting lane already has Bash, a check may run inside an official pinned Docker image rather
@@ -125,6 +126,9 @@ Before pushing, run the structural gate once and invoke it directly so the shell
 ```powershell
 python scripts/gate_a.py
 ```
+
+Gate A proves the fleet is well-formed, never that it is correct; the change-shaped checks in the
+table above are separate.
 
 Choose local verification from the changed behavior, not the directory alone:
 
@@ -191,6 +195,21 @@ For a Claude marketplace update, increment `version` in
 Use one version per set of shipping plugin files and record the full source commit in the release
 record. Before announcing the update, upgrade an installed previous version in a disposable
 Claude configuration. Check the installed version and read back a changed agent, skill, or hook.
+
+To check an unpublished branch in VS Code, use an isolated profile and register the branch worktree
+with `chat.pluginLocations`:
+
+```json
+{
+  "chat.pluginLocations": {
+    "/absolute/path/to/save-toolkit": true
+  }
+}
+```
+
+Open a neutral test workspace for that check; opening this repository itself also discovers
+`.github/agents/` and `.github/skills/` as workspace customizations and can hide duplicate-install
+mistakes.
 
 Confirm the diff and commit list hold only the intended work. `main` takes pull requests only;
 Save Toolkit maintainers merge. Production deployment of new bytes is a separate, exact-candidate
