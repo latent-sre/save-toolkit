@@ -19,8 +19,7 @@
     "evals/test_reviewer_complex_slice_upstream_fixes.py",
     "evals/test_reviewer_complex_workflow_secrets.py",
     "evals/test_reviewer_fake_gh.py",
-    "evals/test_wider_fleet_cases.py",
-    "scripts/test_reviewer_snapshot_recipe.py"
+    "evals/test_wider_fleet_cases.py"
   ],
   "native_scenarios": [
     "agent-direct-researcher-source-authenticity",
