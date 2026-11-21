@@ -283,5 +283,75 @@ class GitPrefixKeepsIndex(unittest.TestCase):
                 self.assertEqual(before, self.index())
 
 
+def _export_and_confirm() -> tuple[str, str, str]:
+    text = AGENT.read_text(encoding="utf-8")
+    spans = re.findall(r"`([^`\n]+)`", text)
+    exports = [s for s in spans if "read-tree <sha>" in s and "checkout-index -a --prefix=" in s]
+    confirms = [s for s in spans if "diff --quiet <sha>" in s]
+    flags = re.search(r"add\s+`([^`]+)`\s+to\s+diffs", text)
+    assert len(exports) == 1, f"expected one export command in {AGENT}, found {len(exports)}"
+    assert len(confirms) == 1, f"expected one confirm command in {AGENT}, found {len(confirms)}"
+    assert flags, f"the diff-flags sentence (add `...` to diffs) is missing from {AGENT}"
+    return exports[0], confirms[0], flags.group(1)
+
+
+EXPORT, CONFIRM, DIFF_FLAGS = _export_and_confirm()
+
+
+@unittest.skipUnless(BASH, "no usable bash (Git's own bash on Windows)")
+class ExportConfirm(unittest.TestCase):
+    """The agent's export confirm must hold under the diff flags the agent itself requires."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.tmp = Path(self._tmp.name).resolve()
+        self.repo = self.tmp / "repo"
+        self.repo.mkdir()
+        _git(self.repo, "init", "-q")
+        _write(self.repo / "a.txt", b"one\n")
+        _write(self.repo / "sub" / "b.txt", b"two\n")
+        _write(self.repo / "bin.dat", b"\x00\x01\x02binary\x00")
+        _git(self.repo, "add", "-A")
+        _git(self.repo, "commit", "-qm", "init")
+        self.sha = _git(self.repo, "rev-parse", "HEAD").strip()
+
+    def bash(self, command: str) -> subprocess.CompletedProcess[str]:
+        env = dict(os.environ, GIT_CEILING_DIRECTORIES=str(self.tmp))
+        env["PATH"] = str(Path(BASH).parent) + os.pathsep + env["PATH"]
+        script = f'G="{G_ALIAS}"; S="{_posix(self.tmp / "scratch")}"; '
+        script += command.replace("<sha>", self.sha)
+        return subprocess.run(
+            [BASH, "-c", script], cwd=self.repo, env=env, capture_output=True, text=True,
+            timeout=TIMEOUT,
+        )
+
+    def forms(self) -> dict[str, str]:
+        return {
+            "as printed": CONFIRM,
+            "with the agent's diff flags": CONFIRM.replace(" diff ", f" diff {DIFF_FLAGS} ", 1),
+        }
+
+    def test_confirm_accepts_a_faithful_export(self) -> None:
+        index = (self.repo / ".git" / "index").read_bytes()
+        done = self.bash(EXPORT)
+        self.assertEqual(0, done.returncode, done.stderr)
+        for name, command in self.forms().items():
+            with self.subTest(form=name):
+                done = self.bash(command)
+                self.assertEqual(0, done.returncode, done.stderr)
+        self.assertEqual(index, (self.repo / ".git" / "index").read_bytes())
+
+    def test_confirm_rejects_a_changed_export(self) -> None:
+        done = self.bash(EXPORT)
+        self.assertEqual(0, done.returncode, done.stderr)
+        with (self.tmp / "scratch" / "a.txt").open("ab") as handle:
+            handle.write(b"x")
+        for name, command in self.forms().items():
+            with self.subTest(form=name):
+                done = self.bash(command)
+                self.assertEqual(1, done.returncode, done.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()

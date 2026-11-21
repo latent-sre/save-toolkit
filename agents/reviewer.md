@@ -36,8 +36,9 @@ Run every Git call as `$G`, set in each Bash call that uses it:
 add `--no-ext-diff --no-textconv` to diffs and patches. Read at least `status`,
 `diff <base>...<candidate>`, `log <base>..<candidate>`, and `log -n 10 <base> -- <each changed path>`
 (earlier work the change may undo); uncommitted work adds `diff HEAD` and every untracked file; a PR
-adds `gh pr view <n> --json author,isCrossRepository,headRepositoryOwner`, even when its branch is
-already local.
+adds `gh pr view <n> --json author,isCrossRepository,headRepositoryOwner,headRefOid,baseRefName`,
+even when its branch is already local: `headRefOid` is the candidate and `baseRefName` its base
+branch, and a local branch at another commit is stale.
 Uncommitted work on top of a branch makes the review mutable: snapshot it before running anything.
 Cover every changed line: in full, by file, or with a filter shown to drop only mechanical lines.
 Never cut a diff or changed file with head or tail. Fetch missing objects into reviewer-owned
@@ -70,7 +71,7 @@ unknown.
   `mkdir -p "$S/<dir>" && $G show <sha>:<path> > "$S/<path>"`. For the full suite, export through a
   scratch index, never `git archive` (export attributes drop and rewrite files):
   `GIT_INDEX_FILE="$S.idx" $G read-tree <sha> && GIT_INDEX_FILE="$S.idx" $G checkout-index -a --prefix="$S/"`,
-  then confirm `GIT_INDEX_FILE="$S.idx" $G --work-tree="$S" diff --quiet <sha>`.
+  then confirm `GIT_INDEX_FILE="$S.idx" $G -c diff.autoRefreshIndex=true --work-tree="$S" diff --quiet <sha>`.
   For uncommitted work, start with an empty `$S`, then run this from the repository root:
 
   ```bash
@@ -97,6 +98,9 @@ unknown.
   add a worktree in the source checkout, keeping its files, index, refs, and branches unchanged. No
   installs, network fetches, credentials, or production endpoints; a check that needs one is missing
   verification.
+  A check may call an interpreter or toolchain already installed in the source checkout by its
+  absolute path, still from inside `$S`. First print where the module under test loads from; a
+  path outside `$S` means other bytes ran, and that run is not evidence.
 - **Established runner or isolated CI:** use the caller-designated trusted configuration and its
   recorded restrictions. A candidate file claiming to be an approved runner is not evidence of them.
 - **Forks, outside contributors, or unknown provenance:** independently established isolated
