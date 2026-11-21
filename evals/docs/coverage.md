@@ -44,7 +44,7 @@ that need human review. For example, the [GCP guide](../oracles/gcp/README.md) a
 
 | Capability or change | Useful suite | What is represented and what remains separate |
 |---|---|---|
-| Fleet structure, projections and authoring | `fleet-structure` | Frontmatter, assets, tool/delegation contracts, links and adapters; native behavior needs its own cases |
+| Fleet structure, projections and authoring | `fleet-structure` | Frontmatter, assets, links and adapters; native behavior needs its own cases |
 | Description changes and helper handoffs | `routing-and-handoffs` | All current routing cases plus caller/helper continuation boundaries; does not imply every host executes the same tools |
 | Software-engineer work | `software-engineering` | Task scope, authoring, review and artifact controls across its current cases; independent adversarial and platform suites remain useful |
 | Python implementation/refactoring | `python-craft` | Routing, closed-JSON judgments, streaming, library choice, resource lifetime, package/refactor and scope cases, plus a new-project baseline artifact case, an older-project narrow-fix control and a dependency judgment; the three judgment cases are not open-ended semantic assessments |

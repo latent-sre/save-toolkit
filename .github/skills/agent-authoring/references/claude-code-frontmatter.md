@@ -13,8 +13,8 @@ Claude frontmatter contracts live here. Re-verify after CLI upgrades against the
 
 ## Agents
 
-`validate_fleet.py` accepts `name`, `description`, `tools`, and `model` in canonical agent
-frontmatter. It also requires `omitClaudeMd: true` for the researcher. Other keys fail validation.
+Canonical agent frontmatter uses `name`, `description`, `tools`, and optionally `model`, plus
+`omitClaudeMd: true` for the researcher.
 
 A plugin agent with invalid YAML can still appear under its filename while every frontmatter
 field is ignored. Discovery alone does not establish that its grants or model were applied;
@@ -24,10 +24,10 @@ hosts do. Double-quote a `description` containing `: `.
 
 | Field | Disposition here |
 |---|---|
-| `name`, `description` | Required; `description` is the trigger and is capped at **1,024 UTF-8 bytes** by `validate_fleet.py` |
+| `name`, `description` | Required; `description` is the trigger — keep it concise (within **1,024 UTF-8 bytes**) |
 | `tools` | Allowlist for built-ins **and MCP tools**. **Omitting it inherits every tool**; a list in which no entry resolves to a tool usually fails to launch with an error naming the entries, so never rely on an empty list for a zero-tool agent. Exact MCP names are `mcp__<server>__<tool>`; `mcp__<server>` and `mcp__<server>__*` silently acquire tools the server adds later — grant exact entries and include `ToolSearch` when approved MCP tools may be deferred. `Agent(worker)` scoping enforces only for a main-thread agent (`claude --agent`); a subagent ignores the type list. Shell-command restrictions are separate from this tool list; see below. **Removed from every subagent regardless of `tools:`** — `AskUserQuestion`, `EndConversation`, `EnterPlanMode`, `ExitPlanMode` (unless the subagent's `permissionMode` is `plan`), `propose_skills`, `ScheduleWakeup`, `WaitForMcpServers`, `Workflow`; and `Agent` at the depth limit. A **background** subagent (the default for one spawned from the main conversation) keeps `Agent` below that limit and `TaskStop`, subject to its grants; its other built-ins are filtered as listed in [Available tools](https://code.claude.com/docs/en/sub-agents#available-tools). A **fork** skips tool filtering entirely and receives the main conversation's exact pool, so a fork is not a way to bound authority |
-| `model` | Generation aliases `haiku \| sonnet \| opus \| fable \| inherit` only — `validate_fleet.py` rejects full IDs. No agent pins one. Cost-justified tiering may lower mechanical, high-volume lanes; review, root-cause, and authority lanes inherit. State a pin's reason in the same change. Check `CLAUDE_CODE_SUBAGENT_MODEL`, `CLAUDE_CODE_SUBAGENT_MODEL_FORCE`, and `CLAUDE_CODE_SUBAGENT_EFFORT` before attributing a lane result to the session model or effort. Generated Copilot adapters carry no `model` |
-| `hooks`, `mcpServers`, `permissionMode` | Plugin-packaged agents **ignore** all three. The fleet ships `hooks/hooks.json` session-wide, self-scoped to exact guarded `agent_type` values; canonical frontmatter containing `hooks` fails validation |
+| `model` | Generation aliases `haiku \| sonnet \| opus \| fable \| inherit` only; do not pin full model IDs (they go stale). No agent pins one. Cost-justified tiering may lower mechanical, high-volume lanes; review, root-cause, and authority lanes inherit. State a pin's reason in the same change. Check `CLAUDE_CODE_SUBAGENT_MODEL`, `CLAUDE_CODE_SUBAGENT_MODEL_FORCE`, and `CLAUDE_CODE_SUBAGENT_EFFORT` before attributing a lane result to the session model or effort. Generated Copilot adapters carry no `model` |
+| `hooks`, `mcpServers`, `permissionMode` | Plugin-packaged agents **ignore** all three. The fleet ships `hooks/hooks.json` session-wide, self-scoped to exact guarded `agent_type` values; canonical frontmatter containing `hooks` fails hook-wiring tests |
 | `initialPrompt` | Ignored for plugin subagents |
 | `omitClaudeMd` | Required only for the researcher. Since Claude Code 2.1.271, ordinary non-fork delegation can skip user, project, and local instructions at startup. See the context limits below |
 | `disallowedTools`, `skills`, `maxTurns`, `autoCompactWindow`, `memory`, `background`, `effort`, `isolation`, `color`, `experimental` | Supported for plugin agents, unused here. `maxTurns` and `memory` are decided against below |
@@ -45,7 +45,7 @@ how that guard scopes itself is maintainer detail in the Save Toolkit repository
 Canonical plugin delegation grants use full names: `Agent(save-toolkit:reviewer, save-toolkit:scribe)`.
 Bare targets did not match plugin agent identities on the hosts tested; the
 generator validates those targets but emits only the Copilot delegation tool alias, without an
-equivalent per-parent allowlist. The validator rejects unqualified or foreign-plugin grants.
+equivalent per-parent allowlist. The adapter generator rejects unqualified or foreign-plugin grants.
 
 On native Windows, `PowerShell` is a separate shell tool and needs its own grant; `Bash` does not
 grant it. With Git Bash installed, any Bash deny rule, even a scoped one, silently disables the

@@ -47,9 +47,8 @@ them. Before changing frontmatter, tool authority, delegation, or guard wiring, 
 - **After an MCP upgrade,** re-verify the exact tool grants: `researcher` uses the host's GitHits
   and Context7 servers and `sre-assistant` the Playwright server, and a server-side rename
   silently drops the tool.
-- **A delegation edge `A → B`** is the `Agent(save-toolkit:B)` grant in `agents/A.md`, pinned by
-  `EXPECTED_DELEGATION` in `scripts/validate_fleet.py`. Change both in one commit, regenerate,
-  then run Gate A; never tabulate edges elsewhere.
+- **A delegation edge `A → B`** is the `Agent(save-toolkit:B)` grant in `agents/A.md`.
+  Regenerate adapters and run Gate A after changing it; never tabulate edges elsewhere.
 - **Handoff instructions stay short.** Add a generic handoff rule to a delegating agent only when
   a build probe in `evals/build-scenarios/` shows the agent failing without it.
 

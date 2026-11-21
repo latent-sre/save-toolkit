@@ -97,7 +97,7 @@ conflicts = [
 [tool.ruff]
 target-version = "py314"  # repository-wide compatibility floor (CONTRIBUTING.md)
 line-length = 120
-# scripts/ is its suites' import root (`import validate_fleet`, `from testkit import ...`), so those
+# scripts/ is its suites' import root (`import gate_a`, `from testkit import ...`), so those
 # modules sort as first-party. evals/ is deliberately absent: reclassifying its modules would reorder
 # imports in evals/probe/, whose bytes are the eval runner's identity.
 src = [".", "scripts"]
@@ -168,7 +168,7 @@ files = [
     "evals/codex_probe.py", "evals/codex_fixture_tools.py", "evals/codex_gcp_queries.py",
     "evals/codex_wp04.py", "evals/codex_wp04_tools.py",
     "scripts/readonly-guard.py", "scripts/guard-session-preflight.py", "scripts/gate_a.py", "scripts/check_links.py",
-    "scripts/validate_fleet.py", "scripts/generate_platform_adapters.py", "scripts/fleet_frontmatter.py",
+    "scripts/generate_platform_adapters.py", "scripts/fleet_frontmatter.py",
     "scripts/testkit.py", "scripts/local_tests.py",
 ]
 mypy_path = "evals,scripts"

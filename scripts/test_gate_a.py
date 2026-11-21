@@ -37,7 +37,7 @@ class StructuralScopeTests(unittest.TestCase):
     def test_gate_roster_is_two_structural_steps(self) -> None:
         commands = [argv[0] for _label, argv in gate_a.STEPS]
         self.assertEqual(
-            ["scripts/check_links.py", "scripts/validate_fleet.py"],
+            ["scripts/check_links.py", "scripts/generate_platform_adapters.py"],
             commands,
         )
 

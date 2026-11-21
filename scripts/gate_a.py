@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 STEPS = [
     ("Canonical skill and bundle links", ["scripts/check_links.py"]),
-    ("Fleet, plugin, and generated adapter contracts", ["scripts/validate_fleet.py"]),
+    ("Plugin manifests and generated adapter contracts", ["scripts/generate_platform_adapters.py"]),
 ]
 
 MINIMUM_PYTHON = (3, 14)

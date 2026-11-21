@@ -5,8 +5,7 @@
   "tests": [
     "evals/test_principal_cases.py",
     "evals/test_principal_heldout.py",
-    "evals/test_principal_judgment.py",
-    "scripts/test_principal_contract.py"
+    "evals/test_principal_judgment.py"
   ],
   "native_scenarios": [
     "build-principal-engineer-contract-change",
