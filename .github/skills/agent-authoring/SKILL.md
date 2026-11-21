@@ -28,6 +28,11 @@ In a portable Agent Skills package, put `name` and `description` in the frontmat
 Match the name to its directory. Link supporting resources directly from the entry file where
 the reader needs them. Follow the destination project's conventions when they apply.
 
+Describe a tool from the agent’s point of choice. Say when to call it, what the caller needs to
+know first, and what a successful call returns or changes. When two tools look plausible for the
+same request, name the detail that decides between them. Explain an argument when its meaning is
+easy to guess wrong, such as whether an offset counts bytes or characters.
+
 For a task with several valid approaches, describe the result and leave the choice to the agent.
 Put a repeatable, fragile operation such as capturing a filesystem snapshot in a tested helper.
 Tell the agent when to use it and how failure changes what it can conclude. Enforce permissions
