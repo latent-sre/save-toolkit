@@ -13,8 +13,8 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
 
 ### Changed
 
-- **Reviewer:** Make the review method self-contained without `Skill`, add a scratch-pad
-  investigation loop, and cover commit history, code/concurrency, test oracles, security, and docs.
+- **Reviewer:** Make the review method self-contained without `Skill`, add a scratch-pad loop and
+  five-question lenses for commits, code, tests, security, and docs, and drop the recipe test.
 - Remove `scripts/validate_fleet.py`, its tests, and the principal/reliability authority contract
   tests; Gate A now runs `scripts/generate_platform_adapters.py` beside `scripts/check_links.py`.
 - The README, fleet guide, and contributor guide are shortened and reorganized, with one agent
