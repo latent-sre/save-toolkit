@@ -100,8 +100,7 @@ COPILOT_TOOL_MAP = {
     # projection drops them rather than substituting `execute`, which would widen authority.
 }
 # The selected Playwright MCP browser interactions: observe and drive a page, never run page code,
-# upload files or answer dialogs. validate_fleet approves exactly these grants, and only for the
-# browser lane; the Copilot names below are derived from the same list.
+# upload files or answer dialogs; the Copilot names below are derived from the same list.
 PLAYWRIGHT_MCP_PREFIX = "mcp__microsoft_playwright_mcp__"
 BROWSER_OBSERVATION_TOOLS = (
     "browser_snapshot",
@@ -412,7 +411,7 @@ def validate_generated_outputs(root: Path) -> list[str]:
 
 
 def read_manifest(path: Path) -> dict[str, Any]:
-    """Public JSON-object manifest reader shared with fleet validation."""
+    """Read a JSON-object manifest file."""
     value = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(value, dict):
         raise ValueError(f"{path}: manifest must be a JSON object")
@@ -509,7 +508,7 @@ def _gitattributes_failures(root: Path) -> list[str]:
 
 
 def _generated_tree_failures(root: Path) -> list[str]:
-    """Shared tree policy for fleet validation and the adapter CLI's post-write check."""
+    """Shared tree policy for platform validation and the adapter CLI's post-write check."""
     # The CLI once omitted retired roots and printed PASS over stale host-loadable content.
     # Git ignores those roots, so neither caller may rely on Git to detect them.
     return (

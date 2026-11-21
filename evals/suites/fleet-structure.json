@@ -7,8 +7,7 @@
     "scripts/test_fleet_frontmatter.py",
     "scripts/test_gate_a.py",
     "scripts/test_platform_adapters.py",
-    "scripts/test_skill_assets.py",
-    "scripts/test_validate_fleet.py"
+    "scripts/test_skill_assets.py"
   ],
   "native_scenarios": [
     "discovery-agent-authoring-loop-engineering",

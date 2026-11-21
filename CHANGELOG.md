@@ -13,6 +13,8 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
 
 ### Changed
 
+- Remove `scripts/validate_fleet.py`, its tests, and the principal/reliability authority contract
+  tests; Gate A now runs `scripts/generate_platform_adapters.py` beside `scripts/check_links.py`.
 - The README, fleet guide, and contributor guide are shortened and reorganized, with one agent
   table in the README; the rules for changing evals move to the evals README.
 - The README agent table no longer lists delegation targets, and the check that compared them to

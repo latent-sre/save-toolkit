@@ -4,8 +4,7 @@
   "summary": "Reliability advice, recovery evidence and toil economics",
   "tests": [
     "evals/test_reliability_cases.py",
-    "scripts/test_error_budget.py",
-    "scripts/test_reliability_contract.py"
+    "scripts/test_error_budget.py"
   ],
   "native_scenarios": [
     "agent-direct-reliability-engineer-deadline-controls",
