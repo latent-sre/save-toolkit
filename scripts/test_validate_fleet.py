@@ -422,14 +422,14 @@ class FleetValidatorTests(unittest.TestCase):
     def test_roster_adding_a_phantom_edge_is_rejected(self) -> None:
         # scribe holds no Agent grant at all; a rendered edge out of it is a phantom the enforced
         # graph forbids.
-        source = (ROOT / "README.md").read_text(encoding="utf-8").split("### Tools and delegation", 1)[1]
+        source = (ROOT / "README.md").read_text(encoding="utf-8")
         scribe_row = next(line for line in source.splitlines() if line.startswith("| `scribe` |"))
         phantom_row = scribe_row.removesuffix(" — |") + " `researcher` |"
         failures = self._roster_failures(lambda text: must_replace(text, scribe_row, phantom_row, 1))
         self.assertTrue(any("'scribe'" in f for f in failures), failures)
 
     def test_roster_with_duplicate_agent_row_is_rejected(self) -> None:
-        source = (ROOT / "README.md").read_text(encoding="utf-8").split("### Tools and delegation", 1)[1]
+        source = (ROOT / "README.md").read_text(encoding="utf-8")
         row = next(line for line in source.splitlines() if line.startswith("| `software-engineer` |"))
         failures = self._roster_failures(lambda text: must_replace(text, row, f"{row}\n{row}", 1))
         self.assertTrue(
