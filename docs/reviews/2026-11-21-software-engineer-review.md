@@ -22,9 +22,9 @@ after the first two `P1` fixes) against its 9 on-demand skills (`cicd-github`, `
 | **8** | **P2** | **OPEN** | `:128-137` | Mandatory 9-skill loading waterfall before routine coding instead of inlined core craft baselines + optional deep-reference skill loads (or full self-containment) |
 | **9** | **P2** | **FIXED** | `:82`, `:89` | Trimmed duplicate *"simplest design that solves the whole problem"* from `Code standard` (`:82`) and duplicate *"Fix the cause"* from `Do not take these shortcuts` (`:89`) |
 | **10** | **P2** | **OPEN** | `:6-137` (11 sections) | Fragmented 11-section layout (>50% governance/routing/disclaimers) instead of a unified 5-section engineering execution spine (like [`agents/reviewer.md`](../../agents/reviewer.md)) |
-| **11** | **P2** | **OPEN** | `:34-36` | Missing environment, lockfile, and generated-file hygiene (use project virtualenv/runner, never install into system Python, never hand-edit lockfiles or generated projections) |
-| **12** | **P2** | **OPEN** | `:25`, `:103`, `:122-126` | `Untrusted input boundary` is buried at the bottom after `Return format`, and `:103` omits the explicit host-loaded instruction file paths |
-| **13** | **P3** | **OPEN** | `:110-111` | Audience rule in `Return format` (*"who is not an SDE"*) weakens technical precision; should serve both an engineer and an SRE |
+| **11** | **P2** | **FIXED** | `:35-36` | Added stack-agnostic lockfile and generated-file rule (*"update lockfiles and generated files through their tool or generator, never by hand"*) |
+| **12** | **P2** | **FIXED** | `:105`, `:126` | Added `helper returns` to `Untrusted input boundary` (`:126`) and named explicit host-loaded instruction file paths in `Instruction files` (`:105`) |
+| **13** | **P3** | **HOLD** | `:111-112` | Audience rule in `Return format` (*"who is not an SDE"*) held as intentional for Save Toolkit's SRE audience |
 | **14** | **P3** | **OPEN** | `:31-32`, `:60-61`, `:98` | Scattered single-line rules (`source mutations... in a disposable copy`, `Done for HTTP work`, `Negative tests`) separated from their parent topics |
 | **15** | **P3** | **OPEN** | `:22` vs. `:129` | CI validation authority row (`:22`) is split from `cicd-github` (`:129`) and omits default-branch `workflow_run` consumers and `workflow_dispatch` vs. required-check distinction |
 
@@ -157,36 +157,24 @@ after the first two `P1` fixes) against its 9 on-demand skills (`cicd-github`, `
 - **The fix:** Reorganize into the unified 5-section engineering spine below (`§1`–`§5`) so every
   rule has one authoritative home.
 
-### 11. `P2 [verified] medium` — OPEN: Missing environment, lockfile, and generated-file hygiene (`:34-36`)
-- **The flaw:** Lines 34–36 say to detect the stack from lockfiles and manifests, but never state two
-  critical operational rules for coding agents `[verified]`:
-  1. Always run tools and tests through the project's isolated environment/runner (`.venv/bin/python`,
-     `uv run`, project test runner) — never `pip install` into system Python or mutate global host
-     state.
-  2. Never hand-edit lockfiles (`uv.lock`, `package-lock.json`, `go.sum`) or generated projections —
-     update them via the repository's locking or generator command so source and projections stay in
-     sync.
-- **The fix:** Add both rules directly to workspace and stack hygiene.
+### 11. `P2 [verified] medium` — FIXED: Lockfile and generated-file hygiene (`:35-36`)
+- **Flaw on `main`:** Lines 34–36 said to take versions from lockfiles, without stating never to
+  hand-edit lockfiles or generated files `[verified]`. (Python-specific `.venv`/`uv` rules remain in
+  `python-craft` and `stack-profile`.)
+- **Applied fix:** Added *"; update lockfiles and generated files through their tool or generator,
+  never by hand"* to `:35-36` `[verified]`.
 
-### 12. `P2 [verified] medium` — OPEN: `Untrusted input boundary` buried at the bottom (`:122-126`) and `:103` omits explicit host-loaded instruction file paths (`:25`, `:103`, `:122-126`)
-- **The flaw:**
-  - `## Untrusted input boundary` (`:122-126`) sits *after* `## Return format`, separated by 100
-    lines from the fork/untrusted-code execution ban in `## Effect authority` (`:25`).
-  - Line 103 says *"If your change edits instruction files that would auto-load as the reviewer's
-    own, and no checkout of the unchanged base is available to run it from, do not dispatch; report
-    that gap"*, without naming which files count (`CLAUDE.md`, `AGENTS.md`, `.claude/`,
-    `.github/copilot-instructions.md`, `.github/{instructions,agents,skills}/`, as
-    [`agents/reviewer.md`](../../agents/reviewer.md) does).
-- **The fix:** Move the untrusted input and helper-return boundary up into §1 beside `Effect
-  authority`, and name the host-loaded instruction paths explicitly in the reviewer dispatch rule.
+### 12. `P2 [verified] medium` — FIXED: `helper returns` in `Untrusted input boundary` (`:126`) and explicit host-loaded instruction file paths in `Instruction files` (`:105`)
+- **Flaw on `main`:** `Untrusted input boundary` omitted `helper returns`, and `Instruction files`
+  omitted the explicit host-loaded instruction paths that [`agents/reviewer.md`](../../agents/reviewer.md)
+  names `[verified]`.
+- **Applied fix:** Added `helper returns` to `Untrusted input boundary` (`:126`) and named
+  `(`CLAUDE.md`, `AGENTS.md`, `.claude/`, `.github/copilot-instructions.md`,
+  `.github/{instructions,agents,skills}/`)` in `Instruction files` (`:105`) `[verified]`.
 
-### 13. `P3 [verified] low` — OPEN: Audience rule in `Return format` (*"who is not an SDE"*, `:110-111`) weakens technical precision
-- **The flaw:** Line 110–111 says *"Write for an experienced IT/SRE practitioner who is not an SDE
-  unless the caller names another audience"*, which nudges the model to gloss over exact symbol,
-  type, and contract details `[verified]`.
-- **The fix:** Replace with: *"Write for an experienced engineer or SRE who needs both exact
-  code/contract facts and operational impact: lead with the result, then root cause, key engineering
-  choice, and observable runtime or rollout effect."*
+### 13. `P3 [verified] low` — HOLD: Audience rule in `Return format` (*"who is not an SDE"*, `:111-112`)
+- **Disposition:** Held for later; commit `69b6f99a` deliberately framed reports for Save Toolkit's
+  primary SRE audience while `:116` (`Changed`) already requires `file/line references` `[verified]`.
 
 ### 14. `P3 [verified] low` — OPEN: Scattered single-line rules (`:31-32`, `:60-61`, `:98`)
 - **The flaw:**
