@@ -23,12 +23,11 @@ assessment; GCP uses an exact synthetic read-query catalog prepared by
 [`codex_gcp_queries.py`](../codex_gcp_queries.py). No candidate shell or live cloud interface is exposed.
 GCP query-attempt checks explicitly describe that transport instead of inventing native Bash calls.
 
-Its `codex-record-v1` artifacts are a separate baseline outside the native v1 importer. The
-[original Luna campaign](../../docs/reviews/2026-10-15-wp10-structured-case-acceptance.md) retains 33 PASS,
-two FAILs and one INCONCLUSIVE on its current case versions, plus three earlier-version records.
-The [reliability/GCP continuation](../../docs/reviews/2026-10-15-luna-reliability-gcp01.md) binds the newer
-candidate, evidence mapping and run scope. Neither profile establishes native routing, hooks or
-live helper continuation.
+Its `codex-record-v1` artifacts are a separate baseline outside the native v1 importer. Pre-refactor
+Luna structured-case and reliability/GCP campaigns were removed from `docs/reviews/` on 2026-11-22
+and remain at the
+[pre-removal snapshot](https://github.com/latent-sre/save-toolkit/tree/812aab80c4336f629679b25dc86f839d1969ff52/docs/reviews).
+Neither profile establishes native routing, hooks or live helper continuation.
 The MCP server explicitly uses strict UTF-8 on its pipes; isolated Python ignores environment-only
 encoding settings on Windows. Completed tool-error responses still require exact argument, result
 and failure-status agreement with the independent receipt; transport corruption remains INCONCLUSIVE.

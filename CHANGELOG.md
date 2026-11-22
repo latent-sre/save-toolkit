@@ -7,6 +7,8 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
 ## [Unreleased]
 <!-- Entries for the next release -->
 
+- Remove 31 superseded pre-refactor eval review records from `docs/reviews/` (preserved in Git
+  history at `812aab80`) and update live roadmap and evaluation doc links.
 - Remove 14 completed, orphaned, or deferred run-plan and proposal documents from
   `docs/fleet-evaluation/` (retaining `product.md`, schemas, contracts, and suite guides; Git history
   preserves removed files).
