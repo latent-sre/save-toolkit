@@ -13,47 +13,34 @@ argument-hint: "[the edge, CDN, WAF, or RUM problem]"
 
 # Akamai edge — triage, delivery config, RUM
 
-We are Akamai customers, not Akamai operators: our lane is our properties' configuration, our
-security policies, and the evidence the portal and DataStream 2 expose. The edge network itself is
-Akamai's platform — a suspected platform-wide Akamai problem is an escalation to Akamai support
-with evidence, not something to debug past the portal.
+We are Akamai customers, not Akamai operators: our scope is our properties' configuration, our
+security policies, and the evidence Control Center and DataStream 2 expose. A suspected
+platform-wide Akamai outage is an escalation to Akamai support with evidence, not something to
+debug past the portal.
 
-## The first question: which side of the edge?
+## Which side of the edge?
 
-Establish which parts of the request path were exercised: client/DNS/TLS, edge/cache/WAF, and
-origin. Not every request reaches the origin; a cache hit can be served at the edge. Decode any
-`Reference #…` promptly while its edge logs remain available. Use [edge triage](./references/edge-triage.md)
-for the matching diagnostics, property-specific debug-header mechanism, DataStream 2 fields and
-coverage limits, and offload reports.
-
-Edge-side evidence (WAF deny, cache misconfiguration, edge 5xx) stays in this skill's lanes.
+Establish which hops of the request path were exercised: client/DNS/TLS, edge/cache/WAF, and
+origin. Not every request reaches origin; a child or parent cache hit is served at the edge.
+Decode any `Reference #…` promptly while its edge logs remain available.
 
 ## Three lanes, three authority postures
 
 - **Triage is read-only, portal-first.** Edge Diagnostics, Web Security Analytics, Reporting, and
-  DataStream 2 queries change nothing. Production debug-header requests stay
-  **recommend-for-human** whatever tools the invoking lane holds; the human runs them with their
-  own debug token. Other observations, including selected DNS reads, require the invoking agent's
-  granted, scoped, output-protected read path.
-- **Delivery config is change-managed work.** A property version edit is Tier 1 (prepare); any
-  activation — staging included — is a live change with an approval gate and a named, proven
-  rollback or recovery path. Production activation additionally runs through
-  `production-change-gate` with a human release owner.
-- **WAF policy changes are security changes.** Evidence of a false positive goes to the human
-  security policy owner with the sampled requests attached; this fleet never loosens a protection
-  itself.
+  DataStream 2 queries change nothing. Production debug-header requests stay **recommend-for-human**
+  so the human runs them with their own debug token.
+- **Delivery config is change-managed work.** Editing a property version is Tier 1 (prepare); any
+  activation (staging or production) or cache purge is a live change requiring an approval gate and
+  rollback/recovery path, with production routed through `production-change-gate` and a human
+  release owner.
+- **WAF policy changes are security changes.** Send false-positive evidence and sampled requests to
+  the human security policy owner; never loosen a protection directly.
 
-## Read the reference before acting
+## Reference router
 
 | Need | Reference |
 |---|---|
-| Edge vs origin evidence: Edge Diagnostics, reference numbers, cache status, debug headers, DataStream 2, offload reports, WAF events | [Edge triage](./references/edge-triage.md) |
-| Property Manager change flow: versions, staging/production activation, fast fallback, PAPI/Terraform/CLI, Sandbox | [Property config](./references/property-config.md) |
-| Cache purge, a live change: invalidate vs delete, scope, network, origin load | [Cache purge](./references/property-config.md#cache-purge) |
-| Real-user monitoring: beacons, Core Web Vitals, back-end vs front-end time, slicing a regression | [mPulse RUM](./references/mpulse-rum.md) |
-
-## Boundaries
-
-Following an origin-side lead does not grant new access or transfer incident ownership. For a
-proposed property change, send the human release owner the prepared version and
-[property change packet](./references/property-config.md#property-change-packet).
+| Edge vs origin evidence: Edge Diagnostics, reference numbers, cache status by hop, debug headers, DataStream 2 SPL, offload reports, WAF events | [Edge triage](./references/edge-triage.md) |
+| Property Manager change flow: versions, staging/production activation, fast fallback, config-as-code, diff checklist | [Property config](./references/property-config.md) |
+| Cache purge: invalidate vs delete, scope, network, origin load | [Cache purge](./references/property-config.md#cache-purge) |
+| Real-user monitoring: beacons, Core Web Vitals, back-end vs front-end time slicing | [mPulse RUM](./references/mpulse-rum.md) |

@@ -1,47 +1,82 @@
 ---
 name: obs-analysis
 description: >-
-  Explain or query logs, metrics, and traces, including standalone signal definitions, request
-  correlation, and bounded comparisons. Triggers: 'search the logs', 'write a metric query',
-  'trace this request', 'explain this telemetry'. Use incident-investigation to advise a responder
-  on causes, the next diagnostic check, mitigation, or recovery, including in drills or past
-  incidents. Alert/SLO design uses obs-alerting, Grafana operations use grafana, and
-  instrumentation/export uses obs-pipeline.
-argument-hint: "[service, signal, query, or evidence]"
+  Query and interpret logs, metrics, and traces (SPL, LogQL, Cloud Logging, PromQL, Cloud
+  Monitoring, TraceQL, Cloud Trace); design symptom-based alerts, SLIs/SLOs, multi-window
+  error-budget burn rates, Splunk saved-search alerts, Moogsoft correlation, and ThousandEyes
+  synthetics; and instrument or debug OTel SDKs and Alloy/collector telemetry pipelines.
+  Triggers: 'search the logs', 'write a metric query', 'define an SLO',
+  'logs are not reaching Loki'. Use
+  incident-investigation for active incident decisions and grafana for Grafana dashboard, rule,
+  silence, and datasource operations.
+argument-hint: "[service, signal, query, SLO/alert, or telemetry pipeline]"
 ---
 
-# Signal analysis
+# Telemetry & observability — signal queries, alerting/SLOs, and pipelines
 
-Read the applicable signal method for queries or interpretation; read backend references when
-writing queries or interpreting backend-specific fields. Load only what the question needs.
-Answer standalone signal questions directly. Supplied-evidence explanations need no new retrieval,
-baseline, or full investigation.
+Load only the reference needed for the task. Answer standalone signal, SLO, or pipeline questions
+directly from supplied evidence without starting unrelated design or investigation workflows.
 
-| Need | References |
+| Need | Reference |
 |---|---|
-| Logs / correlation IDs | [Method](./references/signal-methods.md#logs); [SPL](./references/spl.md), [LogQL](./references/logql.md), [Cloud Logging](./references/gcp-logging.md) |
-| Metrics | [Method](./references/signal-methods.md#metrics); [PromQL](./references/promql.md), [Cloud Monitoring](./references/promql.md#cloud-monitoring) |
-| Traces | [Method](./references/signal-methods.md#traces); [TraceQL](./references/traceql.md), [Cloud Trace](./references/gcp-trace.md); [OTel](./references/otel-semantics.md) for status, attributes, propagation or sampling |
-| Recurring log queries | [Catalog](./references/query-catalog.md) |
+| Signal population, baselines, request correlation, missing data | [Signal methods](./references/signal-methods.md) |
+| Log queries: Splunk SPL, Loki LogQL, GCP Cloud Logging | [SPL](./references/spl.md), [LogQL](./references/logql.md), [Cloud Logging](./references/gcp-logging.md) |
+| Metric queries: PromQL, Mimir limits, GCP Cloud Monitoring | [PromQL & Cloud Monitoring](./references/promql.md) |
+| Trace queries: Tempo TraceQL, GCP Cloud Trace | [TraceQL](./references/traceql.md), [Cloud Trace](./references/gcp-trace.md) |
+| OpenTelemetry span semantics, attributes, SDK instrumentation, sampling, naming | [OTel semantics & SDK](./references/otel.md) |
+| Grafana Alloy / collector wiring, Google Telemetry API, WAL/drop debugging, canaries | [Alloy pipeline](./references/alloy.md) |
+| SLI/SLO error budgets and multi-window burn-rate alerting | [Burn-rate method](./references/burn-rate.md) |
+| Splunk saved-search alerts, cron/window pairing, throttling, actions | [Splunk alerting](./references/splunk-alerting.md) |
+| Alert storms, deduplication, and Moogsoft Onprem Situations | [Moogsoft correlation](./references/moogsoft.md) |
+| Synthetic checks, DNS/BGP/path evidence, and ThousandEyes | [ThousandEyes synthetics](./references/thousandeyes.md) |
 
-PCF history uses Splunk. Apps Manager logs come from Log Cache, which is capped by entry count and
-memory, not time: record the interval it actually covers. `stack-profile` owns backend choices; a
-query does not start a change workflow.
-Proposed saved searches/alerts/dashboards go to the caller for `observability-engineer`, app
-instrumentation gaps for `software-engineer`. This skill grants no write or incident ownership.
+## 1. Signal querying and interpretation
 
-Bind queries to service/environment/population, backend/tenant/index, source and absolute UTC
-window/timezone. Widen one boundary at a time with a reason. Deploy comparisons use equal windows
-around the platform's actual deploy/traffic-change time, not a dashboard annotation.
+- **Scope and windows:** Bind queries to service/environment/population, backend/tenant/index, and
+  absolute UTC windows. Compare deploys across equal windows around the platform's actual
+  deploy/traffic-change timestamp. PCF history lives in Splunk (Apps Manager uses memory-capped Log
+  Cache; record the interval it actually covers).
+- **Encoding and redaction:** Validate copied identifiers against their documented shape and
+  preserve trace IDs verbatim. Never concatenate raw values: use dialect literal escaping, and for
+  regex matchers apply literal-regex escaping before query-string encoding. Redact secrets,
+  tokens, user/session identifiers, sensitive headers/bodies, and SQL literals; prefer
+  access-controlled links plus minimal excerpts.
 
-Validate copied identifiers against their documented shape; preserve trace IDs exactly. Never
-concatenate raw values: use the dialect's literal encoding and prefer exact match. Regex values
-need literal-regex escaping, then query-string encoding; anchors do not escape metacharacters.
-Inspect the rendered query after every client, API or shell encoding layer. Uncertain encoding
-requires a sanitized identifier, not a wider search.
+## 2. Alerting, SLIs/SLOs, and scheduled-work freshness
 
-Return the answer and evidence limits; query work also retains exact query, scope/window,
-source/result, references used and method-specific assumptions. Keep unknowns and hypotheses
-distinct from observations. Prefer access-controlled links and minimal excerpts; redact secrets,
-personal/user/session identifiers, sensitive headers/bodies, SQL literals and sensitive
-label/tag/attribute values. Never paste raw payloads.
+- **Paging bar:** Every paging alert requires an owner, actionable summary, and resolving runbook
+  link. Keep request-ratio and time-based error budgets in their own units (never convert a
+  request-ratio budget into downtime minutes), and separate consumed-budget status from current
+  alert firing state. Load `grafana` for Grafana rule, silence, or contact-point implementation.
+- **Scheduled-work freshness:** Track `*_last_success_timestamp_seconds` per expected job. Set the
+  alert age threshold to `max_freshness_age - (detection + delivery + recovery + scrape/eval/for_lag)`
+  (e.g., 26h RPO minus 1h combined allowance → alert at 25h / `90000s`:
+  `time() - backup_last_success_timestamp_seconds >= 90000`) and confirm normal completion plus
+  jitter fits below it. Detect missing telemetry separately from stale timestamps: scope
+  `absent(backup_last_success_timestamp_seconds{backup="database"})` to each job's full identity
+  (or `expected_backups unless on (backup) backup_last_success_timestamp_seconds`), because any
+  healthy sibling suppresses an unscoped `absent()`. In Grafana, one vanished series among siblings
+  transitions to Normal (`MissingSeries`), whereas zero series is `No Data`
+  (`DatasourceNoData`/`DatasourceError`).
+- **Verification:** Validate syntax (`promtool check rules` / `promtool test rules` for
+  Prometheus-format rules — agent-runnable in `observability-engineer` only, setting `TMPDIR`/`TMP`
+  for `promtool test`'s temporary TSDB; `sre-assistant` routes both to a human), force the
+  condition on a safe non-production target/receiver to observe fire, delivery, and resolve, and
+  verify the runbook link exists.
+
+## 3. Telemetry pipelines — where a missing signal gets lost
+
+If a backend query finds the signal but a panel does not, check `grafana` (datasource, variables,
+time window) before changing the pipeline. Confirmed PCF-platform feeds stay with the platform
+owner. Otherwise isolate which boundary dropped the canary:
+
+1. **App never emits:** exercise one request locally and check SDK diagnostics or console exporter.
+2. **SDK never exports:** check endpoint, protocol, resource attributes, credentials, and export
+   drop counters/logs (`otel.sdk.*` self-metrics are Development).
+3. **Collector/Alloy rejects or drops:** check receiver health, accepted/refused counts, and
+   processor `incoming_items`/`outgoing_items`; validate deployed config before editing.
+4. **Exporter/backend rejects or misroutes:** check exporter sent/send-failed/enqueue-failed counts
+   and run a time-bounded backend query for the canary's service and trace ID.
+
+Route pipeline-config changes to `observability-engineer` and app instrumentation changes to
+`software-engineer`.

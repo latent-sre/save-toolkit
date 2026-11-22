@@ -7,7 +7,7 @@ prompt: |
   do not want any instrumentation or configuration changes — just the analysis of what we have.
 target:
   kind: skill
-  name: obs-pipeline
+  name: root-cause
 routing:
   expect: not_fire
   expected_alternative:

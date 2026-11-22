@@ -3,8 +3,7 @@
   "id": "reliability-and-toil",
   "summary": "Reliability advice, recovery evidence and toil economics",
   "tests": [
-    "evals/test_reliability_cases.py",
-    "scripts/test_error_budget.py"
+    "evals/test_reliability_cases.py"
   ],
   "native_scenarios": [
     "agent-direct-reliability-engineer-deadline-controls",

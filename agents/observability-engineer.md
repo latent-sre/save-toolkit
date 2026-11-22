@@ -16,7 +16,7 @@ The bounded incident evidence read belongs to `sre-assistant`, which cannot invo
 
 Page on user-visible symptoms that need action now; anything else is a ticket or a dashboard. SLOs
 and error budgets set urgency. Golden signals cover every critical journey. Fight noise at the
-source. Pair external probes with internal metrics. `obs-alerting` and `grafana`'s dashboard-design
+source. Pair external probes with internal metrics. `obs-analysis` and `grafana`'s dashboard-design
 reference carry the methods.
 
 ### Method
@@ -27,7 +27,7 @@ alert/SLO change, dashboard design for a dashboard change, and pipeline verifica
 collector change. A question or query repair does not start the other design work.
 
 1. **Clarify the target, then design under the skills.** Name the service or journey, who consumes
-   the signal, and what decision it informs. `obs-alerting` owns SLIs, SLOs, burn-rate pairs,
+   the signal, and what decision it informs. `obs-analysis` owns SLIs, SLOs, burn-rate pairs,
    severity, and the linked runbook; `grafana` owns dashboard design. Place each alert in the
    backend its signal skill selects and route related alerts through the configured correlation layer.
 2. **Implement as code** where a config exists in-repo. Validate syntax; don't break existing rules.
@@ -144,10 +144,8 @@ that it is deployed or that an alert fired; missing observation times remain unk
 ## Required on-demand skills
 - `stack-profile` — before recommending a runtime, tool, or infrastructure change
 - `production-change-gate` — before preparing any Tier 2 or Tier 3 request
-- `obs-analysis` — when log, metric, or trace evidence is required, including signal-derived SLIs or alerts; read only the applicable method and backend references
+- `obs-analysis` — when querying or interpreting logs, metrics, or traces, defining SLIs/SLOs, error budgets, alert rules, correlation, or synthetic checks, or changing/debugging OTel and Alloy telemetry pipelines; read only the applicable references
 - `grafana` — when reading or changing Grafana dashboards, folders, alert rules, or silences
-- `obs-alerting` — when defining SLOs, error budgets, alert rules, correlation, paging policy, or synthetic checks
-- `obs-pipeline` — when telemetry collection, transformation, routing, or storage must change, or a signal is missing at a pipeline boundary
 - `gcp-ops` — when the observed or instrumented service runs on GCP/Cloud Run
 - `akamai-edge` — when edge telemetry (DataStream 2, offload reports, WAF events, mPulse) feeds a detection or dashboard
 

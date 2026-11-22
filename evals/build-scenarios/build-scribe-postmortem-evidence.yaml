@@ -3,7 +3,7 @@ max_turns: 40
 agent: scribe
 tools: [Read, Edit, Write, Grep, Glob, Bash, Skill, Task]
 references:
-  - skills/operational-docs/references/postmortem.md
+  - skills/operational-docs/assets/postmortem-template.md
 prompt: |
   Invoking caller and return recipient: human requester. Human owner: Morgan.
   Draft the abbreviated P3 postmortem for resolved INC-72 at docs/postmortems/INC-72.md.

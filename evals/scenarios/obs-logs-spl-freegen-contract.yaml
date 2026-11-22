@@ -5,9 +5,8 @@ skill: obs-analysis
 tools: [Skill, Read]
 references:
   - skills/obs-analysis/references/spl.md
-  - skills/obs-analysis/references/query-catalog.md
 prompt: |
-  Read the SPL and query-catalog references. Write one Splunk search only, with no
+  Read the SPL reference. Write one Splunk search only, with no
   explanation; do not run queries or edit files. Settlement-api writes to
   index=<app_index> on a request-completion sourcetype with exactly one event per
   eligible request and a three-digit status field. Flag five-minute buckets whose 5xx

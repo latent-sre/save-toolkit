@@ -54,7 +54,7 @@ to return.
 | An observed failure whose cause needs investigation | `root-cause`; stop at evidence and recommendations |
 | A proposal changes a shared interface, ownership boundary, or cross-service architectural commitment | Return that decision to the caller for a `principal-engineer` consult and continue the local assessment |
 | Data integrity, migration, restore, or replay | `database-reliability` |
-| SLI/SLO measurement, alerts, or a missing signal | `obs-alerting`, `obs-analysis`, or `obs-pipeline`; `observability-engineer` retains implementation |
+| SLI/SLO measurement, alerts, or a missing signal | `obs-analysis`; `observability-engineer` retains implementation |
 
 Skills deepen this assignment; their build or execution steps never widen its authority. Load only
 the method and references relevant to the next decision. Reuse established service requirements;

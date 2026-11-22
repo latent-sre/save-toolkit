@@ -1,10 +1,10 @@
 id: obs-alerting-moogsoft-noise-freegen-contract
 max_turns: 17
 split: regression
-skill: obs-alerting
+skill: obs-analysis
 tools: [Skill, Read]
 references:
-  - skills/obs-alerting/references/moogsoft.md
+  - skills/obs-analysis/references/moogsoft.md
 prompt: |
   Read the Moogsoft reference. Write short labelled steps only, no explanation; do not
   run queries or edit files. A Moogsoft Onprem deployment pages too much during

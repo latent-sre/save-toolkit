@@ -3,8 +3,7 @@
   "id": "observability-alerting",
   "summary": "Alert semantics, SLO/error-budget reasoning and paging boundaries",
   "tests": [
-    "evals/test_obs_alerting_cases.py",
-    "scripts/test_error_budget.py"
+    "evals/test_obs_alerting_cases.py"
   ],
   "native_scenarios": [
     "discovery-obs-alerting-defers-signal-query",
