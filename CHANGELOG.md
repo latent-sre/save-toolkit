@@ -17,8 +17,8 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
   (removing `assets/runbook-example.md` and folding runbook/postmortem/ownership methods into `SKILL.md`), and merge `obs-alerting` and `obs-pipeline` into `obs-analysis` (replacing `error_budget.py` with a burn-rate table and deleting `query-catalog.md`).
 - Consolidate `pcf-deploy` into `pcf-ops` and streamline `production-change-gate`, `gcp-ops`,
   `frontend-craft` (removing bundled starter assets), and `api-craft`.
-- **Software Engineer:** Reconcile shift-left assumption probing with standing-evidence reuse,
-  clarify internal vs. external caller modernization, name `Java/JVM` support-only and host-loaded instruction paths, add lockfile/generator hygiene and helper-return taint, and align `root-cause` triggers.
+- **Software Engineer:** Reorganize into a 5-section numbered spine, reconcile shift-left assumption
+  probing with standing-evidence reuse, clarify internal vs. external caller modernization, name `Java/JVM` support-only and host-loaded instruction paths, add lockfile/generator hygiene and helper-return taint, and align `root-cause` triggers.
 - **Reviewer:** Make the review method self-contained without `Skill`, add a scratch-pad loop and
   five-question lenses for commits, code, tests, security, and docs, and drop the recipe test.
 - Agent-authoring now works from the user's task and target host. Personal skills, prompt edits, and

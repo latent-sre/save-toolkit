@@ -21,7 +21,7 @@ after the first two `P1` fixes) against its 9 on-demand skills (`cicd-github`, `
 | **7** | **P2** | **OPEN** | `:4`, `:10-14`, `:102-104` | Unexplained, hazardous, or missing tool grants (`EnterWorktree`/`ExitWorktree` unmentioned and can strand edits outside the working tree; `TodoWrite` unmentioned; `researcher` unmentioned in body; `repository-investigator` missing from `Agent(...)`; `scribe` takes 5 lines of the intro) |
 | **8** | **P2** | **OPEN** | `:128-137` | Mandatory 9-skill loading waterfall before routine coding instead of inlined core craft baselines + optional deep-reference skill loads (or full self-containment) |
 | **9** | **P2** | **DROPPED** | `:83`, `:90` | Restored full parallel sentences in `Code standard` (`:83`) and `Do not take these shortcuts` (`:90`) |
-| **10** | **P2** | **OPEN** | `:6-137` (11 sections) | Fragmented 11-section layout (>50% governance/routing/disclaimers) instead of a unified 5-section engineering execution spine (like [`agents/reviewer.md`](../../agents/reviewer.md)) |
+| **10** | **P2** | **FIXED** | `:16-141` (5 sections) | Reorganized 11 flat sections into a unified 5-section numbered spine (`## 1.`–`## 5.`) matching [`agents/reviewer.md`](../../agents/reviewer.md) |
 | **11** | **P2** | **FIXED** | `:35-36` | Added stack-agnostic lockfile and generated-file rule (*"update lockfiles and generated files through their tool or generator, never by hand"*) |
 | **12** | **P2** | **FIXED** | `:105`, `:126` | Added `helper returns` to `Untrusted input boundary` (`:126`) and named explicit host-loaded instruction file paths in `Instruction files` (`:105`) |
 | **13** | **P3** | **HOLD** | `:111-112` | Audience rule in `Return format` (*"who is not an SDE"*) held as intentional for Save Toolkit's SRE audience |
@@ -142,14 +142,14 @@ after the first two `P1` fixes) against its 9 on-demand skills (`cicd-github`, `
   and `## Do not take these shortcuts` preserves its parallel `Verb; no...` self-review checklist
   `[verified]`.
 
-### 10. `P2 [verified] medium` — OPEN: Fragmented 11-section structure with >50% governance prose (`:6-137`)
-- **The flaw:** The prompt jumps across 11 top-level headings (`Software Engineer`, `Effect
-  authority`, `Workspace and stack`, `The SRE lens`, `Before building`, `While building`, `Code
-  standard`, `Do not take these shortcuts`, `Verify, review, finish`, `Return format`, `Untrusted
-  input boundary`, `Required on-demand skills`), with over half the text devoted to routing,
-  disclaimers, and skill triggers rather than an ordered engineering workflow `[verified]`.
-- **The fix:** Reorganize into the unified 5-section engineering spine below (`§1`–`§5`) so every
-  rule has one authoritative home.
+### 10. `P2 [verified] medium` — FIXED: Reorganize 11 sections into the 5-section engineering spine (`:16-141`)
+- **Flaw on `main`:** The prompt jumped across 11 unnumbered headings with `Untrusted input
+  boundary` stranded after `Return format` and `The SRE lens` separating `Workspace and stack` from
+  `Before building` `[verified]`.
+- **Applied fix:** Reorganized into 5 numbered sections (`## 1. Effect authority and untrusted input
+  boundary` with `<a id="effect-authority"></a>`, `## 2. Workspace, forks, and engineering loop`,
+  `## 3. Code standard, operational surface, and shortcuts`, `## 4. Verify, review, finish, and
+  required skills`, and `## 5. Return format`) `[verified]`.
 
 ### 11. `P2 [verified] medium` — FIXED: Lockfile and generated-file hygiene (`:35-36`)
 - **Flaw on `main`:** Lines 34–36 said to take versions from lockfiles, without stating never to
