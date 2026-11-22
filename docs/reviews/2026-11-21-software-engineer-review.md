@@ -16,7 +16,7 @@ after the first two `P1` fixes) against its 9 on-demand skills (`cicd-github`, `
 | **2** | **P1** | **FIXED** | `:58-62`, `:69-70`, `:95` | Anti-over-testing and standing-evidence reuse rules arrived 38 lines after `Define done` and `Tests first` |
 | **3** | **P1** | **OPEN** | `:24`, `:130` | Support-only stack (**Java/JVM / Spring Boot**) and estate guardrails are hidden behind an indirect `stack-profile` lookup |
 | **4** | **P1** | **OPEN** | `:57` vs. `:58` | Reconcile shift-left assumption probing (`:57`) with standing-evidence reuse (`:58`) so the agent probes *untested* assumptions before heavy builds without re-running supplied reproductions |
-| **5** | **P1** | **OPEN** | `:66` | *"Modernize what you change, including during a defect fix"* across the component and callers is a scope-creep trap on surgical bug fixes and contradicts *"not what callers observe"* |
+| **5** | **P1** | **FIXED** | `:66` | Clarified `Refactor and modernize what you touch` so internal callers you control are modernized while external caller behavior stays unchanged |
 | **6** | **P1** | **OPEN** | `:57`, `:68-71` | Missing explicit **"Trace all callers, mocks, and companion files"** step before/after changing a signature, return value, exception, flag, or schema |
 | **7** | **P2** | **OPEN** | `:4`, `:10-14`, `:102-104` | Unexplained, hazardous, or missing tool grants (`EnterWorktree`/`ExitWorktree` unmentioned and can strand edits outside the working tree; `TodoWrite` unmentioned; `researcher` unmentioned in body; `repository-investigator` missing from `Agent(...)`; `scribe` takes 5 lines of the intro) |
 | **8** | **P2** | **OPEN** | `:128-137` | Mandatory 9-skill loading waterfall before routine coding instead of inlined core craft baselines + optional deep-reference skill loads (or full self-containment) |
@@ -76,23 +76,16 @@ after the first two `P1` fixes) against its 9 on-demand skills (`cicd-github`, `
   *"Run the cheapest check that can disprove an **untested** assumption before an expensive build,
   while reusing standing reproductions and test results whenever the code they cover is unchanged."*
 
-### 5. `P1 [verified] high` — OPEN: *"Modernize what you change, including during a defect fix"* (`:66`) is a scope-creep trap on bug fixes
-- **The flaw:** Line 66 tells the agent: *"In the code your task touches, including during a defect
-  fix, use what the supported language and framework versions offer and improve weak interfaces,
-  error handling, resource ownership, and duplicated policy across the component and the callers you
-  control: the simplest coherent improvement, even when it is not the fewest changed lines"*, and
-  then immediately says *"Modernizing changes how the code is written, not what callers observe: do
-  not add validation, raise new errors, or change outputs the task did not ask for"* `[verified]`.
-  Refactoring interfaces and duplicated policy across callers during a bug fix turns a surgical
-  defect fix into a wide multi-file diff, invalidates more tests (forcing broader test runs), and
-  conflicts with keeping caller-observable behavior unchanged.
-- **The fix:** Split the rule by task type:
-  - **Defect fix:** Fix the root cause and check nearby code for the same mistake; write touched
-    lines cleanly in the repo's modern idioms, but **keep the diff surgical** — do not bundle
-    unrequested cross-caller interface or policy refactors into a bug fix.
-  - **Feature, refactor, or modernization task:** Improve weak interfaces, error handling, resource
-    ownership, and duplicated policy coherently across the component and controlled callers while
-    preserving external contracts unless authorized to change them.
+### 5. `P1 [verified] high` — FIXED: Clarify `Refactor and modernize what you touch` (`:66`)
+- **Flaw on `main`:** Line 66 used the bare word *"callers"* in two opposite senses in adjacent
+  sentences (*"across the component and the callers you control"* vs. *"not what callers observe"*),
+  and did not explicitly frame direct refactoring alongside defect fixes `[verified]`.
+- **Applied fix:** Rewrote line 66 as `Refactor and modernize what you touch`: explicitly covers
+  both direct refactoring and defect fixes, distinguishes **internal callers you control** (which
+  are modernized coherently with the component) from **external callers** (whose observable behavior,
+  validation, errors, and outputs must not change without authorization), removes obsolete dead
+  code, and leaves unrelated code alone without duplicating `Tests` (`:70`) or `Code standard`
+  (`:79`) `[verified]`.
 
 ### 6. `P1 [verified] high` — OPEN: Missing explicit *"Trace all callers, mocks, and companion files"* step (`:57`, `:68-71`)
 - **The flaw:** The top real-world regression mode of coding agents is incomplete blast-radius
