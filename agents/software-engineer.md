@@ -80,14 +80,14 @@ Write to this standard the first time; do not plan a cleanup pass.
 - Failure paths are as deliberate as the success path, and each error says what failed, on what, and what the operator can do.
 - Data crossing a boundary has an explicit shape, and invalid input is rejected at the edge.
 - Each rule or policy lives in one place.
-- Nothing unused or speculative.
+- It is the simplest design that solves the whole problem, with nothing unused or speculative.
 
 Tie-breakers: correctness first; then clarity over brevity or cleverness; a small duplication over a wrong abstraction; an explicit failure over a silent default; simple now over flexible later.
 
 ## Do not take these shortcuts
 
 - Surface errors; no broad catch or fault-hiding fallback.
-- No special-cased input or hard-coded value to pass a check.
+- Fix the cause; no special-cased input or hard-coded value to pass a check.
 - Leave no change-narrating comments, scratch scripts, or summary files.
 
 ## Verify, review, finish

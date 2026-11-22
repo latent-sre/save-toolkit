@@ -20,7 +20,7 @@ after the first two `P1` fixes) against its 9 on-demand skills (`cicd-github`, `
 | **6** | **P1** | **DROPPED** | `:57`, `:65`, `:67`, `:69-70` | Already covered across `:57` (`Understand first`), `:65` (`internal callers you control`), `:67` (`Contracts`), `:69` (`Tests`), and `:70` (`Keep parallel edits in sync`) |
 | **7** | **P2** | **OPEN** | `:4`, `:10-14`, `:102-104` | Unexplained, hazardous, or missing tool grants (`EnterWorktree`/`ExitWorktree` unmentioned and can strand edits outside the working tree; `TodoWrite` unmentioned; `researcher` unmentioned in body; `repository-investigator` missing from `Agent(...)`; `scribe` takes 5 lines of the intro) |
 | **8** | **P2** | **OPEN** | `:128-137` | Mandatory 9-skill loading waterfall before routine coding instead of inlined core craft baselines + optional deep-reference skill loads (or full self-containment) |
-| **9** | **P2** | **FIXED** | `:82`, `:89` | Trimmed duplicate *"simplest design that solves the whole problem"* from `Code standard` (`:82`) and duplicate *"Fix the cause"* from `Do not take these shortcuts` (`:89`) |
+| **9** | **P2** | **DROPPED** | `:83`, `:90` | Restored full parallel sentences in `Code standard` (`:83`) and `Do not take these shortcuts` (`:90`) |
 | **10** | **P2** | **OPEN** | `:6-137` (11 sections) | Fragmented 11-section layout (>50% governance/routing/disclaimers) instead of a unified 5-section engineering execution spine (like [`agents/reviewer.md`](../../agents/reviewer.md)) |
 | **11** | **P2** | **FIXED** | `:35-36` | Added stack-agnostic lockfile and generated-file rule (*"update lockfiles and generated files through their tool or generator, never by hand"*) |
 | **12** | **P2** | **FIXED** | `:105`, `:126` | Added `helper returns` to `Untrusted input boundary` (`:126`) and named explicit host-loaded instruction file paths in `Instruction files` (`:105`) |
@@ -135,18 +135,12 @@ after the first two `P1` fixes) against its 9 on-demand skills (`cicd-github`, `
   into `software-engineer.md`, and either remove `Skill` for 100% self-containment or scope skill
   loads to deep reference procedures, engine-specific tables, or starter assets.
 
-### 9. `P2 [verified] medium` — OPEN: 4-way cross-section repetition across lines 38–91 (`:38-91`)
-- **The flaw:** Four sections (`The SRE lens`, `Before building`, `While building`, `Code standard`,
-  `Do not take these shortcuts`) repeat the same directives `[verified]`:
-  - *"Simplest design that solves the whole problem, not always the smallest diff / fewest lines /
-    simple now over flexible later"* repeats **4 times** (`:53`, `:66`, `:83`, `:85`).
-  - *"Fix a defect's cause where it lives / Fix the cause; no special-cased input or hard-coded
-    value"* repeats **twice** (`:67`, `:90`).
-  - *"Failure paths are as deliberate as the success path / partial-failure behavior decided
-    deliberately / Surface errors; no broad catch"* repeats **4 times** (`:41`, `:69`, `:80`, `:89`).
-  - *"Every piece of state/resource has one clear owner"* repeats **3 times** (`:66`, `:69`, `:79`).
-- **The fix:** Fold `## Do not take these shortcuts` into `## Code standard` and `## While building`
-  and remove the 4-way repeats, saving ~150–200 words.
+### 9. `P2 [verified] medium` — DROPPED: Cross-section repetition vs. parallel sentence structure (`:83`, `:90`)
+- **Disposition:** Dropped and restored `:83` (*"It is the simplest design that solves the whole
+  problem, with nothing unused or speculative."*) and `:90` (*"Fix the cause; no special-cased input
+  or hard-coded value to pass a check."*) so `## Code standard` keeps complete declarative sentences
+  and `## Do not take these shortcuts` preserves its parallel `Verb; no...` self-review checklist
+  `[verified]`.
 
 ### 10. `P2 [verified] medium` — OPEN: Fragmented 11-section structure with >50% governance prose (`:6-137`)
 - **The flaw:** The prompt jumps across 11 top-level headings (`Software Engineer`, `Effect
