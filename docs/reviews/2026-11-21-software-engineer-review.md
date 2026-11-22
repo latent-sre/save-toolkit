@@ -25,7 +25,7 @@ after the first two `P1` fixes) against its 9 on-demand skills (`cicd-github`, `
 | **11** | **P2** | **FIXED** | `:35-36` | Added stack-agnostic lockfile and generated-file rule (*"update lockfiles and generated files through their tool or generator, never by hand"*) |
 | **12** | **P2** | **FIXED** | `:105`, `:126` | Added `helper returns` to `Untrusted input boundary` (`:126`) and named explicit host-loaded instruction file paths in `Instruction files` (`:105`) |
 | **13** | **P3** | **HOLD** | `:111-112` | Audience rule in `Return format` (*"who is not an SDE"*) held as intentional for Save Toolkit's SRE audience |
-| **14** | **P3** | **OPEN** | `:31-32`, `:60-61`, `:98` | Scattered single-line rules (`source mutations... in a disposable copy`, `Done for HTTP work`, `Negative tests`) separated from their parent topics |
+| **14** | **P3** | **FIXED** | `:61` | Updated `Done for HTTP work` (`:61`) to remove the stale `"project-owned contract test"` reference deleted from `api-craft` in PR #542 |
 | **15** | **P3** | **OPEN** | `:22` vs. `:129` | CI validation authority row (`:22`) is split from `cicd-github` (`:129`) and omits default-branch `workflow_run` consumers and `workflow_dispatch` vs. required-check distinction |
 
 ---
@@ -170,12 +170,15 @@ after the first two `P1` fixes) against its 9 on-demand skills (`cicd-github`, `
 - **Disposition:** Held for later; commit `69b6f99a` deliberately framed reports for Save Toolkit's
   primary SRE audience while `:116` (`Changed`) already requires `file/line references` `[verified]`.
 
-### 14. `P3 [verified] low` — OPEN: Scattered single-line rules (`:31-32`, `:60-61`, `:98`)
-- **The flaw:**
-  - `:31-32` (*"Run source mutations that test an assertion in a disposable copy, never in the
-    task's working tree"*) sits in `Workspace and stack` rather than with test/verification hygiene.
-  - `:60-61` (`Done for a new tool` and `Done for HTTP work`) can be combined cleanly.
-  - `:98` (`Negative tests`) sits in `Verify, review, finish` separated from `Tests` (`:70`).
+### 14. `P3 [verified] low` — FIXED: Update `Done for HTTP work` (`:61`) after `api-craft` streamlining
+- **Flaw on `main`:** Line 61 said *"HTTP work adds the project-owned contract test under
+  `api-craft`"*, referencing a section removed when PR #542 streamlined
+  [`skills/api-craft/SKILL.md`](../../skills/api-craft/SKILL.md) `[verified]`. (The disposable-copy
+  rule in `:36-37` and `Negative tests` in `:105` remain in their natural workspace and verification
+  sections.)
+- **Applied fix:** Updated `:61` to: *"`- **Done for HTTP work.** HTTP work verifies the consumer,
+  error, and auth contracts through the real handler and lifespan chain under api-craft.`"*
+  `[verified]`.
 
 ### 15. `P3 [verified] low` — OPEN: CI validation authority row (`:22`) split from `cicd-github` (`:129`)
 - **The flaw:** Line 22 says *"Submit or rerun CI validation | Only within caller-authorized scope

@@ -211,10 +211,11 @@ work with an owner and a meaningful proof-of-improvement check.
 `#4` (shift-left assumption probing reconciled with standing-evidence reuse across `Before building`
 and `Verify, review, finish`), `#3` (`Java/JVM` support-only named directly), `#5` (`Refactor and
 modernize what you touch` internal vs. external caller clarity), `#10` (5-section numbered spine),
-`#11` (lockfile and generated-file hygiene), and `#12` (`helper returns` in `Untrusted input
-boundary` and explicit host-loaded instruction paths in `Instruction files`) are implemented on
+`#11` (lockfile and generated-file hygiene), `#12` (`helper returns` in `Untrusted input
+boundary` and explicit host-loaded instruction paths in `Instruction files`), and `#14` (updated
+`Done for HTTP work` after `api-craft` streamlining) are implemented on
 [`agents/software-engineer.md`](../agents/software-engineer.md); `#6` and `#9` are dropped, `#13` is
-on hold, and `#7`, `#8`, `#14`, and `#15` remain open `[verified]`.
+on hold, and `#7`, `#8`, and `#15` remain open `[verified]`.
 **Owner:** The human owner decides which remaining findings and structural changes land; a
 maintainer session implements and verifies them.
 **Outcome:** [`agents/software-engineer.md`](../agents/software-engineer.md) names its support-only

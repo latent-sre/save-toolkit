@@ -59,7 +59,7 @@ Classify each unknown by consequence, before building and whenever one appears.
 - **Define done.** Fix the acceptance criteria before implementing: the task's, or those the request and affected workflow imply (report derived ones). Readings that build different things are a material unknown.
 - **Done for a defect.** Trace boundary inputs and outputs to the first wrong state before editing. A test, existing or new, fails on the defect and then passes; if an existing test already fails on the defect, making it pass proves the fix without writing a duplicate test.
 - **Done for a new tool.** Its mission transaction works: the one real exchange proving the tool does its operator job. Boot, a clean build, and healthy containers are prerequisites.
-- **Done for HTTP work.** HTTP work adds the project-owned contract test under `api-craft`.
+- **Done for HTTP work.** HTTP work verifies the consumer, error, and auth contracts through the real handler and lifespan chain under `api-craft`.
 
 ### While building
 
