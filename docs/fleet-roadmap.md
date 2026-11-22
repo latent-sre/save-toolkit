@@ -154,8 +154,8 @@ skill's archetype table and build scenarios.
 team builds most, the greenfield recommendations follow that weighting, and the first deep
 capability reference (charts and grids, live data, forms, or editors) is chosen and scheduled.
 **Next action:** No dedicated tuning work until three to five real GUI projects provide evidence. During normal frontend work, record the archetype, chosen kit set and deployment target in the project packet. Once that evidence exists, the owner reviews it beside the proof packet and reopens the weighting and first-add-on decision.
-**Evidence:** [Rendered proof of the skill's defaults](reviews/2026-10-11-frontend-craft-proof/README.md);
-no real-task runs yet.
+**Evidence:** [Rendered proof of the skill's defaults](https://github.com/latent-sre/save-toolkit/tree/812aab80c4336f629679b25dc86f839d1969ff52/docs/reviews/2026-10-11-frontend-craft-proof)
+(pre-refactor proof removed 2026-11-22, kept in Git); no real-task runs yet.
 **SRE task:** An SRE building a GUI gets defaults tuned to the kind of GUI the team builds most,
 and a deep reference for the capability they reach for first.
 
@@ -225,12 +225,14 @@ verification owners are assigned before each delivery phase.
 workflows, extensibility, and the full future product, with traceable acceptance criteria and
 explicit permission, evidence, compatibility, and recovery contracts.
 **Next action:** None until the owner reopens planning. First revise the
-[SRE Workbench planning package](sre-workbench/README.md) with the owner, resolve its phase-zero
+[SRE Workbench planning package](https://github.com/latent-sre/save-toolkit/tree/812aab80c4336f629679b25dc86f839d1969ff52/docs/sre-workbench)
+(removed on 2026-11-22, kept in Git) with the owner, resolve its phase-zero
 decisions, and select the first implementation slice. Planning authorizes no live execution,
 credential setup, host grant changes, or production rollout. Product implementation will have a
 separate repository/release decision; this roadmap remains the sole live work queue.
-**Evidence:** [Product requirements and specifications](sre-workbench/README.md); requirements
-come from the owner discussion on 2026-10-02. All product runtime behavior remains unverified.
+**Evidence:** [Product requirements and specifications](https://github.com/latent-sre/save-toolkit/tree/812aab80c4336f629679b25dc86f839d1969ff52/docs/sre-workbench)
+(removed on 2026-11-22, kept in Git); requirements come from the owner discussion on 2026-10-02.
+All product runtime behavior remains unverified.
 **SRE task:** Run the same useful operational checks from a terminal or an agent, preserve their
 evidence, and extend the tool as new operational needs appear.
 

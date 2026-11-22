@@ -54,12 +54,9 @@
   `probe.trials.run_trial` in an Inspect task for routing and contract scenarios; it lives beside the
   runner, not in `probe/`, so the runner identity and every saved run identity are unchanged by it.
 
-- **Golden saved runs.** [`evals/fixtures/runner-goldens/`](../fixtures/runner-goldens/README.md)
-  holds one stub-driven attempt per result rule and run ending, and three native conversations, as
-  the runner published them, with the verdict view of each live grade and of a regrade of the same
-  directory and the batch view the result row gives the batch. `evals/golden_runs.py write`
-  regenerates them from the current runner and `evals/test_golden_runs.py` proves the current runner
-  reproduces every view; a changed view is a verdict change to explain in the pull request.
+- **Golden saved runs.** Golden stub-run snapshots (`evals/fixtures/runner-goldens/` and
+  `evals/golden_runs.py`, archived in Git history) captured stub-driven attempts per result rule
+  and run ending as published by the runner.
 
 A function is patched in the module that defines it, such as `probe.trials.run_trial`: every other
 module calls it through that module, so one patch reaches every caller, and a test enforces it. A

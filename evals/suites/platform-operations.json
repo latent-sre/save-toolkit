@@ -2,9 +2,7 @@
   "schema_version": 1,
   "id": "platform-operations",
   "summary": "PCF, database, edge and stack-boundary routing; mostly supplied-state coverage",
-  "tests": [
-    "scripts/test_skill_assets.py"
-  ],
+  "tests": [],
   "native_scenarios": [
     "discovery-akamai-edge-defers-backend-log-query",
     "discovery-akamai-edge-reference-error",

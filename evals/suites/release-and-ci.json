@@ -2,9 +2,7 @@
   "schema_version": 1,
   "id": "release-and-ci",
   "summary": "Production approval validity, release boundaries and CI contract preservation",
-  "tests": [
-    "scripts/test_pcf_deploy_example.py"
-  ],
+  "tests": [],
   "native_scenarios": [
     "agent-direct-software-engineer-deploy-stays-with-release-owner",
     "build-pcf-deploy-unapproved-planning-body",

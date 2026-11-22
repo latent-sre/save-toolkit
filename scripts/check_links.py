@@ -88,7 +88,6 @@ LIVE_DOC_DIR_GLOBS = (
     ("docs", "*.md"),
     ("docs/reviews", "*.md"),
     ("docs/fleet-evaluation", "*.md"),
-    ("docs/sre-workbench", "*.md"),
     ("evals/docs", "*.md"),
 )
 

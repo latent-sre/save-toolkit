@@ -589,12 +589,10 @@ class LiveDocLinkTests(Fixture):
             failures,
         )
 
-    def test_fleet_evaluation_and_workbench_docs_are_checked(self) -> None:
-        for folder in ("docs/fleet-evaluation", "docs/sre-workbench"):
-            self.write(f"{folder}/guide.md", "See [missing](missing.md).\n")
+    def test_fleet_evaluation_docs_are_checked(self) -> None:
+        self.write("docs/fleet-evaluation/guide.md", "See [missing](missing.md).\n")
         failures = check_links._check_live_doc_links(self.root)
-        for folder in ("docs/fleet-evaluation", "docs/sre-workbench"):
-            self.assertTrue(any(f"{folder}/guide.md" in item and "dead link" in item for item in failures), failures)
+        self.assertTrue(any("docs/fleet-evaluation/guide.md" in item and "dead link" in item for item in failures), failures)
 
     def test_moved_eval_guides_are_checked(self) -> None:
         self.write("evals/docs/running.md", "See [missing](missing.md).\n")

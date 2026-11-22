@@ -7,10 +7,12 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
 ## [Unreleased]
 <!-- Entries for the next release -->
 
-- Prune 105 per-scenario oracle calibration, one-off ticket, and deferred-adapter tests from `evals/`
-  and consolidate `scripts/` from 20 to 15 CI test files (retaining all 30 core harness tests and all shipped-code assertions).
-- Remove 31 superseded pre-refactor eval review records from `docs/reviews/` (preserved in Git
-  history at `812aab80`) and update live roadmap and evaluation doc links.
+- Remove all 135 offline `evals/test_*.py` suites (plus `runner-goldens` fixtures and testkits)
+  and trim `scripts/` from 20 to 10 CI test files covering shipped guards, hooks, adapters, Gate A,
+  and helper scripts.
+- Remove 31 superseded pre-refactor eval review records, pre-refactor `frontend-craft-proof` PNGs,
+  and deferred `docs/sre-workbench/` planning docs (preserved in Git history at `812aab80`) and
+  update live roadmap/doc links.
 - Remove 14 completed, orphaned, or deferred run-plan and proposal documents from
   `docs/fleet-evaluation/` (retaining `product.md`, schemas, contracts, and suite guides; Git history
   preserves removed files).

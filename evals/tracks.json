@@ -242,8 +242,7 @@
         "evals/judge.py"
       ],
       "suites": [
-        "adversarial",
-        "eval-harness"
+        "adversarial"
       ],
       "guides": [
         "evals/docs/authoring.md"
@@ -261,7 +260,6 @@
         "adversarial",
         "api-craft",
         "engineering-design",
-        "eval-harness",
         "fleet-structure",
         "frontend-craft",
         "gcp-investigation",
@@ -318,9 +316,7 @@
         "evals/compare_runs.py",
         "evals/turn_counts.py"
       ],
-      "suites": [
-        "eval-harness"
-      ],
+      "suites": [],
       "guides": [
         "docs/fleet-evaluation/campaign-report.md"
       ]

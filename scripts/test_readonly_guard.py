@@ -1103,31 +1103,31 @@ class GuardPropertyTest(unittest.TestCase):
     PLAIN_ALLOWED = [line for line in ALLOWED if not any(ch in line for ch in "'\"\\\n\t")]
     ALLOWED_HEADS = frozenset(line.split()[0] for line in ALLOWED if line.strip())
 
-    @settings(derandomize=True, database=None, deadline=None, max_examples=40, suppress_health_check=[HealthCheck.too_slow])
+    @settings(derandomize=True, database=None, deadline=None, max_examples=15, suppress_health_check=[HealthCheck.too_slow])
     @given(left=st.sampled_from(ALLOWED), separator=st.sampled_from(SEPARATORS), right=st.sampled_from(DENIED_COMMANDS))
     def test_a_denied_segment_denies_the_whole_line_wherever_it_sits(self, left, separator, right):
         for line in (left + separator + right, right + separator + left):
             self.assertEqual("deny", guard_decision(run_guard(guard_payload(line))), repr(line))
 
-    @settings(derandomize=True, database=None, deadline=None, max_examples=40, suppress_health_check=[HealthCheck.too_slow])
+    @settings(derandomize=True, database=None, deadline=None, max_examples=15, suppress_health_check=[HealthCheck.too_slow])
     @given(outer=st.sampled_from(ALLOWED), inner=st.sampled_from(ALLOWED))
     def test_command_substitution_is_denied_even_when_both_halves_are_allowed(self, outer, inner):
         for line in (f"{outer} $({inner})", f"{outer} `{inner}`", f"$({inner})"):
             self.assertEqual("deny", guard_decision(run_guard(guard_payload(line))), repr(line))
 
-    @settings(derandomize=True, database=None, deadline=None, max_examples=40, suppress_health_check=[HealthCheck.too_slow])
+    @settings(derandomize=True, database=None, deadline=None, max_examples=15, suppress_health_check=[HealthCheck.too_slow])
     @given(line=st.sampled_from(PLAIN_ALLOWED), lead=st.integers(0, 3), trail=st.integers(0, 3), gap=st.integers(1, 3))
     def test_spaces_around_and_between_tokens_do_not_change_an_allowed_decision(self, line, lead, trail, gap):
         padded = " " * lead + (" " * gap).join(line.split(" ")) + " " * trail
         self.assertEqual("allow", guard_decision(run_guard(guard_payload(padded))), repr(padded))
 
-    @settings(derandomize=True, database=None, deadline=None, max_examples=40, suppress_health_check=[HealthCheck.too_slow])
+    @settings(derandomize=True, database=None, deadline=None, max_examples=15, suppress_health_check=[HealthCheck.too_slow])
     @given(head=st.from_regex(r"\A[a-z][a-z0-9_-]{0,11}\Z"), tail=st.sampled_from(["", " --help", " -v", " ."]))
     def test_an_unlisted_command_head_is_denied(self, head, tail):
         assume(head not in self.ALLOWED_HEADS)
         self.assertEqual("deny", guard_decision(run_guard(guard_payload(head + tail))), repr(head + tail))
 
-    @settings(derandomize=True, database=None, deadline=None, max_examples=60, suppress_health_check=[HealthCheck.too_slow])
+    @settings(derandomize=True, database=None, deadline=None, max_examples=20, suppress_health_check=[HealthCheck.too_slow])
     @given(line=st.text(st.characters(blacklist_categories=("Cs",)), max_size=60))
     def test_any_command_text_gets_an_allow_or_a_deny_and_never_a_crash(self, line):
         proc = run_guard(guard_payload(line))

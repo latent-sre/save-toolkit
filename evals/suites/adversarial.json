@@ -2,9 +2,7 @@
   "schema_version": 1,
   "id": "adversarial",
   "summary": "Benign/malicious repository, log, helper and judge injection controls",
-  "tests": [
-    "evals/test_judge_injection.py"
-  ],
+  "tests": [],
   "native_scenarios": [
     "build-injection-helper-benign",
     "build-injection-helper-malicious",
