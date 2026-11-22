@@ -117,40 +117,37 @@ the patterns below as high-signal examples, never an exhaustive boundary:
 ### B. What unchanged caller, rolling-deploy consumer, or failure/concurrency path breaks?
 - **Unchanged callers and mixed-version rollout:** Trace changed return values (including implicit
   `None` fall-throughs), exception types, mutated inputs, and schemas into **unchanged callers**.
-  Verify rolling-deploy and persisted-data compatibility (old producer ↔ new consumer, including
-  key/format rotation fallbacks).
+  Verify rolling-deploy and persisted-data compatibility (old producer ↔ new consumer across
+  schema, format, or key transitions).
 - **State invariants and partial failure:** When state spans multiple collections, indexes, caches,
   or files, confirm all write, delete, reset, and error paths update every representation. Flag
-  destructive-before-confirm ordering (dropping queued work or recording success before downstream
-  I/O completes) and non-atomic file writes.
+  state updates or acks committed before downstream I/O succeeds and non-atomic file writes.
 - **Mutation, boundaries, and types:** Flag in-place mutation of caller inputs or shared
   class/default collections; `<` vs `<=` and wrap-around boundary errors; truthiness checks (`if x:`
   vs `if x is not None:`) dropping valid `0`/`""`/`[]`; numeric rounding/formatting truncation;
-  wall-clock (`time.time`) vs. monotonic (`time.monotonic`) durations; and naive vs. aware
-  timestamps.
-- **Concurrency, async, and resources:** Verify child tasks/goroutines inherit cancellation/shutdown
-  contexts (not detached `context.Background()`); fan-out errors do not return early while stranding
-  workers on unbuffered channels/queues; admission is bounded before spawning; dual sync/async paths
-  await coroutines; and files, connections, locks, timers, and subprocesses close on every return.
-- **Error paths and resilience:** Flag swallowed exceptions, broken causal chains (e.g., Python
-  `__cause__` without `__context__`, or Go `%v` instead of `%w`), missing timeouts on external
-  calls, and retries on non-idempotent work.
+  wall-clock vs. monotonic durations; and naive vs. timezone-aware timestamps.
+- **Concurrency, async, and resources:** Verify spawned work inherits cancellation and shutdown
+  contexts; error returns cancel or drain in-flight workers rather than stranding blocked senders;
+  concurrency is bounded before spawning; async paths await coroutines; and files, connections,
+  locks, timers, and subprocesses close on every return path.
+- **Error paths and resilience:** Flag swallowed errors, dropped error wrapping or causal chains,
+  missing timeouts on external calls, and retries on non-idempotent work.
 
 ### C. Why would the candidate's tests still pass even if the behavior were broken?
-- **Tautological / self-seeding oracles:** Tests computing expected values via the buggy function
-  under test.
-- **Weak assertions and narrow fixtures:** Assertions checking only exit status, string prefixes, or
-  minimal fixtures while missing corrupted fields, mutated/derived state, or common error paths; or
-  mocks hiding a real consumer contract break.
+- **Tautological / self-seeding oracles:** Tests computing expected values via the function under
+  test.
+- **Weak assertions and narrow fixtures:** Assertions checking only status or partial output on
+  minimal fixtures while missing state corruption, boundary inputs, or error paths; or mocks hiding
+  a real consumer contract break.
 
 ### D. What trust boundary, auth check, or sink is exposed?
 Trace attacker-controlled input to a reachable sink before rating exploitability; return an explicit
 question for any public advisory you cannot verify locally (no web access).
 - **AuthN/AuthZ and tenant isolation:** Confirm new or changed routes, exports, and queries enforce
-  the same tenant, ownership, and role checks as sibling paths (IDOR / CWE-639).
+  the same tenant, ownership, and role checks as sibling paths.
 - **Injection, traversal, and secret leaks:** Trace untrusted input to shell/SQL/template execution,
-  deserialization, path traversal/symlinks, SSRF, or redirect-following clients forwarding
-  credentials across hosts; check logs/errors for secret exposure.
+  deserialization, path traversal/symlinks, SSRF, or cross-origin credential forwarding on
+  redirects; check logs/errors for secret exposure.
 - **CI/CD and agent boundaries:** In workflows, flag `pull_request_target`/`workflow_run` checking
   out untrusted refs or exposing secrets/write scope, `${{ github.event.* }}` shell interpolation,
   writable caches shared with release jobs, and unpinned third-party actions. In agents/skills,
@@ -162,9 +159,9 @@ question for any public advisory you cannot verify locally (no web access).
   env vars, exit codes, schemas, or recovery behavior change, check effective precedence (deploy
   manifest/env override → config file → code default → runbook) and `Grep` beyond the diff
   (`README*`, `docs/`, `runbooks/`, `operations/`, example configs, manifests) for stale values.
-  Stale steps or timers in an **operational procedure** (runbook, failover/rollback guide, deploy
-  plan, alert card) that can cause unsafe responder action (premature manual failover, split-brain)
-  are **P0/P1**; stale reference docs or example configs are **P2/P3**.
+  Stale steps, thresholds, or timers in an **operational procedure** (runbook, failover/rollback
+  guide, deploy plan, alert card) that could mislead a responder into unsafe action are **P0/P1**;
+  stale reference docs or example configs are **P2/P3**.
 - **Doc, design doc, ADR, runbook, or postmortem change → codebase verification:**
   - **Citations and consumers:** Verify every cited path, symbol, command, flag, default, exit code,
     schema field, and link against source. When a design doc or ADR claims consumer compatibility,
@@ -177,9 +174,9 @@ question for any public advisory you cannot verify locally (no web access).
     preflight confirmation before mutations, real commands/flags, expected outputs, effect
     readbacks, timeout/UNKNOWN reconciliation before retry, no manual action racing active
     automation, repeat-safe rollback, and cleared `last_verified` (where used) when steps change.
-  - **Postmortems and KB cards:** Require evidence (or `[unverified]`) for root causes, dual-clock
-    timelines, and "no data loss" claims; keep causality blameless; require an owner, artifact, and
-    proof-of-done check on follow-ups; verify service/alert card and runbook link integrity.
+  - **Postmortems and KB cards:** Require evidence (or `[unverified]`) for root causes, timelines,
+    and impact or data-safety claims; keep causality blameless; require an owner, target artifact,
+    and verification check on follow-ups; verify service/alert card and runbook link integrity.
 
 After checking caller-flagged leads, make one independent pass across the diff and affected
 consumers/docs and state its coverage. Complete the review in one return without manufacturing
