@@ -18,7 +18,7 @@ after the first two `P1` fixes) against its 9 on-demand skills (`cicd-github`, `
 | **4** | **P1** | **FIXED** | `:57` | Reconciled shift-left assumption probing (`:57`) with standing-evidence reuse so the agent probes *untested* assumptions before heavy builds without re-running supplied reproductions |
 | **5** | **P1** | **FIXED** | `:65` | Clarified `Refactor and modernize what you touch` so internal callers you control are modernized while external caller behavior stays unchanged |
 | **6** | **P1** | **DROPPED** | `:57`, `:65`, `:67`, `:69-70` | Already covered across `:57` (`Understand first`), `:65` (`internal callers you control`), `:67` (`Contracts`), `:69` (`Tests`), and `:70` (`Keep parallel edits in sync`) |
-| **7** | **P2** | **OPEN** | `:4`, `:10-14`, `:102-104` | Unexplained, hazardous, or missing tool grants (`EnterWorktree`/`ExitWorktree` unmentioned and can strand edits outside the working tree; `TodoWrite` unmentioned; `researcher` unmentioned in body; `repository-investigator` missing from `Agent(...)`; `scribe` takes 5 lines of the intro) |
+| **7** | **P2** | **FIXED** | `:8-11`, `:28`, `:35`, `:111` | Moved `scribe` sidecar handoff to `## 4.` alongside `researcher` (public questions only, no repo content/secrets in `researcher` prompts) and added worktree isolation guard |
 | **8** | **P2** | **OPEN** | `:128-137` | Mandatory 9-skill loading waterfall before routine coding instead of inlined core craft baselines + optional deep-reference skill loads (or full self-containment) |
 | **9** | **P2** | **DROPPED** | `:83`, `:90` | Restored full parallel sentences in `Code standard` (`:83`) and `Do not take these shortcuts` (`:90`) |
 | **10** | **P2** | **FIXED** | `:16-141` (5 sections) | Reorganized 11 flat sections into a unified 5-section numbered spine (`## 1.`–`## 5.`) matching [`agents/reviewer.md`](../../agents/reviewer.md) |
@@ -100,26 +100,15 @@ after the first two `P1` fixes) against its 9 on-demand skills (`cicd-github`, `
   all callers, implementations, test mocks, and companion/generated files; update every affected
   site and confirm no test mock still pins the obsolete contract."*
 
-### 7. `P2 [verified] high` — OPEN: Unexplained, hazardous, or missing tool grants in frontmatter (`:4`, `:10-14`, `:102-104`)
-- **The flaw:** Line 4 declares
-  `tools: Read, Grep, Glob, Bash, PowerShell, Edit, Write, TodoWrite, EnterWorktree, ExitWorktree, Skill, Agent(save-toolkit:reviewer, save-toolkit:scribe, save-toolkit:researcher)`
-  `[verified]`:
-  - **`EnterWorktree` and `ExitWorktree`:** Granted in `tools:`, mentioned **0 times** in the body.
-    If called, `EnterWorktree` moves the session into a separate worktree directory, stranding edits
-    outside the caller's working tree unless merged back.
-  - **`TodoWrite`:** Granted in `tools:`, mentioned **0 times** in the body (useful as a caller/step
-    ledger on multi-file changes, wasteful on 1-file fixes).
-  - **`researcher`:** Granted in `Agent(...)`, mentioned **0 times** in the body (no trigger, no
-    rule against sending private code/internal URLs/secrets, no `[UNTRUSTED]` return rule).
-  - **`repository-investigator`:** Missing from `Agent(...)`, even though repository scenarios
-    (`evals/build-scenarios/build-repository-investigator-source.yaml`) test `repository-investigator`
-    returning bounded local searches to `software-engineer`.
-  - **`scribe`:** Dominates 5 of the 8 opening lines (`:10-14`).
-- **The fix:** Remove `EnterWorktree, ExitWorktree` from `tools:` (or forbid using them unless the
-  caller requests a worktree), consider adding `save-toolkit:repository-investigator` to `Agent(...)`
-  for bounded cold searches on large repos, guide `TodoWrite` for multi-file changes only, trim the
-  opening paragraph, and consolidate `reviewer`, `scribe`, `researcher` (and
-  `repository-investigator`) in one **Delegation & Review** section.
+### 7. `P2 [verified] high` — FIXED: Helper delegation (`scribe`, `researcher`) and worktree isolation (`:8-11`, `:28`, `:35`, `:111`)
+- **Flaw on `main`:** `researcher` was granted in `tools:` (`:4`) but never mentioned in the body,
+  `scribe`'s sidecar runbook handoff occupied 5 lines of the opening paragraph, and worktree entry
+  had no isolation guard `[verified]`. (`TodoWrite` relies on the host IDE's built-in tool
+  description so the prompt does not encourage ceremonial `TodoWrite` calls on small edits.)
+- **Applied fix:** Trimmed the opening paragraph to 4 lines (`:8-11`), added `, or researcher
+  prompt` to the untrusted-input / no-private-content rule (`:28`), added `(enter a worktree only
+  when isolation is needed)` in `:35`, and added `- **Helpers (\`scribe\`, \`researcher\`).**` in
+  `## 4.` (`:111`) `[verified]`.
 
 ### 8. `P2 [verified] medium` — OPEN: Mandatory 9-skill loading waterfall before routine coding (`:128-137`)
 - **The flaw:** Requiring `python-craft` before any Python edit, `go-craft` before any Go edit,
