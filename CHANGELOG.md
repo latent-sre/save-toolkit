@@ -13,6 +13,8 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
 
 ### Changed
 
+- **Reviewer:** Make the review method self-contained without `Skill`, add a scratch-pad loop and
+  five-question lenses for commits, code, tests, security, and docs, and drop the recipe test.
 - Agent-authoring now works from the user's task and target host. Personal skills, prompt edits, and
   native agent definitions can be authored independently of the toolkit's roster and release process.
 - Remove `scripts/validate_fleet.py`, its tests, and the principal/reliability authority contract
