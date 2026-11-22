@@ -15,7 +15,7 @@ after the first two `P1` fixes) against its 9 on-demand skills (`cicd-github`, `
 | **1** | **P1** | **FIXED** | `:59`, `:99`, `:131` | Contradictory `root-cause` trigger (`:99` vs. `:131`) forced a full `root-cause` reproduction loop on every bug fix |
 | **2** | **P1** | **FIXED** | `:58-62`, `:69-70`, `:95` | Anti-over-testing and standing-evidence reuse rules arrived 38 lines after `Define done` and `Tests first` |
 | **3** | **P1** | **OPEN** | `:24`, `:130` | Support-only stack (**Java/JVM / Spring Boot**) and estate guardrails are hidden behind an indirect `stack-profile` lookup |
-| **4** | **P1** | **OPEN** | `:57` vs. `:58` | Pre-edit check tension in `Understand first` (*"Run the cheapest check that can disprove an assumption"*) still invites running tests before editing even when standing evidence exists |
+| **4** | **P1** | **OPEN** | `:57` vs. `:58` | Reconcile shift-left assumption probing (`:57`) with standing-evidence reuse (`:58`) so the agent probes *untested* assumptions before heavy builds without re-running supplied reproductions |
 | **5** | **P1** | **OPEN** | `:66` | *"Modernize what you change, including during a defect fix"* across the component and callers is a scope-creep trap on surgical bug fixes and contradicts *"not what callers observe"* |
 | **6** | **P1** | **OPEN** | `:57`, `:68-71` | Missing explicit **"Trace all callers, mocks, and companion files"** step before/after changing a signature, return value, exception, flag, or schema |
 | **7** | **P2** | **OPEN** | `:4`, `:10-14`, `:102-104` | Unexplained, hazardous, or missing tool grants (`EnterWorktree`/`ExitWorktree` unmentioned and can strand edits outside the working tree; `TodoWrite` unmentioned; `researcher` unmentioned in body; `repository-investigator` missing from `Agent(...)`; `scribe` takes 5 lines of the intro) |
@@ -66,15 +66,15 @@ after the first two `P1` fixes) against its 9 on-demand skills (`cicd-github`, `
   inline (no self-managed Kubernetes; no GitHub-OIDC→CredHub exchange; SQLite on PCF ephemeral disk
   is non-durable; Confluence is import-only).
 
-### 4. `P1 [verified] high` — OPEN: Pre-edit check tension in `Understand first` (`:57` vs. `:58`)
+### 4. `P1 [verified] high` — OPEN: Reconcile shift-left assumption probing with standing-evidence reuse (`:57` vs. `:58`)
 - **The flaw:** Line 57 says *"Run the cheapest check that can disprove an assumption before the
-  expensive build"*, immediately before line 58 says *"do not re-run [standing evidence] before
-  editing"* `[verified]`. A model reading line 57 first can rationalize running `pytest` before
-  editing as *"disproving an assumption"* even when the caller already provided a failure log or
-  green test run.
-- **The fix:** Qualify line 57 so it never overrides standing evidence: *"Inspect code and standing
-  evidence first; run a pre-edit probe only when an environmental or runtime fact is genuinely
-  unknown, never to re-confirm an already-supplied failure or passing run."*
+  expensive build"* (the shift-left / fail-fast rule from `07248042`), immediately before line 58
+  says *"do not re-run [standing evidence] before editing"* `[verified]`. Without distinguishing an
+  *untested assumption before a heavy build* from an *already-supplied reproduction or test result*,
+  the two adjacent lines pull in opposite directions.
+- **The fix:** Keep the shift-left rule and tie both halves together in one crisp distinction:
+  *"Run the cheapest check that can disprove an **untested** assumption before an expensive build,
+  while reusing standing reproductions and test results whenever the code they cover is unchanged."*
 
 ### 5. `P1 [verified] high` — OPEN: *"Modernize what you change, including during a defect fix"* (`:66`) is a scope-creep trap on bug fixes
 - **The flaw:** Line 66 tells the agent: *"In the code your task touches, including during a defect
