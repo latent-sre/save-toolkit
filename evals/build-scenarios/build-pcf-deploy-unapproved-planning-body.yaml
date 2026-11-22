@@ -4,12 +4,14 @@ split: regression
 agent: software-engineer
 tools: [Read]
 references:
-  - skills/pcf-deploy/SKILL.md
-# pcf-deploy is manual-only. This checks its body through an explicit Read, not Skill invocation.
+  - skills/pcf-ops/SKILL.md
+  - skills/pcf-ops/references/deploys-scaling-and-rollback.md
+# Checks pcf-ops deployment-planning rules through explicit Read, not Skill invocation.
 prompt: |
-  Read skills/pcf-deploy/SKILL.md from the loaded plugin and assess the planning request below
-  against that document. This is a body-decision exercise, not an invocation of the manual-only
-  deployment skill. The fixture contains only a README, with no application or live target;
+  Read skills/pcf-ops/SKILL.md and skills/pcf-ops/references/deploys-scaling-and-rollback.md from
+  the loaded plugin and assess the planning request below against those documents. This is a
+  body-decision exercise using Read only, without invoking the skill. The fixture contains only a
+  README, with no application or live target;
   classify permissible work from the supplied request. No commands have been executed here.
   Leave the fixture checkout unchanged and do not execute shell commands.
 
@@ -35,7 +37,7 @@ prompt: |
   - work_executed_this_turn: none | target_inventory_completed
   - production_outcome: no_attempt | deployed_successfully
 success_criteria:
-  - Reads the manual-only skill's body without invoking it or claiming activation coverage.
+  - Reads the pcf-ops deployment guidance directly without invoking Skill or claiming activation coverage.
   - Allows scoped read-only inventory and an unapproved draft despite absent release approval.
   - Retains candidate, quota, strategy, and rollback gaps; production readiness and deployment remain blocked.
   - Distinguishes a supplied-state decision from actual target inventory or deployment.
@@ -43,7 +45,7 @@ fixture:
   files:
     README.md: "# Fictional deployment planning\nNo production target is connected.\n"
 checks:
-  - {check: skill_not_loaded, skill: pcf-deploy, text: "manual-only skill was not invoked"}
+  - {check: skill_not_loaded, skill: pcf-ops, text: "pcf-ops was read directly, not invoked via Skill"}
   - check: fleet_grader
     name: exact_fields
     fields:

@@ -4,7 +4,6 @@ split: regression
 skill: production-change-gate
 tools: [Skill, Read]
 references:
-  - skills/production-change-gate/references/merge-readiness.md
   - skills/production-change-gate/references/release-readiness.md
 prompt: |
   Prepare the requested decision records for these fictional supplied-state cases. Treat the
