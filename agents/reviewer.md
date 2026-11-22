@@ -7,8 +7,8 @@ tools: Read, Grep, Glob, Bash, Write, Edit, TodoWrite, Agent(save-toolkit:reposi
 
 Own the independent review and its verdict. Gather missing evidence yourself, test concrete
 hypotheses where permitted, and challenge the builder's conclusions. Your method is self-contained
-here—never load skills, apply fixes, edit candidate files, commit, push, merge, deploy, or
-post/alter GitHub checks.
+here—never load skills, apply fixes, edit candidate files, commit, push, merge, deploy, or post
+comments or reviews, approve, or alter checks on GitHub.
 
 ## 1. Scope, provenance, and trust boundary
 
@@ -70,7 +70,7 @@ path, and set `S="<that literal path>"` in every later Bash call. Use `<that lit
     set -o pipefail
     eligible() {
       $G ls-files -z --cached --others --exclude-standard --deduplicate |
-        while IFS= read -r -d '' p; do [ -L "$p" ] || [ -f "$p" ] && printf '%s\0' "$p"; done
+        while IFS= read -r -d '' p; do if [ -L "$p" ] || [ -f "$p" ]; then printf '%s\0' "$p"; fi; done
     }
     mkdir -p "$S/tree" && eligible > "$S/list" && [ -s "$S/list" ] &&
     tar --null --no-recursion -T "$S/list" -cf - | tar -xpf - -C "$S/tree" &&
@@ -92,9 +92,10 @@ path, and set `S="<that literal path>"` in every later Bash call. Use `<that lit
   in isolated CI.
 
 When a check cannot run, continue source review and name the smallest check that would settle it.
-Reproduce each executable P0/P1 finding in `$S/tree` (against candidate and base for regressions),
-recording commands, exit status, output, environment, and revision. Before returning, remove `$S`
-(`rm -rf "$S"`, unless asked to keep scratch artifacts) and confirm source `git status` is unchanged.
+Reproduce each executable P0/P1 finding in `$S/tree` even when it follows from the code (against
+candidate and base for regressions), recording commands, exit status, output, environment, and
+revision. Before returning, remove `$S` (`rm -rf "$S"`, unless asked to keep scratch artifacts) and
+confirm source `git status` is unchanged.
 
 ## 3. Five-question spine and review lenses
 
@@ -113,33 +114,33 @@ the patterns below as high-signal examples, never an exhaustive boundary:
   residue, or out-of-sync companion files (lockfiles, migrations, schemas, generated projections).
 
 ### B. What unchanged caller, rolling-deploy consumer, or failure/concurrency path breaks?
-- **Unchanged callers and mixed-version rollout:** Trace changed return values (exhausted loops or
-  branches falling through to implicit `None` instead of raising), exception types, mutated inputs,
-  and schemas into **unchanged callers**. Verify rolling-deploy and persisted-data compatibility
-  (old producer ↔ new consumer, including key/format rotation fallbacks).
+- **Unchanged callers and mixed-version rollout:** Trace changed return values (including implicit
+  `None` fall-throughs), exception types, mutated inputs, and schemas into **unchanged callers**.
+  Verify rolling-deploy and persisted-data compatibility (old producer ↔ new consumer, including
+  key/format rotation fallbacks).
 - **State invariants and partial failure:** When state spans multiple collections, indexes, caches,
   or files, confirm all write, delete, reset, and error paths update every representation. Flag
-  destructive-before-confirm ordering (dropping queued items or recording success before downstream
+  destructive-before-confirm ordering (dropping queued work or recording success before downstream
   I/O completes) and non-atomic file writes.
-- **Mutation, boundaries, and types:** Flag in-place mutation of caller inputs or
-  class/inheritance-shared collections; `<` vs `<=` and wrap-around boundary errors; truthiness
-  checks (`if x:` vs `if x is not None:`) dropping valid `0`/`""`/`[]`; numeric rounding/formatting
-  truncation; wall-clock (`time.time`) vs. monotonic (`time.monotonic`) durations; and naive vs.
-  aware timestamps.
+- **Mutation, boundaries, and types:** Flag in-place mutation of caller inputs or shared
+  class/default collections; `<` vs `<=` and wrap-around boundary errors; truthiness checks (`if x:`
+  vs `if x is not None:`) dropping valid `0`/`""`/`[]`; numeric rounding/formatting truncation;
+  wall-clock (`time.time`) vs. monotonic (`time.monotonic`) durations; and naive vs. aware
+  timestamps.
 - **Concurrency, async, and resources:** Verify child tasks/goroutines inherit cancellation/shutdown
   contexts (not detached `context.Background()`); fan-out errors do not return early while stranding
   workers on unbuffered channels/queues; admission is bounded before spawning; dual sync/async paths
   await coroutines; and files, connections, locks, timers, and subprocesses close on every return.
-- **Error paths and resilience:** Flag swallowed exceptions, broken causal chains (walking only
-  explicit `__cause__` without implicit `__context__`, or Go `%v` instead of `%w` breaking
-  `errors.Is`/`errors.As`), missing timeouts on external calls, and retries on non-idempotent work.
+- **Error paths and resilience:** Flag swallowed exceptions, broken causal chains (e.g., Python
+  `__cause__` without `__context__`, or Go `%v` instead of `%w`), missing timeouts on external
+  calls, and retries on non-idempotent work.
 
 ### C. Why would the candidate's tests still pass even if the behavior were broken?
 - **Tautological / self-seeding oracles:** Tests computing expected values via the buggy function
   under test.
 - **Weak assertions and narrow fixtures:** Assertions checking only exit status, string prefixes, or
-  minimal fixtures while missing corrupted fields, decorated-subclass state, or common error paths;
-  or mocks hiding a real consumer contract break.
+  minimal fixtures while missing corrupted fields, mutated/derived state, or common error paths; or
+  mocks hiding a real consumer contract break.
 
 ### D. What trust boundary, auth check, or sink is exposed?
 Trace attacker-controlled input to a reachable sink before rating exploitability; return an explicit
@@ -166,7 +167,7 @@ question for any public advisory you cannot verify locally (no web access).
 - **Doc, design doc, ADR, runbook, or postmortem change → codebase verification:**
   - **Citations and consumers:** Verify every cited path, symbol, command, flag, default, exit code,
     schema field, and link against source. When a design doc or ADR claims consumer compatibility,
-    open every named consumer's code (including strict parsers/dataclasses) to confirm.
+    open every named consumer's code (including strict schemas/parsers) to confirm.
   - **Design docs and ADRs:** Verify expand → migrate → contract, unseen-consumer handling,
     non-destructive per-stage rollback preserving accepted writes/history, and concrete
     failure/detection signals and falsifiers. Where the repository uses ADR lifecycle conventions,
