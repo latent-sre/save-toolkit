@@ -205,6 +205,25 @@ retains its acceptance scope; no result promotes the lane.
 **SRE task:** Turn a service weakness or repeated manual intervention into supported engineering
 work with an owner and a meaningful proof-of-improvement check.
 
+### SWE-001 — align software-engineer around a unified 5-section engineering spine
+
+**Status:** `active` (2026-11-21); findings `#1` (contradictory `root-cause` trigger) and `#2`
+(early standing-evidence reuse and proportional testing contract) are implemented on
+[`agents/software-engineer.md`](../agents/software-engineer.md), while findings `#3`–`#10` and the
+full 5-section redesign remain open `[verified]`.
+**Owner:** The human owner decides which remaining findings and structural changes land; a
+maintainer session implements and verifies them.
+**Outcome:** [`agents/software-engineer.md`](../agents/software-engineer.md) names its support-only
+stack (`Java/JVM`) and `researcher` delegation rules directly, removes cross-section repetition,
+inlines core craft baselines so routine edits do not force a multi-skill waterfall, and organizes
+its guidance into a 5-section spine without weakening anti-over-testing controls.
+**Next action:** Review findings `#3`–`#10` and the §1–§5 redesign blueprint in the evidence packet
+below, apply the selected changes to [`agents/software-engineer.md`](../agents/software-engineer.md),
+regenerate platform adapters, and verify with Gate A and the `scripts/` suite.
+**Evidence:** [Software-engineer review and redesign blueprint](reviews/2026-11-21-software-engineer-review.md).
+**SRE task:** Delegate an implementation or bug-fix task to `software-engineer` and get a scoped,
+proportionally tested change without redundant reproduction runs or missing stack/helper guardrails.
+
 ## Deferred
 
 ### FRONTEND-003 — define the team's GUI mix after the first runs of the rewritten skill

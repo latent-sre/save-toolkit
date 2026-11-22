@@ -13,6 +13,8 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
 
 ### Changed
 
+- **Software Engineer:** Move standing-evidence reuse and proportional testing into `Before
+  building`, inline causal defect tracing, and align `root-cause` skill triggers across the prompt.
 - **Reviewer:** Make the review method self-contained without `Skill`, add a scratch-pad loop and
   five-question lenses for commits, code, tests, security, and docs, and drop the recipe test.
 - Agent-authoring now works from the user's task and target host. Personal skills, prompt edits, and
