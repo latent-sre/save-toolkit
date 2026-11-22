@@ -63,7 +63,7 @@ uncopied images and unusable destinations in stdout and References. Usable links
 and image references survive, but relative files must be transferred or paths repaired. Inspect
 missing diagrams, attachments and source sections beyond the reported counts; rendered export may
 already have omitted them. Complete missing expected outcomes, recovery and escalation from evidence
-under the [runbook method](./runbook.md#procedure-requirements).
+under the [runbook method](../SKILL.md#runbook-method).
 
 ## Provenance rules
 
