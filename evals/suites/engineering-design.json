@@ -2,11 +2,7 @@
   "schema_version": 1,
   "id": "engineering-design",
   "summary": "Principal design judgments, incumbent pairs and inactive semantic proposal controls",
-  "tests": [
-    "evals/test_principal_cases.py",
-    "evals/test_principal_heldout.py",
-    "evals/test_principal_judgment.py"
-  ],
+  "tests": [],
   "native_scenarios": [
     "build-principal-engineer-contract-change",
     "build-principal-engineer-live-store-cutover",

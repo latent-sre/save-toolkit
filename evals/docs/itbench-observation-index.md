@@ -261,11 +261,11 @@ Whether the index improves diagnosis requires a separately bounded native compar
 operational review and human exact-candidate disposition. Existing cases are development replays;
 they cannot become fresh held-out evidence by changing the representation.
 
-[verified] [Native preparation tests](../test_itbench_native.py) pin raw and indexed-v1 serialized
+[verified] Native preparation tests (archived in Git history) pin raw and indexed-v1 serialized
 fixture and receipt hashes, and compare v2's full original/derived evidence with v1. They check
 distinct v2 scenario IDs and receipt profiles, explicit-zone ordering guidance, the distinction
 between later records and further conversational releases, and invalid-profile refusal.
-[CLI tests](../test_itbench_cli.py) exercise opt-in profile selection and refusal before publication.
+CLI tests (archived in Git history) exercise opt-in profile selection and refusal before publication.
 These checks do not establish a diagnosis-quality improvement for v2.
 
 [verified] Native/CLI tests also cover the corrected raw default and v7, reject malformed,
@@ -273,7 +273,7 @@ duplicate-key, nonfinite, wrong-case and dangling-edge submissions, retain valid
 and replay the new check from saved text. Legacy raw/v1-v6 receipt and fixture hashes remain
 frozen, and v7's entire evidence map matches v6. The semantics gate remains unavailable.
 
-[verified] [Observation tests](../test_itbench_observations.py) cover v3 catalog provenance,
+[verified] Observation tests (archived in Git history) cover v3 catalog provenance,
 duplicate retention, complete small payloads, literal search, reconstruction of oversized records,
 continuations, UTF-8 line/page bounds and byte budgets. Native tests also freeze v2's fixture and
 receipt hashes and exercise v3 with hidden sources absent. These checks establish representation

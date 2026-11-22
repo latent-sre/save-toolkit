@@ -7,7 +7,7 @@ remaining batch separately. Offline tests are not installed-host acceptance.
 
 ## Prepare the evaluation host
 
-The [Windows preparation audit](../reviews/2026-10-27-eval012-windows-preparation.md) found
+The Windows preparation audit (in Git history) found
 that the observed containerd/overlayfs engine accepted a size option but exceeded it in a
 bounded write probe. Successful container creation and `StorageOpt` inspection alone do
 not qualify this host. Resolve that failure before the full smoke or benchmark trials.

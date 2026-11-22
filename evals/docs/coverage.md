@@ -69,7 +69,6 @@ that need human review. For example, the [GCP guide](../oracles/gcp/README.md) a
 | Evidence collection and independent review | `research-and-review` | Source grounding, missing/private evidence, scratch verification and reviewer boundaries; fifteen complex review cases (multi-file defects, pull requests by number, real upstream slices, five controls) are calibrated offline and have at most three native trials per text arm |
 | Untrusted instructions | `adversarial` | Benign/malicious repository/log/helper pairs and judge-input controls; free-form semantic interpretation retains review limits |
 | Read-only enforcement | `readonly-guard` | Executable command/launcher/hook controls; not proof of containment on every host |
-| Evaluator correctness and saved evidence | `eval-harness` | Harness, grades, identities, selections, accounting, rescoring and coordinated test-runner controls |
 
 ## Other evaluation tracks
 
@@ -81,15 +80,15 @@ source artifacts; the index does not copy their approval state.
 | Track | Existing work to use | Boundary |
 |---|---|---|
 | Native Claude | [Native guide](running.md), suites with native cases | Current host/model, calibration and run admission apply |
-| Codex | `codex` suite and [structured adapter](../codex_probe.py) | Scoped artifact/query profiles; no claim of native routing/hooks/helper parity |
-| Muse | `muse` suite and [runner guide](running.md#muse-runner-separate-baseline-never-comparable) | Separate baseline; unsupported evidence stays inconclusive |
-| Inspect AI/SWE | `inspect` suite, [pilot guide](running.md#inspect-ai--inspect-swe-pilot) and [native orchestration](running.md#inspect-orchestration-of-native-scenarios) | Artifact-only word-frequency pilot, plus Inspect scheduling and logs around unchanged native routing and contract trials; the native CLI stays the acceptance reference until the parity run |
+| Codex | [Structured adapter](../codex_probe.py) | Scoped artifact/query profiles; no claim of native routing/hooks/helper parity |
+| Muse | [Runner guide](running.md#muse-runner-separate-baseline-never-comparable) | Separate baseline; unsupported evidence stays inconclusive |
+| Inspect AI/SWE | [Pilot guide](running.md#inspect-ai--inspect-swe-pilot) and [native orchestration](running.md#inspect-orchestration-of-native-scenarios) | Artifact-only word-frequency pilot, plus Inspect scheduling and logs around unchanged native routing and contract trials; the native CLI stays the acceptance reference until the parity run |
 | ITBench | `itbench` suite and [operator plan](../../docs/fleet-evaluation/wp04-operator-runplan.md) | Fixed evidence and source-bound cases, not live recovery |
 | SWE-bench | `swebench` suite and [operator guide](../../docs/fleet-evaluation/wp08-operator.md) | External repository repair under its execution/admission contract |
 | SWT | `swt` suite and [run plan](../../docs/fleet-evaluation/wp09-swt-run-plan.md) | Generated tests must discriminate buggy and repaired revisions |
 | Harbor/Terminal-Bench | `harbor` suite and [run plan](../../docs/fleet-evaluation/wp09-terminal-runplan.md) | Selected tasks and independent verifier profiles, not unrestricted terminal authority |
 | Four-model preparation | `multi-model` suite and [testing block](../../docs/fleet-evaluation/multi-model-testing.md) | Prepares commands and accounts for results; unsupported profile coverage remains explicit |
-| Native judge and reporting | `eval-harness`/`adversarial`; [judge guide](authoring.md#the-rubric-judge) and [reporter](../../docs/fleet-evaluation/campaign-report.md) | Calibration, saved results and fresh model trials are different evidence |
+| Native judge and reporting | `adversarial`; [judge guide](authoring.md#the-rubric-judge) and [reporter](../../docs/fleet-evaluation/campaign-report.md) | Calibration, saved results and fresh model trials are different evidence |
 | Graph and interoperability sandboxes | [Graph contract](../../sandbox/graph-sandbox/contract.md), [interop contract](../../sandbox/autogen-a2a-sandbox/contract.md) | Independent test trees/dependencies and controlled activation; excluded from root pytest by design |
 | Principal semantic proposal | [Proposal and activation gate](../proposals/principal-judgment/README.md) | Four response-only cases and calibration material remain outside the active native corpus |
 | Workflow-graph skill proposal | [Dormant proposal](../../sandbox/workflow-graph-engineering/SKILL.md) | Does not become an installed skill or a runnable eval through indexing |

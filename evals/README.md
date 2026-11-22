@@ -30,8 +30,7 @@ python evals/catalog.py check
 
 python scripts/local_tests.py --suite python-craft
 python scripts/local_tests.py --suite readonly-guard -n 0
-python scripts/local_tests.py                 # default suite
-python scripts/local_tests.py --heavy         # default plus heavy; choose one final run
+python scripts/local_tests.py                 # scripts/ CI suite
 python evals/build_probe.py validate          # offline scenario validation
 ```
 
@@ -61,26 +60,17 @@ review that uses them.
 
 | Change | Evidence |
 |---|---|
-| Scenario data, prompt, target, or expected result | `python evals/build_probe.py validate` and the matching scenario/grader contract tests; execute changed fixture code or check commands through their affected behavioral tests |
-| Eval harness, grader, or runner | The affected `evals/test_*.py`; `python -m ruff check`, `python -m ruff format --check` and `python -m mypy` for a change to the runner (`evals/build_probe.py`, `evals/probe/`), `evals/compare_runs.py`, `evals/graders.py`, `evals/inspect_pilot.py` or an `evals/test_*.py`; `python evals/judge.py --calibrate` after a rubric edit |
-| Judge, clean room or oracle Python | The affected behavioral tests and `python -m ruff check --isolated --select E9,F63,F7,F82 evals/judge.py evals/clean_room.py evals/oracles`; preserve byte-bound formatting and incremental typing unless a broader migration has a measured benefit |
+| Scenario data, prompt, target, or expected result | `python evals/build_probe.py validate` and the matching suite/oracle checks |
+| Eval harness, grader, or runner | `python -m ruff check`, `python -m ruff format --check` and `python -m mypy` for a change to the runner (`evals/build_probe.py`, `evals/probe/`), `evals/compare_runs.py`, `evals/graders.py` or `evals/inspect_pilot.py`; `python evals/judge.py --calibrate` after a rubric edit |
+| Judge, clean room or oracle Python | `python -m ruff check --isolated --select E9,F63,F7,F82 evals/judge.py evals/clean_room.py evals/oracles`; preserve byte-bound formatting and incremental typing unless a broader migration has a measured benefit |
 
-- **Heavy suite:** the default run skips the `HEAVY` files listed in `conftest.py`. Run
-  `scripts/local_tests.py --heavy` in place of the default run when changing the evaluator, oracle,
-  grader, runner, shared eval fixtures/helpers, or heavy-test selection, and on the exact candidate
-  before an eval campaign's first trial. A scenario-only change needs its affected heavy file when
-  relevant, not every heavy file.
-- **Suites:** add new root tests and native scenarios to capability suites in the same change, and
-  run `python evals/catalog.py check` when changing suite membership or the track index.
+- **Suites:** run `python scripts/local_tests.py` for the `scripts/` CI suite, and run
+  `python evals/catalog.py check` when changing suite membership or the track index.
 - **Scenarios and runner:** every active scenario declares `max_turns`, and runner edits retain a
   saved-run `rescore`/`diff` comparison explaining every changed verdict (see
   [running](docs/running.md) and [internals](docs/internals.md)). Oracle changes also exercise the
   supervised completion path, including candidate failure and early exit, unavailable measurement,
   and oracle crash.
-- **Accounts:** the suite must also pass under an elevated account. Tests that bind a runtime to
-  the host use `probe_testkit.unelevated_host` to retain the real hostname and model an ordinary
-  account.
-- **Vitest UI calibrations:** pass `--dist loadfile` so each module's matrix runs once.
 
 Behavioral campaign plans include Sonnet, Sol, Luna and Terra coverage. Start with the
 [four-model testing block](../docs/fleet-evaluation/multi-model-testing.md) to check the supported

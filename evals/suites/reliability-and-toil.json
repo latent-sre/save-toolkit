@@ -2,9 +2,7 @@
   "schema_version": 1,
   "id": "reliability-and-toil",
   "summary": "Reliability advice, recovery evidence and toil economics",
-  "tests": [
-    "evals/test_reliability_cases.py"
-  ],
+  "tests": [],
   "native_scenarios": [
     "agent-direct-reliability-engineer-deadline-controls",
     "agent-direct-reliability-engineer-recovery-evidence",

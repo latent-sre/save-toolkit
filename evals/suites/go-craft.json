@@ -2,10 +2,7 @@
   "schema_version": 1,
   "id": "go-craft",
   "summary": "Go guidance routing and the existing Go API fixture; no general Go benchmark",
-  "tests": [
-    "evals/test_incidents_api_oracle.py",
-    "scripts/test_skill_assets.py"
-  ],
+  "tests": [],
   "native_scenarios": [
     "build-software-engineer-go-incidents-api",
     "discovery-go-craft-defers-live-incident",

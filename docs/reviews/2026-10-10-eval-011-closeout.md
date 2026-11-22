@@ -2,7 +2,7 @@
 
 Date: 2026-10-10. Base: `f1ae05c8f3c40d21efb597f3f26fe8e918ba855f`.
 Scope: EVAL-011, delivered in [PR #348](https://github.com/latent-sre/save-toolkit/pull/348),
-and the remaining runner gaps from [WP-02](2026-10-08-wp02-native-readiness.md), under the accepted
+and the remaining runner gaps from [WP-02](https://github.com/latent-sre/save-toolkit/blob/812aab80c4336f629679b25dc86f839d1969ff52/docs/reviews/2026-10-08-wp02-native-readiness.md), under the accepted
 [threat model](../decisions/2026-10-03-eval-harness-threat-model.md).
 The owner delegated routine closure decisions on 2026-10-10. This report retains the evidence and
 dispositions needed by EVAL-012; it does not accept a fleet candidate or complete a live comparison.

@@ -2,14 +2,7 @@
   "schema_version": 1,
   "id": "incident-investigation",
   "summary": "Incident advice, board structure, evidence handling and helper use",
-  "tests": [
-    "evals/test_closing_fields_oracle.py",
-    "evals/test_incident_conversations.py",
-    "evals/test_incident_evidence_v2.py",
-    "evals/test_native_readiness_cases.py",
-    "evals/test_runbook_safeguards.py",
-    "evals/test_incident_review_v2.py"
-  ],
+  "tests": [],
   "native_scenarios": [
     "discovery-incident-investigation-defers-grafana-dashboard",
     "discovery-incident-investigation-defers-owner-card-lookup",

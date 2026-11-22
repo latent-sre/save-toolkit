@@ -1,6 +1,0 @@
-{
-  "attempt": 1,
-  "state": "incomplete",
-  "reason": "RuntimeError: fixture unavailable",
-  "recorded_at": "2026-11-02T21:35:40+00:00"
-}

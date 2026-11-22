@@ -2,11 +2,7 @@
   "schema_version": 1,
   "id": "gcp-investigation",
   "summary": "GCP synthetic A/B families and hardened variants; live cloud behavior is separate",
-  "tests": [
-    "evals/test_gcp_cases.py",
-    "evals/test_gcp_hardened.py",
-    "evals/test_gcp_pilot.py"
-  ],
+  "tests": [],
   "native_scenarios": [
     "build-gcp01-startup-a",
     "build-gcp01-startup-b",

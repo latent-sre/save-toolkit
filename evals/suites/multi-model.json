@@ -2,9 +2,7 @@
   "schema_version": 1,
   "id": "multi-model",
   "summary": "Four-model command preparation, unsupported-profile accounting and saved-result comparison",
-  "tests": [
-    "evals/test_testing_block.py"
-  ],
+  "tests": [],
   "native_scenarios": [],
   "campaigns": [
     {

@@ -92,7 +92,8 @@ acceptance criteria, delivery dependencies and open decisions agree. A working p
 later result. Benchmark completion, a successful test suite and human acceptance are distinct.
 
 DEC-01 places the implementation in this repository; a separate repository follows only if the
-work expands and shows independent value. These plans live beside the fleet they will evaluate. The [SRE Workbench](../sre-workbench/README.md) is a separate operations product
+work expands and shows independent value. These plans live beside the fleet they will evaluate. The
+SRE Workbench (planning package archived in Git history) is a separate operations product
 and a possible future consumer or subject of evaluations; this project does not depend on its
 implementation or select its technology stack.
 

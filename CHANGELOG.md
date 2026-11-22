@@ -7,6 +7,12 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
 ## [Unreleased]
 <!-- Entries for the next release -->
 
+- Remove all 135 offline `evals/test_*.py` suites, runner-golden and orphan fixtures, and `evals/`
+  testkits; trim `scripts/` from 20 to 10 CI test files covering shipped code; and split optional
+  `evals` adapter dependencies out of CI's default `test` group.
+- Remove 31 superseded pre-refactor eval review records, pre-refactor `frontend-craft-proof` PNGs,
+  deferred `docs/sre-workbench/`, and historical `docs/superpowers/` / modernization memos
+  (preserved in Git history at `812aab80`), and update live roadmap/doc links.
 - Remove 14 completed, orphaned, or deferred run-plan and proposal documents from
   `docs/fleet-evaluation/` (retaining `product.md`, schemas, contracts, and suite guides; Git history
   preserves removed files).

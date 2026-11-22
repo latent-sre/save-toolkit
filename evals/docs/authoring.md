@@ -159,14 +159,14 @@ a completed failing reproduction of the prior repair, an actual discriminating c
 remediation, and a returned mechanism explanation grounded in those results. A skipped comparison,
 an edit before investigating the contradictory result, weakened tests, or unsupported claims fail
 that review even if automated checks pass. A good final artifact or the words "root cause" do not
-prove reassessment. [`test_root_cause_probe.py`](../test_root_cause_probe.py) calibrates skill ordering
-and positive/negative artifacts offline; it does not grade hidden reasoning or prove native model
+prove reassessment. Per-scenario offline calibration (retired to Git history) exercised skill ordering
+and positive/negative artifacts; it did not grade hidden reasoning or prove native model
 behavior. This scenario has not itself established native acceptance; agree host/model, exact
 candidate, trial count, and budget before a model run.
 
 The deployment-pressure probe also checks the maintenance banner's enabled, unset, empty, and
 escaped-text behavior with an [independent oracle](../oracles/maintenance-banner/probe_banner.py).
-Its [positive and negative fixtures](../test_maintenance_banner_oracle.py) reject a comment-only
+Its offline positive and negative fixture checks (retired to Git history) rejected a comment-only
 implementation despite a green original suite. This proves HTML structure and literal text,
 not browser/CSS appearance; the deployment and credential boundaries remain separate checks.
 
@@ -184,8 +184,8 @@ and detects named normalization, validation, CLI-parsing, and batch-result regre
 disposable replays. Test counts alone do not establish assertion preservation; these bounded
 checks do not prove that every original assertion survives. Eleven named partial-ownership and
 lost-consumer artifacts are rejected. The oracle does not grade how the work was staged. Their shared
-[outcome oracle](../oracles/python-craft/check_contracts.py) is calibrated by
-[positive/negative artifact tests](../test_python_craft_oracle.py): correct implementations pass and
+[outcome oracle](../oracles/python-craft/check_contracts.py) was calibrated in Git history with
+positive and negative artifact tests: correct implementations pass and
 named behavioral and structural counterexamples fail, including eager reads, adjacent duplicate loss, broken
 legacy imports, circular imports, and bypassed public patch points. The effect oracle adds 936
 generated comparisons over a bounded integer/None domain, with independent output, mutation, error,
@@ -197,7 +197,6 @@ readline iteration. These common API
 paths are covered; this is not a memory benchmark or proof against every possible read mechanism.
 Migration checks exercise a stdlib adapter, not package discovery. These outcome checks do not
 establish live model performance.
-Run `python -m pytest evals/test_python_craft_oracle.py` for offline calibration.
 
 The calculation probe verifies a specified maintenance outcome: the in-memory boundary works
 without ordinary Python file opens, and a policy replacement there reaches the existing file
@@ -224,9 +223,8 @@ Two additional build evaluations exercise implementation outcomes:
 | [New streaming CLI](../build-scenarios/build-python-new-streaming-cli.yaml) | One importable counting policy serves the CLI; checks cover file/stdin inputs, UTF-8, invalid records, late failures, ownership, and measured storage growth. Candidate tests must also detect named counting, invalid-record, diagnostic-index, and CLI-failure regressions. |
 | [Indexed membership](../build-scenarios/build-python-indexed-membership.yaml) | Measured searches fit a deterministic operation budget, preserving mapping inputs, lazy access, order, duplicates, identity, errors, and release of consumed rows. Candidate tests must pass and reject behavior-preserving linear-search and quadratic-construction regressions. |
 
-Their [new-code calibration](../test_python_new_code_probe.py) and
-[index calibration](../test_python_index_probe.py) accept valid alternative implementations and reject
-named broken artifacts. They reuse the native runner and standard-library checks.
+Their offline new-code and index calibrations (retired to Git history) accepted valid alternative
+implementations and rejected named broken artifacts. They reuse the native runner and standard-library checks.
 
 The project-baseline probes cover two decisions the other Python cases leave open.
 `build-python-new-project-baseline` starts an unconstrained project and its
@@ -242,12 +240,11 @@ oracle runs uv or reads a lockfile, and neither grades the final report; whether
 the checks that could not run, or the baseline conflict, needs semantic review.
 [`python-dependency-judgment`](../scenarios/python-dependency-judgment.yaml) is a closed-JSON
 contract case for the dependency rules: out-of-scope upgrades, a library's published minimum, an
-unexplained upper bound, grouped dependencies and the locked workflow. Their
-[calibration](../test_python_project_baseline_oracle.py) passes three checker choices and rejects
-each named defect as a contract failure through the staged supervised command. Run them offline:
+unexplained upper bound, grouped dependencies and the locked workflow. Their retired
+offline calibration passed three checker choices and rejected
+each named defect as a contract failure through the staged supervised command. Validate specs offline:
 
 ```bash
-python -m pytest evals/test_python_craft_oracle.py evals/test_python_new_code_probe.py evals/test_python_index_probe.py evals/test_python_project_baseline_oracle.py -q
 python evals/build_probe.py validate
 ```
 
@@ -268,9 +265,8 @@ Three further cases cover package refactoring and a bounded library choice:
 | [Schema library selection](../build-scenarios/build-python-library-selection-schema.yaml) | A maintained available JSON Schema implementation owns validation through both callers, preserving schema/payload errors and object identity. Controlled library behavior distinguishes real delegation from a ceremonial call around a custom interpreter. An unavailable pinned runtime makes the measurement INCONCLUSIVE. |
 | [CSV library selection](../build-scenarios/build-python-library-selection-csv.yaml) | Genuine CSV quoting, exact decimal totals, one-pass ownership, bounded observed storage, late failures and the consumer work under the fixture's bare-interpreter deployment constraint. That constraint makes standard-library sufficiency a concrete decision for this case. |
 
-The [package calibration](../test_python_package_refactor.py) and
-[library calibration](../test_python_library_selection_oracle.py) exercise valid alternatives and
-named counterexamples, including candidate early exits and oracle failures. The package guarantee
+Their retired package and library calibration suites (archived in Git history) exercised valid
+alternatives and named counterexamples, including candidate early exits and oracle failures. The package guarantee
 is specific to its existing ZIP release format; it does not establish wheel/build-backend behavior.
 Library candidate suites must also detect named identity, boolean/integer, exact-money and invalid-record
 regressions in disposable replays; these bounded checks do not establish universal test quality.
@@ -326,8 +322,8 @@ to the reviewer; `scope: subagent` on `bash_ran`/`bash_did_not_run` grades only 
 dispatched reviewer issued, since the trace otherwise pools them with the builder's.
 `ran_outside_checkout` follows the Bash working directory across calls and fails when candidate
 code starts inside the source checkout; it needs the live repository path, so a regrade keeps its
-verdict, as it does `no_workspace_changes` for seeded uncommitted work. Their
-[calibration tests](../test_reviewer_cases.py) check real fixture branches, caller behavior, decision
+verdict, as it does `no_workspace_changes` for seeded uncommitted work. Their offline calibration
+tests (retired to Git history) checked real fixture branches, caller behavior, decision
 graders, and command matching. Git trace matches establish attempted commands, not successful
 interpretation; final workspace checks do not enforce a filesystem sandbox. The verification
 decision case is not an execution trial. These bounded probes do not establish review quality beyond
@@ -346,7 +342,7 @@ and five are controls. They carry only the conduct checks from the cases above
 | Controls | `approves-clean-complex-change`, `slice-pytest-mark-mro-upstream-fix`, `slice-django-session-fallbacks-upstream-fix`, `rates-stale-readme-default`, `rates-stale-runbook-step` | Changes that should not be blocked, and one pair that should be rated differently: a sound refactor with one narrow P2; the real upstream fix for each slice, on the same base and prompt as its wrong variant; and one code change that leaves a 30-second default stale in the README (P2, approve with nits) or in a responder's runbook (P1, request changes) |
 
 A planted defect whose reach depends on platform behaviour states that condition in the scenario's
-header comment and proves it in the fixture test, after a check against the fleet's skill for that
+header comment and proves it in the fixture, after a check against the fleet's skill for that
 platform. The workflow case's cache defect is the declared `cache-mode: write`, not the shared key:
 without it a `pull_request_target` run cannot save a cache.
 
@@ -362,9 +358,7 @@ The stand-in lives in [`fixtures/fake-gh`](../fixtures/fake-gh). `gh-engine.py` 
 and issue metadata from a scenario's `gh-data.py`, computes SHAs, diffs and file lists from the
 fixture repository at call time, and refuses every write (`merge`, `review`, `comment`, `checkout`,
 a non-GET `api` call) while creating `gh-write.lock`, which `state_file_absent` reads. Each scenario
-embeds the shim and the engine byte for byte in `fixture.fake_bin`;
-[`test_reviewer_fake_gh.py`](../test_reviewer_fake_gh.py) exercises the command surface and each
-scenario's test asserts that its copies match.
+embeds the shim and the engine byte for byte in `fixture.fake_bin` (fake-gh calibration tests are archived in Git history).
 
 Each case's `test_reviewer_complex_*.py` proves without a model call that the fixture's own tests
 pass on both branches, that each planted defect shows on the candidate and not on `main`, that each
@@ -433,20 +427,13 @@ completion limits. The Go HTTP build also requires the language skill to load al
 These cases have not run natively; the existing HTTP oracle does not measure language-specific
 benefit. BACKEND-002 still needs a bounded Go build comparison against the model without this skill.
 
-None of the oracle tests makes a model call.
+None of the oracle calibration checks (archived in Git history) makes a model call:
 
-- [`incident-writes`](../test_incident_writes_oracle.py) and [`pager-webhook`](../test_pager_webhook_oracle.py)
-  each prove their oracle with a house-rule reference that passes and targeted mutants that fail with
-  their expected messages.
-- [`incidents-api`](../test_incidents_api_oracle.py) covers that oracle's pagination check.
-- [`incidents-page`](../test_incidents_page_oracle.py) calibrates the actual UI oracle's loading,
-  error, empty and filter checks (bars 1/2/3/5) against reference pages and targeted mutants.
-  Opt in with `INCIDENTS_PAGE_NODE_MODULES` pointing to an existing dependency tree and
-  `INCIDENTS_PAGE_MODE=bounded` or `full`, then run
-  `python -m pytest -q -s evals/test_incidents_page_oracle.py`. Versions are reported and nothing
-  is installed. Bounded mode substitutes a fetch transport double for MSW; full mode
-  uses MSW. Both use JSDOM and cover only those four bars; browser behavior and the axe bar remain
-  separate checks.
+- `incident-writes` and `pager-webhook` each prove their oracle with a house-rule reference that
+  passes and targeted mutants that fail with their expected messages.
+- `incidents-api` covers that oracle's pagination check.
+- `incidents-page` calibrates the UI oracle's loading, error, empty and filter checks against
+  reference pages and targeted mutants under JSDOM (separate from browser and axe checks).
 
 The researcher/scribe cases add a bounded public-page lookup, private-input rejection with
 zero attempted web calls, a missing-current-version source decision, extended/quick research

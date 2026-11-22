@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Run local pytest once per shared Git checkout and retain its timing evidence.
 
-Usage: python scripts/local_tests.py [pytest arguments], adding --heavy for the whole suite.
+Usage: python scripts/local_tests.py [pytest arguments].
 Linked worktrees share an OS-held lease; direct pytest commands and separate clones do not.
 Logs and receipts live in the common Git directory, outside the measured plugin tree.
 """
@@ -101,7 +101,6 @@ class RunSettings:
             "collection_overrides": collection_overrides,
             "workers": config.getoption("numprocesses", default=0),
             "distribution": config.getoption("dist", default="no"),
-            "heavy": config.getoption("heavy", default=False),
             "marker": config.getoption("markexpr"),
             "keyword": config.getoption("keyword"),
             "collect_only": config.getoption("collectonly"),

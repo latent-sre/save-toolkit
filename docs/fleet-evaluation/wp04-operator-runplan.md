@@ -6,10 +6,9 @@ measured Linux read-only namespace profile and a shared USD 40 testing budget.
 The Windows commands below remain the Windows arm; their results are not pooled
 with Linux. The earlier pending-budget statements below are superseded only for
 this requested campaign; source, runtime, hidden-answer boundaries and independent
-assessment still need their actual evidence. The later
-[Linux pilot](../reviews/2026-10-25-followthrough.md#linux-wp-04-pilot) records five attempts;
-the [Windows preparation audit](../reviews/2026-10-27-eval012-windows-preparation.md) records
-restored fixtures and remaining host/test gates. The Windows execution template below
+assessment still need their actual evidence. The earlier
+Linux pilot and Windows preparation audit (both in Git history) record five Linux attempts,
+restored fixtures, and remaining host/test gates. The Windows execution template below
 does not represent an executed or accepted Windows campaign.
 
 [verified] [The adapter](../../evals/itbench_pilot.py) validates, fetches exact pinned public files,
