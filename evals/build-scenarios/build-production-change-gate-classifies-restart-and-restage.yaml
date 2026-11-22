@@ -4,10 +4,10 @@ split: regression
 agent: software-engineer
 tools: [Skill, Read]
 references:
-  - skills/production-change-gate/references/incident-fast-path.md
+  - skills/production-change-gate/SKILL.md
 prompt: |
   Invoke save-toolkit:production-change-gate using Skill, then Read its bundled
-  skills/production-change-gate/references/incident-fast-path.md from the loaded plugin before
+  skills/production-change-gate/SKILL.md from the loaded plugin before
   answering. Leave the fixture checkout unchanged; do not execute shell commands.
 
   Classify six proposals for the same fictional declared availability incident. This is a

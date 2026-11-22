@@ -4,7 +4,7 @@ split: regression
 skill: obs-analysis
 tools: [Skill, Read]
 references:
-  - skills/obs-analysis/references/otel-semantics.md
+  - skills/obs-analysis/references/otel.md
 prompt: |
   Read the OpenTelemetry-semantics reference. Answer with attribute name and maturity
   (Stable or Development), one per labelled line formatted exactly as

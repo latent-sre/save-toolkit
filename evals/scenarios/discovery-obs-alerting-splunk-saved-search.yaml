@@ -12,6 +12,6 @@ success_criteria:
 - Covers the window/schedule pair, scoped throttling, runbook, and end-to-end verification
 target:
   kind: skill
-  name: obs-alerting
+  name: obs-analysis
 routing:
   expect: fire

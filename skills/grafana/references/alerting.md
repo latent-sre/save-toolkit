@@ -3,7 +3,7 @@
 Console: Alerts & IRM → Alert rules. For a missing notification, trace: evaluation →
 instance state → selected Alertmanager → matching route → silence/mute/inhibition → grouping/timers
 → delivery evidence. Reading a contact point does not prove delivery; never validate by sending a
-test notification to production. Alert/SLO design belongs to `obs-alerting`; temporary suppression
+test notification to production. Alert/SLO design belongs to `obs-analysis`; temporary suppression
 uses [silences](./silences.md).
 
 ## Evaluation knobs and provisioning spellings
@@ -67,7 +67,7 @@ immediately before writing, and stop on drift.
 2. **Capture prior state** (existing rule, group, route; for create, prove UID absence and existing
    group, and name the recovery owner).
 3. **Prepare and validate.** Convert dashboard variables and macros to explicit alert-compatible
-   expressions; `obs-alerting` owns paging fields such as owner and `runbook_url`. Backtest on
+   expressions; `obs-analysis` owns paging fields such as owner and `runbook_url`. Backtest on
    bounded healthy/bad windows where available and show full diff, notification/route impact, and
    recovery.
 4. **Write once, read back, verify evaluation.** On `409` (rule provenance/lock/UID conflict) or

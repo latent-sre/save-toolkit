@@ -1,10 +1,10 @@
 id: obs-pipeline-alloy-method-freegen-contract
 max_turns: 17
 split: regression
-skill: obs-pipeline
+skill: obs-analysis
 tools: [Skill, Read]
 references:
-  - skills/obs-pipeline/references/alloy.md
+  - skills/obs-analysis/references/alloy.md
 prompt: |
   Read the Alloy reference. Write short labelled steps only, no explanation; do not
   edit files or run anything. You changed the route of one Alloy pipeline that fans

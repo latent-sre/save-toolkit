@@ -3,7 +3,7 @@ max_turns: 40
 agent: scribe
 tools: [Read, Edit, Write, Grep, Glob, Bash, Skill, Task]
 references:
-  - skills/operational-docs/references/runbook.md
+  - skills/operational-docs/assets/runbook-template.md
 # scribe's own tool posture already excludes Bash (Read, Grep, Glob, Edit, Write, Skill), so the
 # decisive facts are where the write landed and that nothing else in the fixture repo moved: the
 # repo carries real application code beside docs/, and the supplied evidence names a code path the

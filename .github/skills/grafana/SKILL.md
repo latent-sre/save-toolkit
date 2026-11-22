@@ -4,7 +4,7 @@ description: >-
   Design, explain, create, and edit Grafana dashboards; inspect alert state and notification paths;
   operate Grafana-managed alert rules and temporary silences. Triggers: 'design a dashboard',
   'edit this Grafana dashboard', 'create a Grafana alert', 'silence this alert'. Alert/SLO design
-  uses obs-alerting; application UI dashboards use frontend-craft; active diagnosis uses
+  uses obs-analysis; application UI dashboards use frontend-craft; active diagnosis uses
   incident-investigation.
 argument-hint: "[Grafana instance, dashboard, alert rule, silence, or requested change]"
 ---
@@ -22,7 +22,7 @@ and owner; without access, give the human the console steps instead.
 | Design panels/layout | [Dashboard design](./references/dashboard-design.md); design-only callers may read it directly |
 | Explain, review, or audit a dashboard; check exported Classic, V1 or V2 JSON | [Dashboard reading and review](./references/dashboard-reading.md), [dashboard_hygiene.py](./scripts/dashboard_hygiene.py) |
 | Inspect appearance or render a panel | [Visual verification](./references/visual-verification.md) |
-| Inspect, create, update, pause, resume, or provision alert rules, groups, and policies | [Alerting](./references/alerting.md); load `obs-alerting` for design decisions |
+| Inspect, create, update, pause, resume, or provision alert rules, groups, and policies | [Alerting](./references/alerting.md); load `obs-analysis` for design decisions |
 | Create, inspect, update, or end a temporary silence | [Silence operations](./references/silences.md) |
 | Terminal reads: search, models, alert state, silences, annotations, bounded queries, images | [Command access](./references/command-access.md): [Python helper](./scripts/grafana_read.py) and [PowerShell wrapper](./scripts/grafana_read.ps1) |
 | Create/edit/import a dashboard or create/update a folder; model/variable details | [HTTP API](./references/http-api.md) |

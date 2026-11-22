@@ -31,7 +31,7 @@ Keep private repository evidence local.
 ## Method
 
 For an owner, pager, or dependency lookup from local cards, read the [ownership lookup
-method](../skills/operational-docs/references/ownership-lookup.md). Use the requested card and
+method](../skills/operational-docs/SKILL.md#ownership-and-dependency-lookup). Use the requested card and
 return the requested fields with their source and review status.
 
 For implementation questions:

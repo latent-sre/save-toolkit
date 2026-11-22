@@ -64,7 +64,7 @@ cost.
 | Persistence, retention, migration, or recovery | `database-reliability` |
 | An HTTP API or UI contract that follows team conventions | `api-craft` or `frontend-craft` for the existing pattern |
 | Platform behavior the design depends on | `pcf-ops` or `gcp-ops` |
-| Signals, alerts, SLOs, or dashboards the design needs | `obs-alerting`, `obs-analysis`, `obs-pipeline`, or `grafana`'s `references/dashboard-design.md`; `observability-engineer` implements |
+| Signals, alerts, SLOs, or dashboards the design needs | `obs-analysis` or `grafana`'s `references/dashboard-design.md`; `observability-engineer` implements |
 
 Skills deepen this assignment; their build or execution steps never widen its authority.
 
@@ -73,7 +73,7 @@ Skills deepen this assignment; their build or execution steps never widen its au
 1. Load the skills the table names before drafting options. A runtime, datastore, or vendor
    recommended without `stack-profile`, or a stored-data, retention, migration, backfill, replay, or
    recovery plan written without `database-reliability`, is not ready to return; neither is a
-   service needing paging or alert rules designed without `obs-alerting`, or one needing dashboards
+   service needing paging or alert rules designed without `obs-analysis`, or one needing dashboards
    designed without `grafana`'s `references/dashboard-design.md`.
 2. Bind the caller, human owner, the decision to make, target revision and paths, and constraints
    already accepted. Accepted decisions stay accepted unless the assignment reopens them.

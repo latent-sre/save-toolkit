@@ -1,67 +1,39 @@
 # Cloud Logging dialect for log investigation
 
-## Start narrow
+## Filters, populations, and correlation
 
-Logging filters select entries; they do not aggregate. Choose Logs Explorer's histogram,
-Observability Analytics SQL, or a log-based metric for time-series/top-N work.
+- Logging filters select entries (use Logs Explorer, Observability Analytics SQL, or log-based
+  metrics to aggregate; log-based metrics are not retroactive).
+- Map/struct keys (`jsonPayload.requestId`) and `labels` keys are case-sensitive; proto field names
+  and string comparisons are case-insensitive; regex is case-sensitive; Boolean operators `AND`, `OR`,
+  `NOT` must be uppercase.
+- Cloud Run's request population is `log_id("run.googleapis.com/requests")` (`httpRequest.status`,
+  `httpRequest.latency`; use `logName="projects/<project>/logs/run.googleapis.com%2Frequests"` or in
+  PowerShell `logName=projects/<project>/logs/run.googleapis.com%2Frequests` without parentheses).
+  `SEARCH("world")` is token-boundary text search only.
+- Request logs store `trace` as `projects/<project>/traces/<trace-id>` or bare `<trace-id>` (32 hex
+  chars for W3C). For [Cloud Trace](./gcp-trace.md), strip any `projects/<project>/traces/` prefix.
 
-- Map/struct keys are case-sensitive: `jsonPayload.requestId` differs from `requestid`; so do
-  `labels` keys. Protocol-buffer field names and ordinary string comparisons are case-insensitive;
-  regex is case-sensitive and `AND`/`OR`/`NOT` must be capitalized.
-- `log_id("run.googleapis.com/stderr")` uses the unencoded id; the full field requires
-  `logName="projects/<project>/logs/run.googleapis.com%2Fstderr"`.
-- Cloud Run's completion population is `log_id("run.googleapis.com/requests")`, with
-  `httpRequest.status` and duration-valued `httpRequest.latency` (such as `3.5s`). A severity-only
-  filter also admits app stderr and is not a request denominator. Under PowerShell, use
-  `logName=projects/<project>/logs/run.googleapis.com%2Frequests` to avoid forbidden parentheses.
-- `SEARCH("world")` matches token boundaries, not `worlds`, and cannot match non-text fields.
-
-## Read it over time
-
-Zero-fill Analytics buckets only after checking freshness and ingestion coverage. Log-based
-metrics are not retroactive: they cannot reconstruct an earlier incident.
-
-## Correlate one request
-
-Request logs carry `trace` as `projects/<project>/traces/<trace-id>` or a bare trace ID; match
-both forms. App stdout/stderr
-carries it only through `logging.googleapis.com/trace` or a Cloud Logging client library; request
-rows alone cannot establish missing app logging. For [Cloud Trace](./gcp-trace.md), strip any
-`projects/<project>/traces/` prefix; a W3C trace id is 32 hex characters. Prefer exact-field `=` to
-global `SEARCH()`, escaping quotes and backslashes using Logging's quoted-string rules.
-
-## gcloud read from the terminal
+## Terminal reads (`gcloud logging read`)
 
 ```bash
 gcloud logging read 'resource.type=cloud_run_revision AND resource.labels.service_name="<service>" AND resource.labels.location="<region>" AND severity>=ERROR' --project=<project_id> --freshness=1h --limit=50 --format='table(timestamp,severity,resource.labels.revision_name,httpRequest.status,httpRequest.latency)'
 ```
 
-- Bind `--project` and Cloud Run's `resource.labels.location`. Bucket `--location` is separate;
-  for a particular bucket/view, select discovered `--location`, `--bucket`, and `--view` supported
-  by the client. Same-named services in different regions are different populations.
-- `--freshness` defaults to `1d`, works only with DESC ordering and no timestamp filter. For a
-  named event replace it with absolute UTC timestamp bounds; do not combine the two.
-- `--limit` defaults to unlimited: always set it. Use `--format=json` only for one targeted entry,
-  an explicit JSON request, or PowerShell's projection restriction; keep JSON limits small.
-- **Fleet Bash guard:** comparisons such as `severity>=ERROR` and timestamp/numeric bounds are
-  permitted inside a quoted filter argument; unquoted `>=` is denied as shell redirection.
-- **Fleet PowerShell guard:** `>`, `<` and parentheses are denied even inside quotes, including
-  `table(...)` and `severity=(ERROR OR CRITICAL OR ALERT OR EMERGENCY)`. Use JSON and this floor:
-  `NOT severity=DEFAULT AND NOT severity=DEBUG AND NOT severity=INFO AND NOT severity=NOTICE AND NOT severity=WARNING`.
-  It retains ERROR, CRITICAL, ALERT and EMERGENCY, equivalent to `severity >= "ERROR"`. Run OR'd
-  conditions such as `httpRequest.status=429` separately: mixed AND/OR requires parentheses.
-  Pass simple letters/digits/inner-hyphen values bare; embedded double-quote passage is untested.
-  Use `--freshness` for bounded PowerShell reads because comparison timestamp filters are denied.
+- Always bind `--project`, `resource.labels.location`, and `--limit`. Use `--freshness` with DESC
+  order OR absolute UTC timestamp bounds (never both).
+- **Bash guard:** quoted filters allow `>=` comparisons. **PowerShell guard:** forbids `>`, `<`, and
+  parentheses even in quotes — use `--format=json`, `--freshness`, and
+  `NOT severity=DEFAULT AND NOT severity=DEBUG AND NOT severity=INFO AND NOT severity=NOTICE AND NOT severity=WARNING`
+  (run OR'd predicates separately).
 
-## Observability Analytics (SQL over logs)
+## Observability Analytics, sinks, quotas, and retention
 
-Observability Analytics (formerly Log Analytics): check that the selected log bucket is upgraded before promising SQL aggregation or gap filling. Entries written before the upgrade are queryable only after a backfill that can take days, and automatic backfill is currently paused (manual backfill goes through Cloud Customer Care): a recent upgrade can leave the incident window missing from SQL.
-
-## Tips & gotchas
-
-- `_Default` sink excludes some logs; Data Access audit logs are off by default except for BigQuery. Check sink/exclusions
-  before interpreting absence.
-- `entries.list` has a non-increasable quota of 60 calls/min per project; unbounded reads can
-  starve console users.
-- `_Required` retention is 400 days, not configurable. Project `_Default` and user-created buckets
-  default to 30 days, configurable per bucket; folder- and organization-level `_Default` is fixed. Past-retention absence does not establish absence at write time.
+- **Observability Analytics (SQL):** verify the bucket was upgraded before trusting SQL counts;
+  pre-upgrade entries require backfill (automatic backfill paused; manual backfill via Cloud
+  Customer Care).
+- **Sinks & defaults:** `_Default` sink exclusions can drop matching logs; Data Access audit logs
+  are off by default except for BigQuery.
+- **Quotas & retention:** `entries.list` is capped at **60 calls/minute per project** and is **not
+  increasable**. `_Required` retention is **400 days** (fixed); project `_Default` and custom buckets
+  default to **30 days**.

@@ -6,7 +6,7 @@ prompt: |
   its request error ratio over five minutes, grouped by route. Explain how to interpret an
   empty result when there is no request traffic. We are exploring historical signals; do not
   define an SLO, a paging threshold, an evaluation rule, a notification route or a dashboard.
-target: {kind: skill, name: obs-alerting}
+target: {kind: skill, name: grafana}
 routing:
   expect: not_fire
   expected_alternative: {kind: skill, name: obs-analysis}

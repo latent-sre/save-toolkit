@@ -25,12 +25,12 @@ still have an unknown cause.
 
 ## Pick one primary mode
 
-Load `operational-docs`, then read the required references within that skill:
+Load `operational-docs`, then read the required method and template/reference within that skill:
 
 | Mode | Assignment | Read before writing |
 |---|---|---|
-| **Runbook mode** | One alert, operational task, failure mode, or routine procedure | `references/runbook.md` |
-| **Postmortem mode** | One human-resolved incident retrospective | `references/postmortem.md` |
+| **Runbook mode** | One alert, operational task, failure mode, or routine procedure | `SKILL.md` (`#runbook-method`) and `assets/runbook-template.md` |
+| **Postmortem mode** | One human-resolved incident retrospective | `SKILL.md` (`#postmortem-method`) and `assets/postmortem-template.md` |
 | **Knowledge closeout mode** | Service or alert KB corrections and approved changes, resolved-incident lessons, drills, audits, or discoveries | `references/knowledge-closeout.md` |
 
 Follow the selected method's edit-size, structure, template, status, and verification rules. If the

@@ -166,7 +166,7 @@ deploy-prod:
 This is a planning example; the human release owner owns deployment execution.
 `--strategy rolling` serves old and new instances at the same route during the rollout; use it only
 when they are compatible. Otherwise the human release owner plans blue-green with
-`/pcf-deploy`. Neither path undoes data migrations or external effects.
+`pcf-ops`. Neither path undoes data migrations or external effects.
 The private `CF_HOME` contains tokens. Never cache/upload it. The runner owner must remove job
 storage after forced termination or host loss, when shell traps cannot run; ephemeral registration
 alone does not erase the filesystem. Record that cleanup evidence before runner reuse.
@@ -197,7 +197,7 @@ The published cf CLI v8 command pages describe 8.0.0 and omit later behavior: re
 `cf rollback <app> --version <n>` requires the version and prompts unless `-f`.
 `cf cancel-deployment <app>` resets the droplet but not environment-variable or binding changes, and
 does not guarantee zero downtime. Revision retention limits the rollback; see
-`/pcf-deploy`. A job timeout or cancellation during `cf push` likely leaves the
+`pcf-ops`. A job timeout or cancellation during `cf push` likely leaves the
 platform rollout running, so check `cf app` before choosing. Static validation
 cannot prove foundation reachability, credential validity, application health, or rollback success;
 keep those `[unverified]` until the human-approved run produces evidence. Report the workflow and

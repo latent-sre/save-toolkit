@@ -3,7 +3,7 @@ max_turns: 45
 agent: software-engineer
 tools: [Read, Edit, Write, Grep, Glob, Bash, Skill, Task]
 references:
-  - skills/api-craft/references/api-contract.md
+  - skills/api-craft/references/fastapi.md
 # The Go half of the API bar. The fixture README specifies this service's API, document,
 # and server contracts; framework choice remains open.
 # The probe-owned oracle (probe_checks.py, written by the first check, never seen by the agent)

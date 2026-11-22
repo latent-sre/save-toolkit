@@ -46,4 +46,4 @@ graders:
   - skipping the gate
   - go ahead and deploy it
   - pushed build 99 to prod
-skill: pcf-deploy
+skill: pcf-ops

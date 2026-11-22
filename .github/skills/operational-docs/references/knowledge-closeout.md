@@ -9,112 +9,67 @@ a reviewable repository change or a tracked, owned handoff. Use the
 ## Close the loop
 
 1. **Bind the closeout.** Name target repository and revision, component, trigger, owner, evidence,
-   and requested documentation roots. Roots lie under the repository's documented operations or
-   docs tree, or the `operations/`, `runbooks/`, and `postmortems/` fallback roots — never
-   `agents/`, `skills/`, `hooks/`, `.github/`, `.claude/`, or a fleet guide. An outside root is
-   `blocked`; when none is named, follow repository conventions and fallback paths.
+   and requested documentation roots under the repository's documented operations/docs tree or the
+   fallback roots (`operations/index.md`, `operations/services/<component>.md`,
+   `operations/alerts/<alert>.md`, `runbooks/<runbook>.md`,
+   `postmortems/<yyyy-mm-dd>-<incident>.md`) — never `agents/`, `skills/`, `hooks/`, `.github/`,
+   `.claude/`, or a fleet guide (outside roots are `blocked`, and reject absolute paths, `..`, or
+   URLs as write targets).
 
-   Before `prepared`, require a caller-supplied `[verified]` checkout binding confirming that the
-   mounted checkout's current commit matches the target revision. A Bash-holding caller or human
-   resolves the target there and supplies `git rev-parse --short=8 HEAD` with its output on
-   `Verified:`, plus `git status --porcelain`. Name every listed path as pre-existing and exclude
-   it from the prepared diff; without status, tree state is `[unverified]`. Git extends IDs for
-   uniqueness; full IDs (`git rev-parse HEAD`) remain valid. A bare assertion is `[unverified]`.
-   Missing, unresolved, ambiguous, or mismatched binding permits no prepared diff; changes remain
-   `proposed` or `blocked`. This lane never derives binding from `.git/` contents.
-2. **Inventory before creating.** Find the owning artifact and affected links in service cards,
-   alert cards, indexes, runbooks, postmortems, and alert definitions. Follow ownership conventions;
-   update stable IDs and links instead of forking duplicates.
-3. **Bind claims to evidence.** Label a discovery by its weakest supporting evidence. Preserve source,
-   target, and conflicting evidence; approval and resolution require supplied evidence, not an
-   agent's assertion.
-4. **Disposition consequences.** Classify the event with the map below. Check runbook, postmortem,
-   service card, alert card, knowledge index, observability, automation, code, and accepted risk.
-   Affected artifacts receive `prepared`, `proposed`, `blocked`, or `duplicate`; group unaffected
-   categories as `not_applicable` with a shared reason. Enrich the existing Follow-ups record using
-   its IDs; consolidate repeated copies while preserving distinct scope, owners, status,
-   prerequisites, and evidence. Report affected artifacts plus that one grouped line, not a parallel
-   action list.
-5. **Prepare the smallest coherent documentation diff.** A service or alert closeout may update
-   its cards, index links, and a missing or stale runbook. Read the [runbook method](./runbook.md)
-   before writing a procedure. A postmortem remains a separate primary assignment. A stale-contact
-   correction stays a contact/link diff when no operational behavior changed.
-6. **Return for human PR review.** `prepared` means an actual reviewable documentation diff under
-   step 1's path and checkout requirements; it never means approved, reviewed, merged, deployed,
-   or live-verified. Credential checks and human diff review remain required before acceptance.
+   Before reporting `prepared`, require a caller-supplied `[verified]` checkout binding confirming
+   the mounted checkout's current commit matches the target revision: `git rev-parse --short=8 HEAD`
+   (or full `git rev-parse HEAD`) on `Verified:` plus `git status --porcelain` (every dirty path
+   listed as pre-existing and excluded from the prepared diff; without status, tree state is
+   `[unverified]`). Missing, unresolved, ambiguous, or mismatched binding permits no `prepared`
+   diff; changes remain `proposed` or `blocked`. Never derive binding from `.git/` contents.
+2. **Inventory before creating.** Locate the owning artifact and affected links across service
+   cards, alert cards, indexes, runbooks, postmortems, and alert definitions; update stable IDs and
+   links instead of creating duplicates.
+3. **Bind claims to evidence.** Label each discovery by its weakest supporting evidence (`[sourced]`
+   or `[unverified]`), preserving both sides of any conflict with a resolution owner.
+4. **Disposition consequences.** Check runbook, postmortem, service card, alert card, knowledge
+   index, observability, automation, code, and accepted risk. Assign each affected artifact
+   `prepared`, `proposed` (owner + next action), `blocked` (missing evidence, authority, dependency,
+   or owner), or `duplicate` (existing owning artifact + supporting evidence; needs no checkout).
+   Group unaffected categories as `not_applicable` with a shared reason. Enrich the existing
+   Follow-ups record using its IDs rather than creating a parallel action list.
+5. **Prepare the smallest coherent diff.** Follow the [runbook method](../SKILL.md#runbook-method)
+   when writing procedures. A stale-contact correction stays a contact/link diff when no
+   operational behavior changed (`last_reviewed` and `last_verified` stay unchanged).
+6. **Return for human PR review.** `prepared` means a reviewable diff under step 1's path and
+   checkout binding — never approved, merged, deployed, or live-verified.
 
 ## Event-to-artifact map
 
 | Observed event | Required disposition |
 |---|---|
-| A component is approved or materially changes | Create or update its card and knowledge index, disposition its runbook, and propose missing alert, runbook, ownership, dependency, recovery or SLO work. |
-| A component is decommissioned | Set its card and index lifecycle to `retired`, with date and authorization in `Lifecycle since / record`. Inventory remaining consumers. For alert cards and runbooks used only by the retired component, set `status: retired`, carry the alert status to its index row, and retain the records. Keep shared records and their surviving references usable. If usage is unclear, leave retirement of those records open with an owner and a check. Live-resource removal remains a separately gated production change. |
-| An audit finds an operational gap on an otherwise unchanged component | Disposition affected cards, index and runbook; assign missing work. Put the dated verdict in the card's open gaps and index's recent updates. The document is at most `[sourced]` to the audit; never advance `last_verified`. |
-| Only documentation is wrong | Correct the owning artifact and affected links from dated evidence; preserve `last_verified`, without unrelated card/index changes or operational work. |
-| An alert is approved or materially changes | Create or update its card and index row, including the documentation status. Link the service card and authoritative definition, and disposition the service card and runbook. A paging alert needs a valid, approved runbook to become `active` in the KB. Use `proposed` for a pager that lacks this prerequisite, even if it already pages. Keep procedures in the runbook. |
-| An alert needs active incident response or the incident is still active | Return the closeout to the human responder with `incident-investigation`. Authorized operational reads follow that incident's routing and authority. Closeout dispositions stay `proposed` or `blocked` until resolution. |
-| A runbook is missing or contradicted, including a failed drill | Use `scribe` with the [runbook method](./runbook.md) and supplied evidence; unsupported commands remain `[unverified]`. A drill exposing a bad step cannot verify the repaired version. |
-| A resolved incident reveals a systemic lesson | Continue the requested knowledge closeout and reuse its Follow-ups. Give a requested postmortem its own assignment and owner. |
-| A fleet prompt, agent or skill has an accepted behavioral failure | Send divergence, evidence and proposed named regression to `agent-authoring`; do not rewrite fleet definitions through operational content. |
+| Component approved or materially changes | Create/update its service card and knowledge index, disposition its runbook, and propose missing alert, runbook, ownership, dependency, recovery, or SLO work. |
+| Component decommissioned | Set service card and index lifecycle to `retired` with date and authorization in `Lifecycle since / record`. Retire alert cards and runbooks used only by this component (carry alert status to its index row and retain records); keep shared records usable or leave unclear retirement open with owner and check. |
+| Audit finds operational gap on unchanged component | Disposition affected cards, index, and runbook; record the dated verdict in open gaps and recent updates as `[sourced]` to the audit; never advance `last_verified`. |
+| Only documentation is wrong | Patch the owning artifact and affected links from dated evidence (`[sourced] <ID>: ...` on the claim line); preserve `last_verified` and `last_reviewed`, with no unrelated edits. |
+| Alert approved or materially changes | Create/update its alert card and index row (aligning `status` / `Documentation status`), link the service card and authoritative definition, and disposition service card and runbook. A paging alert without a valid approved runbook stays `proposed` even if already paging. |
+| Incident still active or alert needs live response | Return to the human responder with `incident-investigation`; closeout dispositions stay `proposed` or `blocked` until resolved. |
+| Runbook missing or contradicted (including failed drill) | Update or draft via the [runbook method](../SKILL.md#runbook-method); a drill exposing a bad step cannot verify the repaired version. |
+| Fleet prompt, agent, or skill behavioral failure | Route divergence, evidence, and proposed regression to `agent-authoring`; never rewrite fleet definitions through operational docs. |
 
-## One-time disposition states
+## Provenance, gaps, and output
 
-- `duplicate`: names the existing owning artifact and supporting evidence, and needs no checkout.
-  Without that evidence, use `proposed` or `blocked`.
-- `proposed`: named owner and next action, no reviewable artifact change yet.
-- `blocked`: named missing evidence, authority, dependency or owner.
-- `not_applicable`: explicit reason the artifact class does not apply.
-
-A proposed/blocked disposition becomes repository state only when it lands. A bound prepared diff
-records it in **Open knowledge gaps** in the index, or the component card's open-gaps table if the
-index has none. Keep gap, artifact, status, owner, tracking link and evidence label, not the blocking
-excerpt. For an alert with divergent or materially unknown backend state, use that same gap to
-record what the supplied evidence shows about provisioning, enablement, or page delivery, the
-source/receipt and observation time, what remains unknown, and the owner and next authorized check.
-Whenever no such diff can be prepared, the handoff's `Follow-up:` supplies the caller's tracker
-reference or names who will file it.
-
-## Default paths when the repository has no convention
-
-Use existing documented paths/index first. Otherwise these defaults are the authorized roots only
-when the caller names none, relative to the knowledge repository: `operations/index.md`,
-`operations/services/<component>.md`, `operations/alerts/<alert>.md`, `runbooks/<runbook>.md`, and
-`postmortems/<yyyy-mm-dd>-<incident>.md`. Reject absolute paths, parent traversal, URLs as write
-targets and paths outside caller-authorized documentation roots.
-
-## Evidence and review rules
-
-- Link the actual provisioning owner: source-managed definitions need the repository path and
-  exact uniquely resolved short/full revision; API-owned alerts need resource locator/UID plus
-  supplied state/readback receipt and version evidence. An absent API version stays `[unverified]`.
-  An export is evidence/recovery material unless it owns provisioning. Cards summarize and link
-  definitions rather than copying configuration. Definition identity does not replace KB checkout
-  binding, human closeout approval or dirty-path controls, and grants scribe no live lookup.
-- Alert card `status` and the matching index column (`Documentation status` or existing `Status`)
-  describe the knowledge record's lifecycle and readiness. Report actual provisioning and paging
-  separately from supplied, target-specific readback or delivery evidence. Use the definition for
-  intended behavior and retain missing observations as unknown.
-- Prefer exact-target-revision evidence. For conflicts, state both claims, explain the disagreement,
-  mark the affected claim `[unverified]` and assign a resolution owner.
-- Review and execution stamps follow the [shared evidence rules](../SKILL.md#evidence-and-authority).
-  `Reviewer` and `Reviewed change` cells fill only from the evidence that moves `last_reviewed`;
-  otherwise leave blank.
-- Store minimal evidence. Credential checks cannot prove secrets absent.
-- Keep the change or open question, owner and missing proof in the existing follow-up. A production
-  recommendation includes urgency, change tier, approval need (explicit human approval for Tier 2
-  or 3), verification and rollback or recovery. A closeout neither authorizes nor executes it, and
-  agents do not apply it.
-
-## Output
-
-Lead with the discovery and recommended course. Reuse the existing Follow-ups record; link it
-when accessible to the recipient, otherwise include the needed rows. Supply:
-
-1. target, revision, checkout binding or its absence, trigger, and owner;
-2. evidence and conflicts;
-3. affected artifact dispositions and owners, plus justified grouped `not_applicable` categories;
-4. changed paths and links, or the exact reason each remains proposed or blocked;
-5. limitations and one tracked next action.
-
-Honor a caller-supplied bounded output shape; it grants no authority and is not a parallel record.
-Do not invent a persistent packet, schema, procedure, or approval.
+- **Alert definition provenance:** Link the actual provisioning owner — source-managed definitions
+  use `<repo-path>@<exact-short-or-full-revision>` (`definition_version` set to that revision);
+  API-owned alerts use the API resource locator/UID plus supplied state/readback receipt
+  (`source_receipt`) and version evidence (an absent API version keeps `definition_version: null`
+  and `Version evidence: [unverified] unknown`). A committed recovery export is evidence/recovery
+  material, not the provisioning owner, when the rule is API-owned. Keep the `[sourced] <ID>`
+  marker on the same line as the provenance claim.
+- **Documentation vs. runtime status:** Alert card `status` and the index status column describe KB
+  record readiness; report observed provisioning, enablement, and page delivery separately in
+  **Open knowledge gaps** (in the index, or the component card if the index has none) with gap,
+  artifact, status, owner, tracking link, and evidence label. When no diff can be prepared,
+  `Follow-up:` names the tracker reference or who will file it.
+- **Review stamps and production changes:** Fill `Reviewer` and `Reviewed change` only from
+  evidence that advances `last_reviewed`. Any production recommendation includes urgency, change
+  tier, human approval need (Tier 2/3), verification, and rollback/recovery.
+- **Output:** Lead with the discovery and course of action, reusing the Follow-ups record, and
+  state: (1) target, revision, checkout binding, trigger, and owner; (2) evidence and conflicts;
+  (3) affected artifact dispositions/owners plus grouped `not_applicable` categories; (4) changed
+  paths/links or why each is `proposed`/`blocked`; (5) limitations and one tracked next action.

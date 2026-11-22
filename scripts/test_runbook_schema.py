@@ -32,7 +32,20 @@ from testkit import frontmatter_block
 
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE_PATH = ROOT / "skills" / "operational-docs" / "assets" / "runbook-template.md"
-EXAMPLE_PATH = ROOT / "skills" / "operational-docs" / "assets" / "runbook-example.md"
+EXPECTED_FRONTMATTER_KEYS = [
+    "schema_version",
+    "runbook_id",
+    "service_id",
+    "status",
+    "alert_names",
+    "owner",
+    "severity",
+    "source_revision",
+    "last_reviewed",
+    "last_verified",
+    "verification_evidence",
+    "version",
+]
 
 
 def frontmatter_keys(path: Path) -> list[str]:
@@ -49,8 +62,7 @@ def template_status_enum() -> list[str]:
     """The allowed `status` values, read from the template's own placeholder line.
 
     The template writes them as `status: draft | active | retired`. That line is the only
-    surviving statement of the enum, so the exemplar is checked against it rather than against a
-    list copied into this file, which would drift the moment the template gained a state.
+    surviving statement of the enum, so the template enum is checked directly.
     """
     for line in TEMPLATE_PATH.read_text(encoding="utf-8").splitlines():
         if line.startswith("status:"):
@@ -59,52 +71,37 @@ def template_status_enum() -> list[str]:
 
 
 class RunbookFrontmatterContractTest(unittest.TestCase):
-    def test_exemplar_carries_the_same_frontmatter_contract_as_the_template(self) -> None:
-        """The worked exemplar is a runbook, so it is bound by the runbook contract.
+    def test_template_carries_expected_frontmatter_contract(self) -> None:
+        self.assertEqual(sorted(frontmatter_keys(TEMPLATE_PATH)), sorted(EXPECTED_FRONTMATTER_KEYS))
+        self.assertEqual(template_status_enum(), ["draft", "active", "retired"])
 
-        An example that drifts is worse than no example: readers copy what they are shown, and a
-        demonstrated-but-invalid frontmatter teaches the wrong shape more effectively than the
-        template teaches the right one. Same keys as the template, and `status` inside the enum
-        the template publishes.
-        """
-        self.assertEqual(sorted(frontmatter_keys(EXAMPLE_PATH)), sorted(frontmatter_keys(TEMPLATE_PATH)))
-        status = next(
-            line.split(":", 1)[1].strip()
-            for line in EXAMPLE_PATH.read_text(encoding="utf-8").splitlines()
-            if line.startswith("status:")
-        )
-        self.assertIn(status, template_status_enum())
-
-    def test_date_valued_frontmatter_is_quoted_in_the_template_and_the_example(self) -> None:
+    def test_date_valued_frontmatter_is_quoted_in_the_template(self) -> None:
         """`last_reviewed: 2026-02-18` is a date object to a YAML parser, not a string.
 
         The contract types both fields as a string or null, so an unquoted ISO date decodes to
-        `datetime.date` and fails the very contract the exemplar exists to demonstrate -- and
-        teaches every copied runbook the wrong representation. The template escaped this only
-        because it ships `null`. Checked on the raw line rather than through a parser because
+        `datetime.date`. Checked on the raw line rather than through a parser because
         this suite is pure stdlib, and because the defect IS the representation: a parser would
         hide it by decoding successfully.
         """
 
         allowed = re.compile(r"^(?:null|\"[^\"]*\"|'[^']*')$")
         iso = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
-        for path in (TEMPLATE_PATH, EXAMPLE_PATH):
-            lines = path.read_text(encoding="utf-8").splitlines()
-            closing = lines.index("---", 1)
-            for line in lines[1:closing]:
-                key, _, raw = line.partition(":")
-                if key.strip() not in ("last_reviewed", "last_verified"):
-                    continue
-                value = raw.strip()
-                with self.subTest(path=path.name, key=key.strip()):
-                    self.assertRegex(
-                        value,
-                        allowed,
-                        f"{path.name}: {key.strip()} must be null or a quoted string; "
-                        f"{value!r} decodes as a date, which the contract does not allow",
-                    )
-                    if value != "null":
-                        self.assertRegex(value.strip("\"'"), iso, "date must be YYYY-MM-DD")
+        lines = TEMPLATE_PATH.read_text(encoding="utf-8").splitlines()
+        closing = lines.index("---", 1)
+        for line in lines[1:closing]:
+            key, _, raw = line.partition(":")
+            if key.strip() not in ("last_reviewed", "last_verified"):
+                continue
+            value = raw.strip()
+            with self.subTest(path=TEMPLATE_PATH.name, key=key.strip()):
+                self.assertRegex(
+                    value,
+                    allowed,
+                    f"{TEMPLATE_PATH.name}: {key.strip()} must be null or a quoted string; "
+                    f"{value!r} decodes as a date, which the contract does not allow",
+                )
+                if value != "null":
+                    self.assertRegex(value.strip("\"'"), iso, "date must be YYYY-MM-DD")
 
 
 if __name__ == "__main__":

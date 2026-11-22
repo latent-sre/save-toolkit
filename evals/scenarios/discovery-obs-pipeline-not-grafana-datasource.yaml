@@ -8,7 +8,7 @@ prompt: |
   needs to change.
 target:
   kind: skill
-  name: obs-pipeline
+  name: obs-analysis
 routing:
   expect: not_fire
   expected_alternative:
