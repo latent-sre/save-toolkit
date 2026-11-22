@@ -205,33 +205,6 @@ retains its acceptance scope; no result promotes the lane.
 **SRE task:** Turn a service weakness or repeated manual intervention into supported engineering
 work with an owner and a meaningful proof-of-improvement check.
 
-### SWE-001 — align software-engineer around a unified 5-section engineering spine
-
-**Status:** `active` (2026-11-21); findings `#1` (contradictory `root-cause` trigger), `#2` and
-`#4` (shift-left assumption probing reconciled with standing-evidence reuse across `Before building`
-and `Verify, review, finish`), `#3` (`Java/JVM` support-only named directly), `#5` (`Refactor and
-modernize what you touch` internal vs. external caller clarity), `#7` (`scribe` and `researcher`
-helper delegation and worktree isolation), `#10` (5-section numbered spine), `#11` (lockfile and
-generated-file hygiene), `#12` (`helper returns` in `Untrusted input boundary` and explicit
-host-loaded instruction paths in `Instruction files`), and `#14` (updated `Done for HTTP work` after
-`api-craft` streamlining) are implemented on
-[`agents/software-engineer.md`](../agents/software-engineer.md); `#6` and `#9` are dropped, `#13` is
-on hold, and `#8` and `#15` remain open `[verified]`.
-**Owner:** The human owner decides which remaining findings and structural changes land; a
-maintainer session implements and verifies them.
-**Outcome:** [`agents/software-engineer.md`](../agents/software-engineer.md) names its support-only
-stack (`Java/JVM`) and helper/tool boundaries directly, separates surgical defect fixes from broader
-modernization, traces callers/mocks/companion files explicitly, removes cross-section repetition,
-inlines core craft baselines so routine edits do not force a multi-skill waterfall, and organizes
-its guidance into a 5-section spine without weakening anti-over-testing controls.
-**Next action:** Review findings `#3`–`#15` and the §1–§5 redesign blueprint in the evidence packet
-below, apply the selected changes to [`agents/software-engineer.md`](../agents/software-engineer.md),
-regenerate platform adapters, and verify with Gate A and the `scripts/` suite.
-**Evidence:** [Software-engineer review and redesign blueprint](reviews/2026-11-21-software-engineer-review.md).
-**SRE task:** Delegate an implementation or bug-fix task to `software-engineer` and get a scoped,
-proportionally tested change without redundant reproduction runs, scope creep on defect fixes, or
-missing stack/helper guardrails.
-
 ## Deferred
 
 ### FRONTEND-003 — define the team's GUI mix after the first runs of the rewritten skill
