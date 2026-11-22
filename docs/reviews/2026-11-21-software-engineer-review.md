@@ -13,14 +13,14 @@ after the first two `P1` fixes) against its 9 on-demand skills (`cicd-github`, `
 | # | Priority | Status | Location | Finding |
 |---|---|---|---|---|
 | **1** | **P1** | **FIXED** | `:59`, `:99`, `:131` | Contradictory `root-cause` trigger (`:99` vs. `:131`) forced a full `root-cause` reproduction loop on every bug fix |
-| **2** | **P1** | **FIXED** | `:58-62`, `:69-70`, `:95` | Anti-over-testing and standing-evidence reuse rules arrived 38 lines after `Define done` and `Tests first` |
-| **3** | **P1** | **OPEN** | `:24`, `:130` | Support-only stack (**Java/JVM / Spring Boot**) and estate guardrails are hidden behind an indirect `stack-profile` lookup |
-| **4** | **P1** | **FIXED** | `:57` vs. `:58` | Reconciled shift-left assumption probing (`:57`) with standing-evidence reuse (`:58`) so the agent probes *untested* assumptions before heavy builds without re-running supplied reproductions |
-| **5** | **P1** | **FIXED** | `:66` | Clarified `Refactor and modernize what you touch` so internal callers you control are modernized while external caller behavior stays unchanged |
-| **6** | **P1** | **OPEN** | `:57`, `:68-71` | Missing explicit **"Trace all callers, mocks, and companion files"** step before/after changing a signature, return value, exception, flag, or schema |
+| **2** | **P1** | **FIXED** | `:57`, `:59`, `:68-69`, `:96-97` | Pre-edit standing-evidence reuse and no-duplicate-test rule placed in `Before building` (`:57`, `:59`) while post-edit `Reuse` and `What to test` stay in `Verify, review, finish` (`:96-97`) |
+| **3** | **P1** | **FIXED** | `:24`, `:131` | Support-only stack (**Java/JVM**) is now named directly in `Effect authority` (`:24`) and `Required on-demand skills` (`:131`) |
+| **4** | **P1** | **FIXED** | `:57` | Reconciled shift-left assumption probing (`:57`) with standing-evidence reuse so the agent probes *untested* assumptions before heavy builds without re-running supplied reproductions |
+| **5** | **P1** | **FIXED** | `:65` | Clarified `Refactor and modernize what you touch` so internal callers you control are modernized while external caller behavior stays unchanged |
+| **6** | **P1** | **DROPPED** | `:57`, `:65`, `:67`, `:69-70` | Already covered across `:57` (`Understand first`), `:65` (`internal callers you control`), `:67` (`Contracts`), `:69` (`Tests`), and `:70` (`Keep parallel edits in sync`) |
 | **7** | **P2** | **OPEN** | `:4`, `:10-14`, `:102-104` | Unexplained, hazardous, or missing tool grants (`EnterWorktree`/`ExitWorktree` unmentioned and can strand edits outside the working tree; `TodoWrite` unmentioned; `researcher` unmentioned in body; `repository-investigator` missing from `Agent(...)`; `scribe` takes 5 lines of the intro) |
 | **8** | **P2** | **OPEN** | `:128-137` | Mandatory 9-skill loading waterfall before routine coding instead of inlined core craft baselines + optional deep-reference skill loads (or full self-containment) |
-| **9** | **P2** | **OPEN** | `:38-91` | 4-way cross-section repetition across `The SRE lens`, `Before building`, `While building`, `Code standard`, and `Do not take these shortcuts` |
+| **9** | **P2** | **FIXED** | `:82`, `:89` | Trimmed duplicate *"simplest design that solves the whole problem"* from `Code standard` (`:82`) and duplicate *"Fix the cause"* from `Do not take these shortcuts` (`:89`) |
 | **10** | **P2** | **OPEN** | `:6-137` (11 sections) | Fragmented 11-section layout (>50% governance/routing/disclaimers) instead of a unified 5-section engineering execution spine (like [`agents/reviewer.md`](../../agents/reviewer.md)) |
 | **11** | **P2** | **OPEN** | `:34-36` | Missing environment, lockfile, and generated-file hygiene (use project virtualenv/runner, never install into system Python, never hand-edit lockfiles or generated projections) |
 | **12** | **P2** | **OPEN** | `:25`, `:103`, `:122-126` | `Untrusted input boundary` is buried at the bottom after `Return format`, and `:103` omits the explicit host-loaded instruction file paths |
