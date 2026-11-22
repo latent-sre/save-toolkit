@@ -5,8 +5,7 @@ an in-process import writes there reads as plugin drift (CI sets PYTHONDONTWRITE
 same reason). Scenario checks and fixture suites shell out to a bare `python`; resolve it to the
 interpreter running the tests, as an activated environment would, rather than whatever PATH holds.
 
-The eval-machinery files in HEAVY spawn real processes and hold most of the suite's run time, or
-import a framework that costs every collecting worker seconds (the Inspect pilot). A plain run
+The eval-machinery files in HEAVY spawn real processes and hold most of the suite's run time. A plain run
 skips them; `--heavy` adds them, `-m heavy` runs only them, and a file named on the command line
 always runs. CI runs no eval tests; a campaign runs them first.
 """
@@ -23,31 +22,11 @@ from pathlib import Path
 import pytest
 
 HEAVY = frozenset({
-    "evals/test_agent_injection_pairs.py",
-    "evals/test_eval011_fingerprints.py",
-    "evals/test_eval011_oracles.py",
-    "evals/test_gcp_cases.py",
     "evals/test_golden_runs.py",
+    "evals/test_probe_checking.py",
     "evals/test_probe_engine.py",
     "evals/test_probe_evidence.py",
-    "evals/test_incident_writes_oracle.py",
-    "evals/test_inspect_pilot.py",
-    "evals/test_maintenance_banner_oracle.py",
-    "evals/test_natural_injection.py",
-    "evals/test_openapi_document_oracle.py",
-    "evals/test_operator_cli_oracle.py",
-    "evals/test_pager_webhook_mutants.py",
-    "evals/test_pager_webhook_mutants_durable.py",
-    "evals/test_pager_webhook_mutants_redelivery.py",
-    "evals/test_pager_webhook_oracle.py",
-    "evals/test_probe_checking.py",
     "evals/test_probe_trials.py",
-    "evals/test_python_craft_oracle.py",
-    "evals/test_python_index_probe.py",
-    "evals/test_python_library_selection_oracle.py",
-    "evals/test_python_new_code_probe.py",
-    "evals/test_python_package_refactor.py",
-    "evals/test_reliability_cases.py",
 })
 
 

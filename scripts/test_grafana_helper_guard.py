@@ -260,3 +260,11 @@ def test_native_powershell_treats_smart_quote_as_shell_structure():
     assert result.returncode == 0
     assert result.stdout.split() == ["python", "Write-Output"]
     assert decision(command, "PowerShell") == "deny"
+
+
+@pytest.mark.parametrize("tool", ["Bash", "PowerShell"])
+def test_review_hygiene_check_stays_outside_the_guard(tool: str) -> None:
+    reference = (ROOT / "skills/grafana/references/dashboard-reading.md").read_text(encoding="utf-8")
+    assert "grafana_workflow.py" not in reference
+    arbitrary = f'python -I "{ROOT.as_posix()}/skills/grafana/scripts/dashboard_hygiene.py" dashboard.json --format json'
+    assert decision(arbitrary, tool, agent=SRE_ASSISTANT) == "deny"

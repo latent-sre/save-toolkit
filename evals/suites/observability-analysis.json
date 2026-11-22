@@ -2,9 +2,7 @@
   "schema_version": 1,
   "id": "observability-analysis",
   "summary": "Log, metric and trace reasoning across supported backends",
-  "tests": [
-    "scripts/test_telemetry_audit_repairs.py"
-  ],
+  "tests": [],
   "native_scenarios": [
     "discovery-incident-investigation-defers-signal-definition",
     "discovery-obs-logs-cloud-logging",

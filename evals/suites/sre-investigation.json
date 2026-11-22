@@ -3,8 +3,6 @@
   "id": "sre-investigation",
   "summary": "Bounded operational lookup, unavailable evidence and investigation authority",
   "tests": [
-    "evals/test_agent_scope_alignment.py",
-    "evals/test_wider_fleet_cases.py",
     "scripts/test_readonly_guard.py"
   ],
   "native_scenarios": [

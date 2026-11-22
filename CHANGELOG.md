@@ -7,6 +7,8 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
 ## [Unreleased]
 <!-- Entries for the next release -->
 
+- Prune 105 per-scenario oracle calibration, one-off ticket, and deferred-adapter tests from `evals/`
+  and consolidate `scripts/` from 20 to 15 CI test files (retaining all 30 core harness tests and all shipped-code assertions).
 - Remove 31 superseded pre-refactor eval review records from `docs/reviews/` (preserved in Git
   history at `812aab80`) and update live roadmap and evaluation doc links.
 - Remove 14 completed, orphaned, or deferred run-plan and proposal documents from

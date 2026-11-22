@@ -2,11 +2,7 @@
   "schema_version": 1,
   "id": "incident-conversations",
   "summary": "Synthetic incident profiles and continuity controls; case acceptance remains separate",
-  "tests": [
-    "evals/test_incident_conversations.py",
-    "evals/test_native_readiness_cases.py",
-    "evals/test_incident_review_v2.py"
-  ],
+  "tests": [],
   "native_scenarios": [
     "incident-session-01-a",
     "incident-session-01-a-branch",

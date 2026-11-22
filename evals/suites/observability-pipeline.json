@@ -2,9 +2,7 @@
   "schema_version": 1,
   "id": "observability-pipeline",
   "summary": "Collector, SDK, correlation and telemetry naming reasoning",
-  "tests": [
-    "scripts/test_telemetry_audit_repairs.py"
-  ],
+  "tests": [],
   "native_scenarios": [
     "discovery-obs-pipeline-alloy-exporter",
     "discovery-obs-pipeline-not-grafana-datasource",

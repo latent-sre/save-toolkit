@@ -2,9 +2,7 @@
   "schema_version": 1,
   "id": "operator-tooling",
   "summary": "Operator CLI safety and useful local tool outcomes",
-  "tests": [
-    "evals/test_operator_cli_oracle.py"
-  ],
+  "tests": [],
   "native_scenarios": [
     "build-operator-cli-safe-requeue",
     "build-software-engineer-live-log-tail"

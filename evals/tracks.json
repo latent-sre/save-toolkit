@@ -33,9 +33,7 @@
       "entrypoints": [
         "evals/codex_probe.py"
       ],
-      "suites": [
-        "codex"
-      ],
+      "suites": [],
       "guides": [
         "evals/docs/running.md",
         "evals/docs/coverage.md"
@@ -103,9 +101,7 @@
       "entrypoints": [
         "evals/inspect_pilot.py"
       ],
-      "suites": [
-        "inspect"
-      ],
+      "suites": [],
       "guides": [
         "evals/docs/running.md",
         "evals/docs/coverage.md"
@@ -119,9 +115,7 @@
       "entrypoints": [
         "evals/inspect_fleet.py"
       ],
-      "suites": [
-        "inspect"
-      ],
+      "suites": [],
       "guides": [
         "evals/docs/running.md",
         "docs/fleet-evaluation/run-plan-inspect-native-parity.md"
@@ -194,9 +188,7 @@
       "entrypoints": [
         "evals/muse_probe.py"
       ],
-      "suites": [
-        "muse"
-      ],
+      "suites": [],
       "guides": [
         "evals/docs/running.md",
         "evals/docs/coverage.md"
@@ -268,7 +260,6 @@
       "suites": [
         "adversarial",
         "api-craft",
-        "codex",
         "engineering-design",
         "eval-harness",
         "fleet-structure",
@@ -279,10 +270,8 @@
         "harbor",
         "incident-conversations",
         "incident-investigation",
-        "inspect",
         "itbench",
         "multi-model",
-        "muse",
         "observability-alerting",
         "observability-analysis",
         "observability-pipeline",

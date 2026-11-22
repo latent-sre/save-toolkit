@@ -19,7 +19,13 @@ payload's exact agent identity. Two consequences shape every test here:
 from __future__ import annotations
 
 import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
 import unittest
+from pathlib import Path
 
 from hypothesis import HealthCheck, assume, given, settings
 from hypothesis import strategies as st
@@ -30,10 +36,12 @@ from testkit import (
     assert_guard_decisions,
     guard_decision,
     guard_payload,
+    require_shell,
     run_guard,
     run_guard_batch,
 )
 
+ROOT = Path(__file__).resolve().parents[1]
 SRE = SRE_ASSISTANT
 OBS_ENGINEER = "save-toolkit:observability-engineer"
 
@@ -1127,6 +1135,216 @@ class GuardPropertyTest(unittest.TestCase):
         if proc.returncode == 43:
             reason = json.loads(proc.stdout.decode("utf-8"))["hookSpecificOutput"]["permissionDecisionReason"]
             self.assertTrue(reason.strip(), repr(line))
+
+
+class CrossPlatformReads(unittest.TestCase):
+    def guard(self, command, tool="PowerShell", copilot=False):
+        payload = guard_payload(command, tool_name=tool, agent_type=None if copilot else SRE_ASSISTANT)
+        return guard_decision(run_guard(payload, copilot=copilot))
+
+    def test_powershell_reads(self):
+        for command in (
+            "Get-Date -Format o", "Get-Service -Name Spooler", "Get-Process -Name python",
+            "Resolve-DnsName example.com", "Test-NetConnection example.com -Port 443",
+            "git status --short", "cf app orders", "gcloud run revisions list --project=example",
+            "Get-Service | Select-Object -First 5",
+        ):
+            with self.subTest(command=command):
+                self.assertEqual("allow", self.guard(command))
+
+    def test_powershell_writes_and_dynamic_code_are_denied(self):
+        for command in (
+            "Stop-Service Spooler", "Remove-Item file.txt", "git push", "cf restart orders",
+            "Get-Date; Remove-Item file.txt", "Get-Date $(Remove-Item file.txt)",
+            "& Get-Date", "Get-Service | ForEach-Object { Stop-Service $_ }",
+            "Get-Service > out.txt", "Get-Service -OutVariable captured", "Get-Service --% ; whoami",
+            "Invoke-Expression 'Get-Date'", "python -c pass", "powershell -Command Get-Date",
+            "Get-Content Env:GRAFANA_SA_TOKEN", "Get-Date `n Remove-Item file.txt",
+        ):
+            with self.subTest(command=command):
+                self.assertEqual("deny", self.guard(command))
+
+    def test_json_requires_explicit_safe_property_projection(self):
+        for command in (
+            "Get-Process -Name powershell | ConvertTo-Json -Depth 10",
+            "Get-Process | Select-Object -First 1 | ConvertTo-Json",
+            "Get-Service | ConvertTo-Json -Depth 3",
+            "ConvertTo-Json -Depth 10",
+        ):
+            for copilot in (False, True):
+                with self.subTest(command=command, copilot=copilot):
+                    self.assertEqual("deny", self.guard(command, copilot=copilot))
+        for command in (
+            "Get-Process -Name powershell | Select-Object -Property Name,Id,CPU | ConvertTo-Json -Depth 10",
+            "Get-Process | Select-Object -Property Name | Select-Object -First 2 | ConvertTo-Json",
+            "Get-Service | Select-Object -First 2 | Select-Object -Property Name,Status | ConvertTo-Json",
+        ):
+            with self.subTest(command=command):
+                self.assertEqual("allow", self.guard(command))
+
+    @unittest.skipUnless(os.name == "nt", "Native serialization regression requires Windows")
+    def test_allowed_process_json_does_not_serialize_environment(self):
+        command = "Get-Process -Name powershell | Select-Object -Property Name,Id,CPU | ConvertTo-Json -Depth 10"
+        self.assertEqual("allow", self.guard(command))
+        env = {key: value for key, value in os.environ.items() if key.upper() in {
+            "PATH", "PATHEXT", "SYSTEMROOT", "WINDIR", "COMSPEC", "TEMP", "TMP",
+            "USERPROFILE", "APPDATA", "LOCALAPPDATA",
+        }}
+        sentinel = "synthetic-credential-regression-value"
+        env["GRAFANA_SA_TOKEN"] = sentinel
+        result = subprocess.run(["powershell.exe", "-NoProfile", "-Command", command],
+                                env=env, text=True, capture_output=True, timeout=20)
+        self.assertEqual(0, result.returncode)
+        self.assertNotIn(sentinel, result.stdout)
+        self.assertNotIn(sentinel, result.stderr)
+        rows = json.loads(result.stdout)
+        if isinstance(rows, dict):
+            rows = [rows]
+        self.assertTrue(rows)
+        for row in rows:
+            self.assertEqual({"Name", "Id", "CPU"}, set(row))
+
+    def test_macos_reads(self):
+        for command in ("uname -s", "sw_vers -productVersion", "uptime", "df -h"):
+            with self.subTest(command=command):
+                self.assertEqual("allow", self.guard(command, "Bash"))
+
+    def test_copilot_terminal_is_scoped_without_claude_identity(self):
+        self.assertEqual("allow", self.guard("git status --short", "run_in_terminal", True))
+        self.assertEqual("deny", self.guard("git push", "run_in_terminal", True))
+        self.assertEqual("deny", self.guard("python -c pass", "runTerminalCommand", True))
+        self.assertEqual("deny", self.guard("echo $GRAFANA_SA_TOKEN", "Bash"))
+
+    def test_posix_copilot_launcher_honors_guard_decisions(self):
+        # A local skip leaves installed macOS acceptance outstanding; CI fails without a shell.
+        shell = require_shell()
+        # Agent-scoped VS Code hooks do not receive Claude's plugin-root substitution.
+        env = dict(os.environ)
+        env.pop("CLAUDE_PLUGIN_ROOT", None)
+        env["PATH"] = str(Path(sys.executable).parent) + os.pathsep + env.get("PATH", "")
+        for command, denied in (("git status --short", False), ("git push", True)):
+            result = subprocess.run(
+                [shell, str(ROOT / "scripts/readonly-guard-copilot-hook.sh")],
+                input=json.dumps({"tool_name": "run_in_terminal", "tool_input": {"command": command}}),
+                env=env, cwd=tempfile.gettempdir(), text=True, capture_output=True, timeout=20,
+            )
+            self.assertEqual(0, result.returncode, result.stderr)
+            if denied:
+                self.assertEqual("deny", json.loads(result.stdout)["hookSpecificOutput"]["permissionDecision"])
+            else:
+                self.assertEqual("", result.stdout)
+
+    def test_grafana_direct_http_reads_are_denied_across_guarded_terminals(self):
+        # Classify the former fixed GET form; the commands never reach a shell or Grafana.
+        for path in ("/api/health", "/api/plugins", "/api/access-control/user/permissions",
+                     "/api/datasources/uid/metrics-1/health", "/api/folders?limit=100&page=2",
+                     "/apis/dashboard.grafana.app/v1/namespaces/default/dashboards/orders"):
+            for tool, binary, env in (("Bash", "curl", "$"), ("PowerShell", "curl.exe", "$env:")):
+                command = (f'{binary} -q --silent --show-error --fail --max-time 20 --max-redirs 0 '
+                           f'--proto =https --header "Authorization: Bearer {env}GRAFANA_SA_TOKEN" '
+                           f'"{env}GRAFANA_URL{path}"')
+                with self.subTest(tool=tool, path=path):
+                    self.assertEqual("deny", self.guard(command, tool))
+                    self.assertEqual("deny", self.guard(command, "run_in_terminal", copilot=True))
+
+    @unittest.skipUnless(os.name == "nt", "Windows PowerShell launcher requires Windows")
+    def test_real_powershell_launcher_allows_reads_and_denies_writes(self):
+        launcher = ROOT / "scripts/readonly-guard-hook.ps1"
+        for command, denied in (
+            ("Get-Date -Format o", False), ("Stop-Service Spooler", True),
+            ("Get-Process -Name powershell | ConvertTo-Json -Depth 10", True),
+            ("Get-Process -Name powershell | Select-Object -Property Name,Id | ConvertTo-Json", False),
+        ):
+            payload = {"tool_name": "run_in_terminal", "tool_input": {"command": command}}
+            result = subprocess.run(
+                ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(launcher), "-Copilot"],
+                input=json.dumps(payload), text=True, capture_output=True, timeout=20,
+            )
+            self.assertEqual(0, result.returncode, result.stderr)
+            if denied:
+                self.assertEqual("deny", json.loads(result.stdout)["hookSpecificOutput"]["permissionDecision"])
+            else:
+                self.assertEqual("", result.stdout)
+
+    @unittest.skipUnless(os.name == "nt", "Windows PowerShell launcher requires Windows")
+    def test_powershell_launcher_rejects_non_guard_and_empty_deny(self):
+        with tempfile.TemporaryDirectory(prefix="SRE guard spaces ") as directory:
+            root = Path(directory)
+            shutil.copy2(ROOT / "scripts/readonly-guard-hook.ps1", root / "readonly-guard-hook.ps1")
+            for code in (0, 43, 44):
+                (root / "readonly-guard.py").write_text(f"raise SystemExit({code})\n", encoding="utf-8")
+                result = subprocess.run(
+                    ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
+                     str(root / "readonly-guard-hook.ps1"), "-Copilot"],
+                    input="{}", text=True, capture_output=True, timeout=20,
+                )
+                self.assertEqual(0, result.returncode, result.stderr)
+                self.assertEqual("deny", json.loads(result.stdout)["hookSpecificOutput"]["permissionDecision"])
+
+
+class GcloudConfigGuardTests(unittest.TestCase):
+    CONTEXTS = (
+        ("Bash", "save-toolkit:sre-assistant", False),
+        ("PowerShell", "save-toolkit:sre-assistant", False),
+        ("execute/runInTerminal", None, True),
+        ("Bash", "save-toolkit:software-engineer", False),
+        ("PowerShell", "save-toolkit:software-engineer", False),
+    )
+
+    def _decision(self, command, context):
+        tool, agent, copilot = context
+        return guard_decision(run_guard(guard_payload(command, tool_name=tool, agent_type=agent), copilot=copilot))
+
+    def test_credential_or_unrestricted_configuration_reads_denied(self):
+        commands = (
+            "gcloud config list proxy/password",
+            "gcloud config get-value proxy/password",
+            "gcloud config get proxy/password",
+            "gcloud config list proxy/username --format=json",
+            "gcloud config list",
+            "gcloud config list --all",
+            "gcloud config list proxy/",
+            "gcloud config list core/",
+            "gcloud config get-value account",
+            "gcloud config get-value unreviewed/property",
+            "gcloud alpha config list proxy/password",
+            "gcloud beta config get-value proxy/password",
+            "gcloud config list project proxy/password",
+        )
+        for context in self.CONTEXTS:
+            for command in commands:
+                with self.subTest(command=command, context=context):
+                    self.assertEqual("deny", self._decision(command, context))
+
+    def test_required_noncredential_target_reads_remain_available(self):
+        commands = (
+            "gcloud config list project",
+            "gcloud config get-value core/project",
+            "gcloud config get-value run/region",
+            "gcloud config list compute/region",
+            "gcloud config get-value compute/zone",
+        )
+        for context in self.CONTEXTS:
+            for command in commands:
+                with self.subTest(command=command, context=context):
+                    self.assertEqual("allow", self._decision(command, context))
+
+    def test_sre_config_reads_do_not_accept_extra_flags(self):
+        suffixes = ("--all", "--configuration other", "--format=json", "--log-http")
+        for context in self.CONTEXTS[:3]:
+            for suffix in suffixes:
+                with self.subTest(suffix=suffix, context=context):
+                    self.assertEqual("deny", self._decision("gcloud config list project " + suffix, context))
+
+    def test_build_lane_data_and_configuration_changes_are_not_read_tripwires(self):
+        commands = (
+            'rg "gcloud config list proxy/password" docs/',
+            "gcloud config set project example",
+            "gcloud config unset proxy/password",
+        )
+        for command in commands:
+            with self.subTest(command=command):
+                self.assertEqual("allow", self._decision(command, self.CONTEXTS[3]))
 
 
 if __name__ == "__main__":

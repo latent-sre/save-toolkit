@@ -2,11 +2,7 @@
   "schema_version": 1,
   "id": "routing-and-handoffs",
   "summary": "All native routing cases plus caller/helper continuation boundaries",
-  "tests": [
-    "evals/test_agent_scope_alignment.py",
-    "evals/test_native_readiness_cases.py",
-    "evals/test_wider_fleet_cases.py"
-  ],
+  "tests": [],
   "native_scenarios": [
     "agent-direct-handoff-scribe-accepts-approved",
     "agent-direct-handoff-scribe-blocks-unapproved",

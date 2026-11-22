@@ -2,14 +2,7 @@
   "schema_version": 1,
   "id": "python-craft",
   "summary": "Python judgment, routing and artifact controls",
-  "tests": [
-    "evals/test_python_craft_oracle.py",
-    "evals/test_python_index_probe.py",
-    "evals/test_python_library_selection_oracle.py",
-    "evals/test_python_new_code_probe.py",
-    "evals/test_python_package_refactor.py",
-    "evals/test_python_project_baseline_oracle.py"
-  ],
+  "tests": [],
   "native_scenarios": [
     "build-python-fix-stays-scoped",
     "build-python-generator-lifetime",

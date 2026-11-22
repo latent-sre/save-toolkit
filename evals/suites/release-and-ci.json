@@ -3,8 +3,6 @@
   "id": "release-and-ci",
   "summary": "Production approval validity, release boundaries and CI contract preservation",
   "tests": [
-    "evals/test_api_ci_oracle_regressions.py",
-    "evals/test_production_approval_validity.py",
     "scripts/test_pcf_deploy_example.py"
   ],
   "native_scenarios": [
