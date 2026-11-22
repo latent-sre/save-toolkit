@@ -216,8 +216,8 @@ never route around the limit with a shell, interpreter, or HTTP client.
 
 ### Grafana: compare what is stored, returned, and visible
 
-Load `grafana`'s [dashboard-reading](../../skills/grafana/references/dashboard-reading.md) for interpretation and
-[visual-verification](../../skills/grafana/references/visual-verification.md) before browser or capture calls.
+Load `grafana`'s [dashboard-reading](../../skills/grafana/references/dashboard-reading.md) for interpretation
+and visual verification before browser or capture calls.
 Browser tools are for viewing, and no hook checks them, so this rule is the only control. Click, type,
 select, or press keys only to reach and read the requested view: search, time range, panel menu, or
 tab. Never save, apply an edit, submit, silence, acknowledge, or delete through a page (the time

@@ -1,91 +1,72 @@
-# Grafana alerting — rules, provisioning, and evaluation
+# Grafana alerting and temporary silences
 
-Console: Alerts & IRM → Alert rules. For a missing notification, trace: evaluation →
-instance state → selected Alertmanager → matching route → silence/mute/inhibition → grouping/timers
-→ delivery evidence. Reading a contact point does not prove delivery; never validate by sending a
-test notification to production. Alert/SLO design belongs to `obs-analysis`; temporary suppression
-uses [silences](./silences.md).
+Alert/SLO design belongs to `obs-analysis`; reading contact points or silences never proves
+notification delivery, and never send test alerts to production. For missing notifications, trace:
+evaluation -> instance state -> Alertmanager -> matching route -> silence/mute/inhibition ->
+grouping/timers -> delivery evidence.
 
-## Evaluation knobs and provisioning spellings
+## Rule evaluation, provisioning spellings, and APIs
 
-Keep one evaluation owner per rule (no duplicates across paths). Review all four knobs per rule:
+Keep one evaluation owner per rule. Review all four evaluation knobs: `for` (pending duration),
+recovery threshold (query hysteresis), keep-firing hysteresis, and no-data/error handling:
 
-- **`for`** filters flapping on entry; **keep-firing-for** holds a clearing alert in `Recovering` so
-  a re-fire returns to `Alerting` without a new notification. The HTTP API body spells it
-  **`keep_firing_for`**; file-provisioning YAML and YAML/JSON exports spell it **`keepFiringFor`**.
-  A wrong key is silently ignored, not rejected — verify the running rule's state, not just YAML.
-- **Recovery threshold** supplies query-side hysteresis.
-- **No-data and execution-error states** are per-rule decisions (mapping silent telemetry or query
-  errors to Normal on a paging burn-rate rule creates a false all-clear). In file-provisioning YAML,
-  Normal is spelled **`OK`**: `noDataState: NoData|Alerting|OK|KeepLast`,
-  `execErrState: Error|Alerting|OK|KeepLast`. Literal UI labels `Normal` and `Keep Last State` are
-  invalid provisioning values. `KeepLast` preserves prior state, not current health.
+- **Provisioning spellings (`OK` vs UI labels):** HTTP API bodies spell keep-firing as
+  **`keep_firing_for`**; file-provisioning YAML and exports spell it **`keepFiringFor`** (e.g.,
+  `keepFiringFor: 5m`; unknown keys are silently ignored — verify the running rule). File YAML
+  spells normal as **`OK`**: **`noDataState: NoData|Alerting|OK|KeepLast`** and
+  **`execErrState: Error|Alerting|OK|KeepLast`** (mapping silent telemetry or query errors on paging
+  rules to `OK` creates false all-clears; UI strings **`Normal`** and **`Keep Last State`** are
+  **invalid** in provisioning YAML).
+- **Separate definitions from evaluation health:** Pair definitions/provenance
+  (`GET /api/v1/provisioning/alert-rules` or helper `alerts --uid <uid>`) with evaluation state
+  (`GET /api/prometheus/grafana/api/v1/rules` or helper `alerts --folder-uid <uid>`), matching by UID.
+  `health=ok` means evaluation succeeded, distinct from firing alerts (`state=firing`); neither proves
+  notification delivery (`UNVERIFIED` without delivery evidence). Permission errors != empty rules.
+- **Provenance (`X-Disable-Provenance`):** Sending `X-Disable-Provenance` (any value, including
+  `false`) stores a rule unmanaged; omitting it marks the rule API-provisioned (read-only in UI).
+  Match the existing rule so edits never flip provenance unexpectedly. Provisioned/Git/Terraform
+  rules change only through their owning source.
+- **Rule write APIs & single-rule boundary:** Discover and prefer `rules.alerting.grafana.app/v1beta1`
+  (`alertrules`, `recordingrules`; `notificationSettings.type`: `SimplifiedRouting` or
+  `NamedRoutingTree`). Legacy fallback: `POST /api/v1/provisioning/alert-rules` (explicit unused
+  `uid`, verify existing `ruleGroup` first) and single-rule `PUT /api/v1/provisioning/alert-rules/<uid>`
+  (uses `isPaused` for pause). Through 13.3.1 legacy stores ignore `resourceVersion`, so use a
+  single-writer window and re-read right before writing. When authorized to update one rule, **never**
+  use a whole-group `PUT` (overwrites sibling rules: outside request) or delete+recreate with a new
+  UID (outside request). Export formats (`?format=yaml|json|hcl`) are not replayable HTTP API bodies.
+- **Pause vs silence, conflict, verify & rollback:** Pause stops evaluation and never auto-expires
+  (require owner and resume deadline; use silences for temporary suppression). Convert dashboard
+  macros before creating rules. On `409`/`403` conflict, stop and re-read. After writing, confirm
+  fresh **readback and one evaluation interval** while reporting any delivery-evidence gaps. Before
+  rollback, check a fresh read against operation-written state; on post-dispatch timeout report
+  `UNKNOWN` and reconcile by UID before retrying.
+- **Contact points & policy trees (source-managed):** Legacy endpoints are deprecated; Grafana 13.2+
+  supports multiple named trees where applying a tree overwrites all policies in that tree. Export
+  full before/after trees for PRs.
 
-## Read state, ownership, and APIs
+## Temporary silences
 
-Separate definitions/provenance (`GET /api/v1/provisioning/alert-rules`) from evaluation/instances
-(`GET /api/prometheus/grafana/api/v1/rules`). With the bundled helper, pair `alerts --uid <uid>`
-(definition, `configuration_only`) with `alerts --folder-uid <folder-uid>` (evaluation state),
-matching by rule UID (names are not unique). Permission failure is not empty inventory.
+Silences suppress Alertmanager notifications while **rule evaluation continues**. In Grafana 13.3
+Alertmanager v2 APIs (`<am>` is `grafana` for built-in or the external Alertmanager datasource UID,
+never display name; helper `silences` inspects built-in `grafana` only):
 
-File/Terraform/Git-managed rules change only through their owning source (controlled restart or
-hot-reload). An API-owned rule is editable only when this task's operator owns that workflow.
-
-**`X-Disable-Provenance` trap:** A provisioning-API write with `X-Disable-Provenance` (any value,
-including `false`) stores the rule unmanaged; omitting it marks the rule API-provisioned, making it
-read-only in the console. Grafana rejects updates only when a *different* stored owner is set, so a
-headerless write silently converts a UI-created rule to API-managed. Send the header for unmanaged
-rules, omit it for API-owned rules, and never change provenance as a side effect.
-
-Where the target serves `rules.alerting.grafana.app/v1beta1` (`alertrules`, `recordingrules`; OSS
-13.3.0+), discover it with `GET /apis/rules.alerting.grafana.app/` and prefer it over the deprecated
-legacy endpoints below. In `v1beta1`, an alert rule's `notificationSettings` must carry `type`
-(`SimplifiedRouting` with a `receiver`, or `NamedRoutingTree` with a `routingTree`). Through
-13.3.1 the legacy-backed `alertrules` store does **not** compare `metadata.resourceVersion` on
-update, although the 13.3 API docs say passing it prevents concurrent overwrites, and legacy
-provisioning has no token either: establish a coordinated single-writer window, re-read
-immediately before writing, and stop on drift.
-
-| Operation | Legacy rule provisioning API |
+| Operation | Path under trusted Grafana origin |
 |---|---|
-| Create one rule | `POST /api/v1/provisioning/alert-rules` with explicit unused `uid` |
-| Update or pause/resume one rule | `PUT /api/v1/provisioning/alert-rules/<uid>` with full valid body (`isPaused` for pause) |
+| List | `GET /api/alertmanager/<am>/api/v2/silences` |
+| Read one | `GET /api/alertmanager/<am>/api/v2/silence/<id>` |
+| Create or update | `POST /api/alertmanager/<am>/api/v2/silences` (`omit id` on create; include `id` on update) |
+| End early (expire) | `DELETE /api/alertmanager/<am>/api/v2/silence/<id>` |
 
-- Export endpoints (`…/export?format=yaml|json|hcl`) emit file/Terraform formats, **not** replayable
-  HTTP API update bodies.
-- Never use a group PUT for a single-rule edit — it replaces the whole group and can reset
-  provenance across rules.
-- A POST with a mistyped `ruleGroup` silently creates a new group with the default interval; verify
-  the target group exists first.
-- Recording rules write to a Prometheus-compatible target datasource (or `default_datasource_uid`)
-  using a valid Prometheus metric name.
-
-## Apply a live rule change
-
-1. **Bind scope and owner.** Pause stops evaluation and never auto-expires — require reason, resume
-   deadline, and owner (use a silence for temporary suppression). Resume can notify immediately.
-2. **Capture prior state** (existing rule, group, route; for create, prove UID absence and existing
-   group, and name the recovery owner).
-3. **Prepare and validate.** Convert dashboard variables and macros to explicit alert-compatible
-   expressions; `obs-analysis` owns paging fields such as owner and `runbook_url`. Backtest on
-   bounded healthy/bad windows where available and show full diff, notification/route impact, and
-   recovery.
-4. **Write once, read back, verify evaluation.** On `409` (rule provenance/lock/UID conflict) or
-   `403` (notification provenance conflict), stop and re-read; do not retry. Read back into a fresh
-   result to confirm fields, UID, folder/group, provenance, and pause state; wait one evaluation
-   interval and report observed state (`paused`, `normal`, `pending`, `firing`, `no-data`, error)
-   separately from unverified delivery.
-5. **Rollback / UNKNOWN:** Compare a fresh read against operation-written state before restoring the
-   prior definition (never overwrite intervening edits). For a newly created rule, recovery may
-   pause it with owner/deadline; deletion goes to a human/protected executor. On post-dispatch
-   timeout, follow the parent's [UNKNOWN rule](../SKILL.md#return-the-result) and reconcile by UID
-   before any retry.
-
-## Contact points and notification policies (source-managed)
-
-The legacy contact-point, notification-policy, template, and mute-timing provisioning endpoints are
-deprecated. **Full-tree warning:** Since Grafana 13.2 an instance can hold multiple named
-notification policy trees, and applying a provisioned tree overwrites every policy in that tree.
-Export the full current tree immediately before review, preserve every existing branch, and submit
-source-managed rule-group and policy changes through PR with before/after exports, validation, and
-rollback via source revert.
+- Bind Alertmanager, exact matchers, absolute UTC `startsAt`/`endsAt`, human owner, and reason.
+  Target a single alert rule with matcher **`__alert_rule_uid__=<uid>`** (updating that matcher
+  returns `400`; create a new silence instead). Empty preview instances do not prove regex or
+  missing-label matchers harmless.
+- **ID replacement on update:** Alertmanager preserves `id` *only* on active/pending updates with
+  **unchanged matchers** (and unchanged `startsAt` when active); editing matchers **expires the
+  original silence and returns a new/different ID** (`silenceID`) — verify both the new active ID and
+  the expired original ID.
+- **Post-dispatch timeout (`UNKNOWN`):** Never retry, re-post, or create a duplicate after a timed-out
+  `POST` (`Redispatch: BLOCKED_PENDING_RECONCILIATION`); reconcile on the **same Alertmanager**
+  (`SAME_ALERTMANAGER`) via `GET .../silences` or `GET .../silence/<id>` first. Rollback expires a
+  created silence (`DELETE`), or for an ID-replacing update expires the new ID and recreates the
+  prior scope if still inside its window.

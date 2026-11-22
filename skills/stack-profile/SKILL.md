@@ -63,7 +63,7 @@ land; on PCF, incumbent tools lead unless additive instrumentation exists).
   **CI uses GitHub environment secrets, never GitHub OIDC** (never propose GitHub-OIDC->CredHub;
   CredHub uses UAA and CF mTLS instance identity).
 - **Runners:** Self-hosted on-prem **RHEL 9+**; GitHub-hosted **`runs-on: ubuntu-latest`** (**Bash 5.1** floor).
-- **Frameworks & stores:** **FastAPI** default backend (`api-craft` HTTP; `operator-cli` CLI); React
+- **Frameworks & stores:** **FastAPI** default backend (`api-craft` HTTP); React
   focus, Vue in use (`frontend-craft`). Operated DBs: **PostgreSQL and SQL Server on-prem** (MySQL
   minor; **no MariaDB/Oracle**; SQLite/PCF disk is ephemeral/non-shared; managed cloud DBs are future
   candidates, not current estate).

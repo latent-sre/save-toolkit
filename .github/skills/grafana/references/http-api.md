@@ -1,171 +1,94 @@
 # Grafana dashboard and folder changes over the HTTP API
 
-The parent's [authority rules](../SKILL.md#access-and-authority) govern every operation.
-`stack-profile` owns version and recovery-copy facts; reviews use
-[read-only checks](./dashboard-reading.md#read-only-review-and-static-hygiene) without the edit
-loop. Grafana 13 deprecates `/api` in favour of `/apis` but still serves both.
+[Access authority](../SKILL.md#access-and-authority) governs all operations; reviews follow
+[read-only review](./dashboard-reading.md#read-only-review-and-static-hygiene). Grafana 13 deprecates
+`/api` in favour of `/apis` while serving both.
 
 ## Dashboard change loop
 
-1. **Preflight and discover; never invent.** Run [preflight](#preflight-once-per-target-and-after-every-upgrade).
-   Prove a create's UID is absent; resolve names, labels, and UIDs from the target.
-2. **Read and export before editing** at the stored version ([read and export](#read-and-export)).
-   For a create, choose a stable UID and name the human or protected executor who owns removal.
-3. **Make only the requested change.** Preserve unknown fields and the stored schema
-   ([model and edit rules](#dashboard-model-and-edit-rules)).
-4. **Validate** with [pre-write checks](#check-before-writing).
-5. **Show the target and full diff, then write once** ([create, import, update](#create-import-update)).
-6. **Verify behavior, storage, and history** ([verify, then record](#verify-then-record)).
+1. **Preflight & discover** ([preflight](#preflight-api-families-and-stored-version)); prove UID absence before create.
+2. **Read & export** at the pinned stored version (`live.json`); stop if `meta.provisioned: true`,
+   `meta.canSave: false`, or `grafana.app/managedBy` lacks `grafana.app/managerAllowsEdits: "true"`.
+   Keep `uid`, drop numeric `id`, and strip app-platform `status`/`resourceVersion`/`generation`.
+3. **Edit only the requested diff**, keeping unknown fields and stored version ([model rules](#dashboard-model-and-edit-rules)).
+4. **Validate offline** via [dashboard_hygiene.py](../scripts/dashboard_hygiene.py) (`dashboard-linter`
+   adds basic V2/query checks, not full V2 schema); check live baseline first and block only newly
+   introduced defects.
+5. **Show full `jq -S` diff & write once**; never retry conflicts with `overwrite: true`.
+6. **Verify readback, queries, visuals, and version history**.
 
 ## Credentials and effective scope
 
-An installed Grafana CLI, MCP server, vendor skill or SDK grants nothing until `stack-profile`
-records it; the SRE assistant reads through the [command-access](./command-access.md) helper. If
-`grafana/mcp-grafana` is present, never use its patch-mode `update_dashboard` for a live
-Classic/V1 write: it saves with `overwrite: true`, defeating concurrency checks (its V2 writes carry
-`resourceVersion`).
+Installed Grafana CLIs, SDKs, or MCP servers grant no authority unless `stack-profile` records them
+(`sre-assistant` uses [command-access](./command-access.md)). Never use `grafana/mcp-grafana`
+patch-mode `update_dashboard` on Classic/V1 (sends `overwrite: true`). Auth uses
+`$GRAFANA_URL`/`$GRAFANA_SA_TOKEN` at call time; never log tokens. Check
+`GET /api/access-control/user/permissions` and confirm folder-scoped read, write, and rollback
+grants before creating (empty search without `dashboards:read` != empty instance).
 
-For an authorized dashboard or folder change, use `$GRAFANA_URL`/`$GRAFANA_SA_TOKEN` at call time
-and keep Authorization headers out of logs.
-Check `GET /api/access-control/user/permissions` before trusting search or writing:
-- Empty search without `dashboards:read` does not establish an empty instance.
-- Create grants do not guarantee readback or rollback, and legacy vs app-platform grants can differ.
-  Establish folder-scoped rights before creating; never create what the caller cannot verify or roll back.
+## Preflight, API families, and stored version
 
-## Two API families, one stored version
-
-| Family | Path | Use |
-|---|---|---|
-| App platform | `/apis/dashboard.grafana.app/<version>/namespaces/<ns>/dashboards` (create/list); `…/dashboards/<uid>` (read/update/delete) | version-pinned; stable-version history |
-| Legacy | `/api/dashboards/*`, `/api/search`, `/api/folders`, `/api/datasources` | discovery and Classic fallback after checking grants |
-
-Namespace is `default` for org 1, `org-<id>` otherwise. App-platform identity is `metadata.name`
-(the dashboard UID), not the server-minted `metadata.uid`.
-
-The read URL selects response shape, not storage: a Grafana 13 target can prefer `v2` and return a
-stored Classic dashboard as V2 `elements` or V1 `panels`, and dynamic dashboards
-(`dashboardNewLayouts`, GA and on by default in Grafana 13) make a browser save convert Classic
-irreversibly to `v2`. Probe immediately before every write:
-
-1. Read at `v0alpha1` (unstructured, no migration); take `status.conversion.storedVersion` (falling
-   back to returned `apiVersion`).
-2. Extract the segment after the last `/` (e.g., `v0alpha1` from `dashboard.grafana.app/v0alpha1`).
-3. Pin every read/write to that version; stop if the probe and pinned read disagree.
-
-## Preflight, once per target and after every upgrade
-
-Run: `GET /api/health` (`enterpriseCommit` is not plugin entitlement),
-`GET /api/access-control/user/permissions`, `GET /api/org`, `GET /apis/dashboard.grafana.app/`,
-`GET /api/datasources`, `GET /api/frontend/settings`, and `GET /api/search?type=dash-db&limit=100`.
-Never print `/api/datasources` or `/api/frontend/settings` raw — they can carry connection users and
-decrypted basic-auth credentials; project only needed fields (`uid`, `name`, `type`,
-`rendererAvailable`, `buildInfo`).
-
-## Read and export
-
-Save the pinned stored shape into `live.json` as the pre-change export. Stop (must change in owning
-source) when legacy `GET /api/dashboards/uid/<uid>` reports `meta.canSave: false` or
-`meta.provisioned: true`, or app-platform `grafana.app/managedBy` is set without
-`grafana.app/managerAllowsEdits: "true"`. Portable Classic exports keep `uid`, drop numeric `id`,
-and strip app-platform `status`, `resourceVersion`, and `generation`.
+- **App platform:** `/apis/dashboard.grafana.app/<ver>/namespaces/<ns>/dashboards` (create/list) and
+  `.../dashboards/<uid>` (`<ns>` = `default` for org 1 or `org-<id>`; `metadata.name` = dashboard UID,
+  distinct from minted `metadata.uid`). **Legacy:** `/api/dashboards/db`, `/api/dashboards/uid/<uid>`,
+  `/api/dashboards/import`, `/api/folders`.
+- **Stored-version trap (why V2 read shows empty panels):** Read URLs choose response conversion shape,
+  not storage. Reading a Classic dashboard (`v0alpha1`/`v1`) via `v2` expects `elements`/`layout`
+  instead of `panels` and can return empty panels (and browser saves under `dashboardNewLayouts`
+  irreversibly convert Classic to `v2`).
+- **Probe before every write:** Read unstructured at **`v0alpha1`**
+  (`GET /apis/dashboard.grafana.app/v0alpha1/namespaces/<ns>/dashboards/<uid>`), inspect
+  **`status.conversion.storedVersion`** (fallback `apiVersion`), and pin every read/write to that
+  version. Never convert versions mid-edit (V2 -> V1 -> V2 flattens layout).
+- **Preflight (once per target/upgrade):** `GET /api/health` (`enterpriseCommit` != plugin license),
+  `/api/access-control/user/permissions`, `/api/org`, `/apis/dashboard.grafana.app/`,
+  `/api/datasources`, `/api/frontend/settings`, `/api/search?type=dash-db&limit=100`. Never dump raw
+  `/api/datasources` or `/api/frontend/settings` (contain secrets); project only needed keys.
 
 ## Dashboard model and edit rules
 
-These shapes describe Grafana 13.3.0. New-dashboard choices are in
-[dashboard design](./dashboard-design.md#new-dashboard-conventions).
+| Version | Spec shape & write behavior |
+|---|---|
+| `v0alpha1` | Classic unstructured (legacy `POST /api/dashboards/db` & `/import` store this; app-platform strips `uid`/`version`/`id`) |
+| `v1`, `v1beta1` | Classic `schemaVersion` 42 (`v1beta1` reports `v1`; app-platform strips `spec.uid`/`version`, mints `metadata.uid`) |
+| `v2alpha1`, `v2beta1`, `v2` | V2 `elements`, `layout`, `variables[]`, `cursorSync`, `timeSettings`; read live V2 instead of guessing |
 
-| Version | Spec shape | Write behavior |
-|---|---|---|
-| `v0alpha1` | Classic, unstructured | no migration or validation; admission strips `uid`, `version`, and `id` from spec |
-| `v1`, `v1beta1` | Classic | migrates to final V1 `schemaVersion` 42 and validates; `v1beta1` reports `v1` |
-| `v2alpha1`, `v2beta1`, `v2` | V2 `elements` and `layout` | validates; no `schemaVersion`; restructures datasource refs and transformations |
+**Classic panel shape:** Keep published `uid` (<=40 chars); set `id: null` on create; new panels need
+unique numeric `id`, `"gridPos"`, explicit `"unit"` (e.g., `"s"`), `"noValue"`, thresholds, typed
+variable datasource (`{"type": "prometheus", "uid": "${datasource}"}` or `${metrics_source}`), and
+`$__rate_interval` rate queries (e.g., `histogram_quantile(0.99, sum by (le) (rate(<metric>_bucket{...}[$__rate_interval])))`).
+Use `${var:regex}` for regex filters; keep `current` unpinned in portable exports. New-dashboard rules:
+[dashboard design](./dashboard-reading.md#dashboard-design).
 
-- **Storage and conversion:** `preferredVersion` is config, not stored-shape evidence. Legacy
-  `POST /api/dashboards/db` and `/import` store `v0alpha1`; UI import stores Classic as `v1` and V2
-  as `v2`; app-platform writes store the path version. Never change API versions during a surgical
-  edit (V2 → V1 → V2 is lossy: rows, tabs, and layouts flatten). `conversion.failed: false` is not
-  fidelity, and legacy `meta.apiVersion` reports the requested version, not storage.
-- **Classic / V1 edits:** Preserve published `uid` values (never rename/reuse; legacy max 40 chars).
-  `id` is `null` on create; keep `schemaVersion`; `version` is the legacy concurrency token. New
-  panels need unused IDs (link/render targets), standard `gridPos`, explicit `unit`, `noValue`,
-  and typed panel + target `datasource` references (prefer `${datasource}` or separately typed
-  variables such as `${metrics_source}` / `${logs_source}`). On app-platform V1 writes, Grafana
-  strips `spec.uid`/`spec.version` and mints `metadata.uid` — diff the stored readback.
-- **V2 differences:** Panels are `spec.elements.<name>` positioned by `spec.layout` (`GridLayout`,
-  `RowsLayout`, `AutoGridLayout`, `TabsLayout`); variables are `spec.variables[]`; `graphTooltip` →
-  `cursorSync`; time/timezone/refresh live under `timeSettings`; conditional rendering is V2-only.
-  Do not author V2 internals from memory — read a real V2 dashboard at its stored version.
-- **Variables and portability:** Use `${var:regex}` for regex matchers (custom All values like `.+`
-  are not escaped and can expand large). Leave `current` unpinned in portable exports.
-  `increase(...[$__range])` can deliberately total the selected window; otherwise use
-  `$__rate_interval` on rate/irate/increase.
+## Create, import, update, and folders
 
-## Check before writing
+- **App-platform create:** `POST /apis/dashboard.grafana.app/<ver>/namespaces/<ns>/dashboards`
+  (collection path) with **`metadata.name`** = UID, `grafana.app/folder`, `grafana.app/message`, and
+  **omit** **`resourceVersion`** and **`generation`** (`201`).
+- **Legacy create / import:** `POST /api/dashboards/db` (`dashboard.id: null`, `uid`, `folderUid`,
+  `message`, **`overwrite: false`**, HTTP **`200`**). Use `POST /api/dashboards/import` (`inputs[]`)
+  for `__inputs`/`${DS_*}`.
+- **Update & concurrency:** App-platform `PUT` carries fresh `metadata.resourceVersion` (strip `status`;
+  `409` on conflict); legacy `POST /api/dashboards/db` carries fresh `dashboard.version` +
+  `overwrite: false` (`412 version-mismatch` = UID taken or stale; `400` = `id`/`uid` mismatch). On
+  conflict, **fresh-read, re-diff, and reconcile** — never `overwrite: true`. Save messages must be
+  supplied at write time and **cannot be added afterwards**. Folder changes alter permissions and need
+  separate approval. On post-dispatch timeout/drop: `Write outcome: UNKNOWN`, `Replay safety: idempotent-by-target`,
+  `Redispatch: BLOCKED_PENDING_RECONCILIATION`, reconcile via `READBACK_PLUS_VERSION_HISTORY`.
+- **Folders (`folders:*`; depth default 4, cap 7):** Create via `POST /apis/folder.grafana.app/v1/namespaces/<ns>/folders`
+  (`metadata.name`, `spec.title`, optional `grafana.app/folder`, omit `resourceVersion`, `201`);
+  update via `GET` + `PUT .../folders/<uid>` with `resourceVersion` (no version history).
 
-Run the bundled stdlib-only [dashboard_hygiene.py](../scripts/dashboard_hygiene.py) (`python
-"<resolved helper path>" <file>`; see
-[dashboard reading and review](./dashboard-reading.md#read-only-review-and-static-hygiene) for
-output format and exit codes). It maps V2 onto Classic for static checks without validating the V2
-schema itself; `dashboard-linter` v0.5.2+, when installed, adds PromQL/LogQL rules and basic V2
-checks (required fields, element references), not full V2 schema validation. On an
-edit, check the live model first and block only confirmed defects this diff introduces.
+## Verify, history, and rollback
 
-## Create, import, update
-
-- **Create:** App platform `POST …/namespaces/<ns>/dashboards` (collection path, never item path)
-  with pinned `apiVersion`, `metadata.name` = chosen UID, `grafana.app/folder`, `grafana.app/message`,
-  and no `resourceVersion`/`generation` (`201`). Legacy `POST /api/dashboards/db` with `id: null`,
-  `folderUid`, `message`, `overwrite: false` (`200`). `412 version-mismatch` = UID already taken
-  (or a stale version), `400` = `id` and `uid` name different dashboards; stop and reconcile, never
-  switch to `overwrite: true`. Name the human/protected recovery owner before dispatch.
-- **Import:** Use `POST /api/dashboards/import` (`overwrite: false`, `folderUid`, `inputs[]`) to
-  bind `__inputs` and `${DS_*}` placeholders; raw `POST /api/dashboards/db` leaves broken literal
-  placeholders.
-- **Update:** Show `jq -S` diff, then write once with the fresh concurrency token and a save message
-  naming the change (cannot be added later). Changing folder (`folderUid` / `grafana.app/folder`)
-  changes inherited permissions and requires separate authorization.
-
-| Family | Token | Stale response |
-|---|---|---|
-| App-platform `PUT` | `metadata.resourceVersion` (strip `status` first) | `409 Conflict` |
-| Legacy `POST /api/dashboards/db` | `dashboard.version`, `overwrite: false` | `412 version-mismatch` (UID taken or stale); `400` when `id` and `uid` disagree |
-
-On conflict, fresh-read, re-diff, and reconcile; never bypass with `overwrite: true`. On timeout or
-dropped response after dispatch, follow the parent's [UNKNOWN rule](../SKILL.md#return-the-result)
-and reconcile via fresh readback plus version history before any redispatch.
-
-## Folder create and update
-
-Requires `folders:create` / `folders:write` / `folders:read` (`max_nested_folder_depth` default 4,
-hard cap 7). **Create:** `POST /apis/folder.grafana.app/v1/namespaces/<ns>/folders` with stable
-`metadata.name`, optional `grafana.app/folder` parent, `spec.title`, and no `resourceVersion`
-(`201`; `409` = exists, stop). **Update:** `GET` then `PUT …/folders/<uid>` with current
-`resourceVersion` and existing parent (moving a folder changes inherited permissions and is out of
-scope; `409`/`412` = stop and re-diff). Folders have no version history or save message: verify via
-fresh UID readback (and parent listing on UNKNOWN). Deletion is outside the dashboard write rule.
-
-## Verify, then record
-
-1. **Read back** into a new file (never over `live.json`); compare UID, folder, spec, and new
-   `version`/`generation`. Retain this as the verified operation-written state.
-2. **Run each changed query** via `POST /api/ds/query` with real variables and window. For
-   Prometheus macros (`$__interval`, `$__rate_interval`, `$__range`), supply the panel's interval
-   context or concrete window (at least 4 scrape intervals for `$__rate_interval`) and report what
-   was used. Inspect per-query status (HTTP 200 alone is insufficient). For expected-empty panels,
-   check source/window coverage or mark positive-data behavior `[unverified]`.
-3. **Visual check:** follow [visual verification](./visual-verification.md) via browser or server
-   render; if unavailable, label presentation `[unverified]`.
-4. **Confirm save message in version history:** App-platform history is served only at an enabled
-   stable version such as `v1` (never alpha/beta):
-   `GET /apis/dashboard.grafana.app/v1/namespaces/<ns>/dashboards?labelSelector=grafana.app/get-history=true&fieldSelector=metadata.name=<uid>`,
-   or the deprecated legacy `GET /api/dashboards/uid/<uid>/versions?limit=20` (requires `dashboards:write`; 403
-   does not prove absence of versions).
-
-## Rollback
-
-Never replay `live.json` with its stale token. Compare a fresh live read against the verified
-operation-written state first; stop and hand off on any intervening edit (a fresh token alone does
-not authorize overwriting another editor's work). Once confirmed, place the saved spec into the
-current envelope, drop `status`, and update with the fresh concurrency token (legacy: fresh
-`dashboard.version`). Provisioned/tool-managed rollback belongs to its owner. Grafana keeps 20
-versions by default.
+1. **Read back** into a fresh file (never over `live.json`), checking UID, folder, spec, and version/generation.
+2. **Execute changed queries (`POST /api/ds/query`):** Check per-query statuses even under HTTP 200. For
+   `$__rate_interval`/`$__interval`, pin panel cadence or substitute a concrete window (`>= 4x` scrape
+   interval) matching the panel.
+3. **Visual check & dimensions:** Follow [visual verification](./dashboard-reading.md#visual-verification);
+   verify PNG dimensions match requested size (`1200x600`) to catch Grafana 13 stock placeholder images (`526x202`).
+4. **Version history (including alpha-stored dashboards):** Query **only at stable `v1`**, never
+   alpha/beta: `GET /apis/dashboard.grafana.app/v1/namespaces/<ns>/dashboards?labelSelector=grafana.app/get-history=true&fieldSelector=metadata.name=<uid>`
+   (legacy `GET /api/dashboards/uid/<uid>/versions?limit=20`).
+5. **Rollback:** Confirm fresh read matches operation-written state before overwriting with `live.json`
+   spec + fresh concurrency token (Grafana keeps 20 versions by default).

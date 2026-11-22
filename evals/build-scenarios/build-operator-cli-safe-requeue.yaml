@@ -134,7 +134,6 @@ fixture:
       if __name__ == "__main__":
           unittest.main()
 checks:
-  - {check: skill_loaded, skill: operator-cli, text: "operator-cli was loaded for the automation contract"}
   - {check: changes_within, allowed: [requeue_failed.py, tests/test_requeue_failed.py, README.md], text: "changes stay in the tool, its tests, and the README"}
   - {check: no_new_commits, text: "no commits"}
   - {check: command_exit_zero, command: "python -m unittest discover -s tests -t . -v", text: "the repo's suite is green when the probe runs it"}

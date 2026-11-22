@@ -5,14 +5,13 @@ description: >-
   Load before editing Go, including module upgrades and concurrent code. Triggers:
   'build this in Go', 'refactor this Go package', 'modernize this Go module',
   'test this Go worker'. Not for runtime-only operations; use incident-investigation for
-  incident troubleshooting. Compose with api-craft for HTTP and operator-cli for command contracts.
+  incident troubleshooting. Compose with api-craft for HTTP contracts.
 argument-hint: "[Go code, package, or task]"
 ---
 
 # Go craft
 
-Load `stack-profile` for toolchain choices, `api-craft` for HTTP boundaries, and `operator-cli`
-for command contracts. Keep language changes within the requested task; preserve caller-visible
+Load `stack-profile` for toolchain choices and `api-craft` for HTTP boundaries. Keep language changes within the requested task; preserve caller-visible
 behavior unless its change is intentional.
 
 ## Establish the version boundary

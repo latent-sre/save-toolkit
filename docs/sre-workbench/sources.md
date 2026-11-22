@@ -18,7 +18,7 @@ speed claim; they are not a performance baseline.
 | LOCAL-06 | [Context requirements](https://github.com/latent-sre/save-toolkit/blob/eab602038138f77a76187143c5cb118cea2cfa49/skills/service-lifecycle/context-requirements.yaml), [knowledge method](https://github.com/latent-sre/save-toolkit/blob/07d091a4224db1ea2371c073561dbb6ff355cfd0/skills/operational-learning/SKILL.md), [service card](https://github.com/latent-sre/save-toolkit/blob/07d091a4224db1ea2371c073561dbb6ff355cfd0/skills/operational-learning/assets/service-card-template.md) | [verified] Service/environment/resource and evidence conventions exist; real team inventory is external to this repository |
 | LOCAL-07 | [SRE agent](../../agents/sre-assistant.md) and [host documentation](../../README.md) | [verified] Standard Copilot SRE profile lacks terminal access; MCP product integration remains unverified |
 | LOCAL-08 | [Roadmap](../fleet-roadmap.md) | [verified] RELEASE-001, CONTEXT-001, SRE-CF-001 and deferred EFFECT-001 are related work, not completed product prerequisites |
-| LOCAL-09 | [Operator CLI guidance](../../skills/operator-cli/SKILL.md) | [verified] Existing conventions cover machine output, partial failure, interruption and live-change authority |
+| LOCAL-09 | [Operator CLI guidance](https://github.com/latent-sre/save-toolkit/blob/07d091a4224db1ea2371c073561dbb6ff355cfd0/skills/operator-cli/SKILL.md) | [verified] Existing conventions cover machine output, partial failure, interruption and live-change authority |
 
 The host check found neither cargo nor rustc on PATH or in the usual user cargo/bin location.
 This is a bounded observation, not a full machine inventory. No Rust toolchain was installed.

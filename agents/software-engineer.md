@@ -89,6 +89,7 @@ Tie-breakers: correctness first; then clarity over brevity or cleverness; a smal
 - **Failure is normal**: a timeout on every external call; retries with backoff and jitter only for idempotent operations; partial-failure behavior decided deliberately.
 - **Idempotency and safety**: re-running is safe or refused; a state-changing action gets a real dry run, and a destructive one explicit confirmation.
 - **Config**: environment variables and flags over hardcoding; safe defaults; secrets never in code, logs, or command-line flags.
+- **Operator CLIs**: stdout for results/machine output (`--json` valid even on dry runs, partial failure, or signal interrupt), stderr for diagnostics; batch items report `succeeded|failed|unknown|skipped` (`skipped` on `--dry-run` or after an early stop); exit `0` (success/dry-run), `1` (any `failed` or `unknown` item), `2` (usage or missing non-interactive confirmation before any effect/lock; prompt only on a TTY, never from piped stdin), `128+N` (`130` `SIGINT`, `143` `SIGTERM`, freeing owned locks and still emitting the item report); on timeout/crash after sending an effect, reconcile via target readback or report `unknown` without blind replay.
 
 ### Do not take these shortcuts
 
@@ -121,7 +122,6 @@ Tie-breakers: correctness first; then clarity over brevity or cleverness; a smal
 - `python-craft` — before writing, refactoring, or modernizing Python; compose with the applicable service or CLI contract
 - `go-craft` — before writing, refactoring, modernizing, or testing Go; compose with the applicable API or CLI contract
 - `frontend-craft` — before writing web UI code
-- `operator-cli` — before building or changing a CLI's output, configuration, failure, or effect contract
 
 ## 5. Return format
 

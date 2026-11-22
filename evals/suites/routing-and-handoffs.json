@@ -72,8 +72,6 @@
     "discovery-operational-learning-defers-fleet-failure",
     "discovery-operational-learning-defers-retrospective",
     "discovery-operational-learning-owner-lookup",
-    "discovery-operator-cli-defers-running-in-prod",
-    "discovery-operator-cli-unattended-script",
     "discovery-pcf-ops-app-crash",
     "discovery-pcf-ops-defers-foundation-repair",
     "discovery-postmortem-write-for-incident",
