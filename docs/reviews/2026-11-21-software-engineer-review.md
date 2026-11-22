@@ -15,7 +15,7 @@ after the first two `P1` fixes) against its 9 on-demand skills (`cicd-github`, `
 | **1** | **P1** | **FIXED** | `:59`, `:99`, `:131` | Contradictory `root-cause` trigger (`:99` vs. `:131`) forced a full `root-cause` reproduction loop on every bug fix |
 | **2** | **P1** | **FIXED** | `:58-62`, `:69-70`, `:95` | Anti-over-testing and standing-evidence reuse rules arrived 38 lines after `Define done` and `Tests first` |
 | **3** | **P1** | **OPEN** | `:24`, `:130` | Support-only stack (**Java/JVM / Spring Boot**) and estate guardrails are hidden behind an indirect `stack-profile` lookup |
-| **4** | **P1** | **OPEN** | `:57` vs. `:58` | Reconcile shift-left assumption probing (`:57`) with standing-evidence reuse (`:58`) so the agent probes *untested* assumptions before heavy builds without re-running supplied reproductions |
+| **4** | **P1** | **FIXED** | `:57` vs. `:58` | Reconciled shift-left assumption probing (`:57`) with standing-evidence reuse (`:58`) so the agent probes *untested* assumptions before heavy builds without re-running supplied reproductions |
 | **5** | **P1** | **FIXED** | `:66` | Clarified `Refactor and modernize what you touch` so internal callers you control are modernized while external caller behavior stays unchanged |
 | **6** | **P1** | **OPEN** | `:57`, `:68-71` | Missing explicit **"Trace all callers, mocks, and companion files"** step before/after changing a signature, return value, exception, flag, or schema |
 | **7** | **P2** | **OPEN** | `:4`, `:10-14`, `:102-104` | Unexplained, hazardous, or missing tool grants (`EnterWorktree`/`ExitWorktree` unmentioned and can strand edits outside the working tree; `TodoWrite` unmentioned; `researcher` unmentioned in body; `repository-investigator` missing from `Agent(...)`; `scribe` takes 5 lines of the intro) |
@@ -66,15 +66,16 @@ after the first two `P1` fixes) against its 9 on-demand skills (`cicd-github`, `
   inline (no self-managed Kubernetes; no GitHub-OIDC→CredHub exchange; SQLite on PCF ephemeral disk
   is non-durable; Confluence is import-only).
 
-### 4. `P1 [verified] high` — OPEN: Reconcile shift-left assumption probing with standing-evidence reuse (`:57` vs. `:58`)
-- **The flaw:** Line 57 says *"Run the cheapest check that can disprove an assumption before the
-  expensive build"* (the shift-left / fail-fast rule from `07248042`), immediately before line 58
-  says *"do not re-run [standing evidence] before editing"* `[verified]`. Without distinguishing an
-  *untested assumption before a heavy build* from an *already-supplied reproduction or test result*,
-  the two adjacent lines pull in opposite directions.
-- **The fix:** Keep the shift-left rule and tie both halves together in one crisp distinction:
-  *"Run the cheapest check that can disprove an **untested** assumption before an expensive build,
-  while reusing standing reproductions and test results whenever the code they cover is unchanged."*
+### 4. `P1 [verified] high` — FIXED: Reconcile shift-left assumption probing with standing-evidence reuse (`:57` vs. `:58`)
+- **Flaw on `main`:** Line 57 said *"Run the cheapest check that can disprove an assumption before
+  the expensive build"* (the shift-left / fail-fast rule from `07248042`), immediately before line
+  58 said *"do not re-run [standing evidence] before editing"* `[verified]`. Without distinguishing
+  an *untested assumption before a heavy build* from an *already-supplied reproduction or test
+  result*, the two adjacent lines pulled in opposite directions.
+- **Applied fix:** Kept the shift-left rule in `:57` and tied both halves together explicitly:
+  *"Run the cheapest check that can disprove an untested assumption before an expensive build, while
+  reusing standing reproductions and test results whenever the code they cover is unchanged."*
+  `[verified]`.
 
 ### 5. `P1 [verified] high` — FIXED: Clarify `Refactor and modernize what you touch` (`:66`)
 - **Flaw on `main`:** Line 66 used the bare word *"callers"* in two opposite senses in adjacent

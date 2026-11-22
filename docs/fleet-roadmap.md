@@ -208,10 +208,11 @@ work with an owner and a meaningful proof-of-improvement check.
 ### SWE-001 — align software-engineer around a unified 5-section engineering spine
 
 **Status:** `active` (2026-11-21); findings `#1` (contradictory `root-cause` trigger), `#2`
-(early standing-evidence reuse and proportional testing contract), and `#5` (`Refactor and modernize
-what you touch` internal vs. external caller clarity) are implemented on
-[`agents/software-engineer.md`](../agents/software-engineer.md), while findings `#3`, `#4`, and
-`#6`–`#15` and the full 5-section redesign remain open `[verified]`.
+(early standing-evidence reuse and proportional testing contract), `#4` (reconciled shift-left
+assumption probing with standing-evidence reuse), and `#5` (`Refactor and modernize what you touch`
+internal vs. external caller clarity) are implemented on
+[`agents/software-engineer.md`](../agents/software-engineer.md), while findings `#3` and `#6`–`#15`
+and the full 5-section redesign remain open `[verified]`.
 **Owner:** The human owner decides which remaining findings and structural changes land; a
 maintainer session implements and verifies them.
 **Outcome:** [`agents/software-engineer.md`](../agents/software-engineer.md) names its support-only
