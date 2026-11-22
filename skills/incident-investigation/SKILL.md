@@ -185,10 +185,10 @@ not evidence of one cause until a mechanism connects them; assuming a shared cau
 differentials and can hide the second failure.
 
 For login failures, intermittent errors, slowness, stale/wrong data, or missed jobs with an unknown
-failing stage, read [symptom comparisons](./references/symptom-investigation.md) before choosing
+failing stage, read [symptom comparisons](./references/signal-patterns.md#symptom-comparisons) before choosing
 the next check or dispatching a helper. For multi-service impact, cascades, feedback loops,
 repeatedly failing items/stalled partitions, or degradation after a suspected trigger was removed,
-read [systemic analysis](./references/systemic-analysis.md) before choosing the next check.
+read [systemic analysis](./references/signal-patterns.md#systemic-analysis-cascades-shared-fate-and-persistence) before choosing the next check.
 
 What to ask the responder for, by phase:
 
@@ -353,5 +353,39 @@ Follow-up: <one requested causal question, proposed owner and next evidence chec
 
 For a scoped KB correction, hand back one `scribe` knowledge closeout assignment with the affected
 record, approved correction, evidence, and any supplied checkout binding. For a full closeout, use
-the [closeout packet](./assets/closeout-packet.md) and list only the requested documents. If both
+the closeout packet below and list only the requested documents. If both
 are requested, route the postmortem first, then knowledge closeout with the same Follow-ups.
+
+### Closeout packet
+
+Use the known facts below; retain material unknowns without padding optional empty slots.
+Return the packet to the invoking caller (the human requester for direct use), who arranges the
+handoffs. Include only requested assignments under Next owners.
+The UTC fields below are the receiving contract, not a change to the Eastern conversation display.
+Convert only dated, zoned source times; retain an unresolved source time with its gap rather than
+inventing a UTC value.
+
+```
+Closeout — <INC id> · <application> · <platform>
+Returning to:     <invoking caller; human requester for direct use>
+Human owner:      <role who owned the incident>
+Severity:         <value and scale as supplied, who set it, or unknown>
+Impact started (UTC): <evidenced onset or unknown; evidence> [label]
+Impact ended (UTC): <evidenced end or unknown; user outcome, scope, required window/completion check, evidence> [label]
+Resolution call (UTC): <confirming human; call time or unknown> [label]
+Impact:           <users, traffic share, duration from impact endpoints, not the call; data loss evidence or [unverified]>
+Detection:        <alert or human report; time to notice> · improvement: <actionable earlier signal and noise tradeoff, or n/a — why>
+Timeline (UTC):   <ts — event> … (deploys, config, mitigations, recovery)
+Cause:            <established cause, or current explanations with scoped evidence and remaining checks> [label]
+Mitigation:       <what a human confirmed applied, when, verified how; attempts with UNKNOWN outcome; what was recommended and not taken>
+Worked / slow:    <what helped; what cost time; where the team got lucky>
+Follow-ups:       <reuse the board's IDs/rows: discoveries, actions (owner/due/status), decisions (who asked/decided, UTC), and unknowns with evidence; include rows if the recipient cannot access the source>
+Knowledge repo:   <root> · read: <paths> · missing or stale: <paths>
+Evidence:         <sanitized excerpts or access-controlled references — pasted outputs, sre-assistant agent packets, dashboard ranges; credential-bearing output is never carried: record that it was exposed, where, and to whom>
+
+Next owners:
+1. `scribe`, postmortem mode — this packet is the source.
+2. `scribe`, knowledge closeout mode — enrich the same Follow-ups record with artifact dispositions,
+   preserving distinct scopes/owners/evidence rather than making another list; include the target revision binding the human
+   supplies for any `prepared` disposition.
+```

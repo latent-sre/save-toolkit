@@ -11,115 +11,80 @@ argument-hint: "[service or design, user outcome, environment, evidence]"
 
 # Resilience analysis
 
-Load `stack-profile` for applicable ownership and platform constraints. This method grants no access,
-execution, design approval, or change authority; an experiment remains proposed until an authorized
-actor supplies results from an established verification environment.
+Load `stack-profile` for ownership and platform constraints (e.g., Postgres/SQL Server on-prem, no
+self-managed Kubernetes, PCF vs GCP migration). This method grants no execution, design approval, or
+production-change authority; proposed experiments and fixes stay proposals until executed by an
+authorized owner.
 
-## Establish the outcome and evidence
+## Establish outcome, evidence, and failure paths
 
-Name the critical user transaction or batch/data outcome, environment, relevant requirements and
-scope. Use accepted SLOs, recovery objectives and constraints; missing targets remain unknown or
-explicit proposals for the human owner.
+Name the critical user or batch outcome, environment, requirements, and accepted SLOs/recovery
+targets (keep missing targets `unknown` or explicit owner proposals). Compare **intended**
+(design/runbook), **implemented** (effective code/config/tests), and **observed**
+(telemetry/rehearsal) behavior bound to exact revision, deployment, and time. Source-only analysis
+establishes conditional design risk, never observed production impact or whole-service certification.
 
-Compare intended behavior (design/runbook), implemented behavior (effective code/configuration and
-tests), and observed behavior (targeted telemetry or exercise results). Bind each to its revision,
-deployment and time. Conflicting or stale records are leads to reconcile, not permission to choose
-the convenient one. Source-only work can establish a conditional risk, not current production impact.
+1. Follow user and data paths including async work, queues, shared slots/pools, and external calls;
+   inspect actual callers and config overrides, not just defaults.
+2. Select only relevant scenarios from the table below; trace **trigger -> component behavior ->
+   propagation -> user effect -> protection -> recovery** and look for counter-evidence (overall
+   deadlines, cancellation, admission limits, deduplication, failover headroom, degraded mode).
+3. Separate normal, degraded, overloaded, and recovering behavior. A restart, cleared alert,
+   completed backup, or reverted commit does not prove user recovery or data integrity. Use
+   `database-reliability` for data/restore mechanics and `root-cause` for observed incidents.
 
-## Trace and challenge a failure path
-
-1. Follow the user and data paths, including asynchronous work, shared resources and external
-   dependencies. Inspect actual callers and configuration overrides, not just definitions.
-2. Select credible failure or saturation conditions. For the relevant workload read
-   [failure scenarios](references/failure-scenarios.md); do not apply every scenario to every service.
-3. Trace **trigger -> component behavior -> propagation -> user effect -> protection -> recovery**.
-   Record the existing controls and seek counter-evidence: overall deadlines, cancellation,
-   admission limits, replay/deduplication, failover capacity, or a deliberately accepted degraded mode.
-   For retrying code, trace which returns or handled exceptions reach another call and which
-   exceptions exit. Count total calls separately from retries; carry these paths into the assessment.
-4. Choose the smallest observation or controlled experiment that distinguishes the remaining
-   explanations. An inaccessible source or failed query leaves a gap. Do not claim an alternative
-   ruled out because it was not observed, nor trigger a production fault to demonstrate a risk.
-5. Assess normal, degraded, overloaded and recovering behavior where applicable. A successful
-   restart, cleared alert, completed backup or reverted commit does not by itself prove user recovery
-   or data integrity. Use `database-reliability` for data and restore mechanics and `root-cause` for
-   diagnosing an observed failure.
-
-## Substantiate and prioritize
-
-A material finding needs the outcome/requirement, reachable trigger and mechanism, evidence,
-controls checked, consequence and a useful next action. Classify the result separately from its
-evidence label:
-
-| Result | What it establishes |
+| Scenario | Evidence separating failure from protection |
 |---|---|
-| Observed defect | Direct or supplied evidence demonstrates incorrect behavior under stated conditions |
-| Supported design risk | A credible conditional failure path is established; occurrence and frequency may be unknown |
-| Verification gap | An important claim lacks adequate evidence; this does not prove the control is absent |
-| Improvement opportunity | A supported benefit may justify work without a demonstrated defect |
+| Slow dependency | Enforced deadlines, retries, and cancellation release slots/connections; unrelated work retains capacity |
+| Overload | Admission/overflow limits, queue bounds, and drain behavior tested above completion capacity; increasing shared slots alone leaves shared saturation intact |
+| Lost failure domain | Surviving capacity handles demand including cold starts and shared DB/quota/network/control-plane dependencies |
+| Partial completion | Commit/ack order, idempotency scope, deduplication retention, and reconciliation prevent duplicate or lost effects |
+| Mixed versions | Old/new readers/writers and config overrides preserve compatibility across rollout and rollback |
+| Restore | Current-revision schema/procedure compatibility plus a business-transaction check within RPO/RTO; backup existence alone or an old-version restore leaves recoverability as a verification gap |
+| Control-plane loss | Serving and recovery paths still obtain config, credentials, and DNS |
+| Skewed/missing telemetry | Freshness, sampling, and coverage checks separate missing signal from health |
+| Operator procedure | Intended operator rehearses exact target/access steps; ambiguous steps, reversal, and escalation gaps stay explicit |
 
-Use `[verified]`, `[sourced]`, `[unverified]` with their target, method and time. Inspect beyond
-missing pattern names: no circuit breaker is not a defect when other controls meet the requirement.
-No observed incident is not proof of resilience. Allow no material finding within the inspected
-scope and retain coverage gaps.
+*(Note: configured pool max * instances = potential demand, not open connections; replica names do
+not prove independence; batch/pipeline work requires freshness, completeness, duplication, and
+deadline checks.)*
 
-State why the proposed work outranks alternatives. A missing required verification can matter
-urgently without proving that recovery will fail.
+## Substantiate findings and readiness
 
-## Existing-service readiness
+Bind every material finding (`[verified]`, `[sourced]`, `[unverified]`) to target, method, and time:
 
-For a general readiness audit, inspect each applicable surface and report it as passed, a finding,
-or a gap, with evidence and its age: owner and on-call path; runtime and health check; deploy and
-exact rollback path; telemetry arrival; SLI/SLO and paging alerts with runbook links; runbook and
-service record; critical dependencies, limits and headroom; backup scope with a dated restore
-rehearsal. Load the owning skill only for the surface you are on. A readiness gap needs the surface,
-the evidence inspected and the consequence, not a failure path. A control present but unrecorded is
-a documentation gap; absent from both is a readiness gap. Then trace failure paths for the surfaces
-that matter. An audit changes nothing and approves nothing.
+| Result | Meaning |
+|---|---|
+| Observed defect | Direct/supplied evidence demonstrates failure under stated conditions |
+| Supported design risk | Credible conditional failure path in source/config; frequency may be unknown |
+| Verification gap | Important claim lacks evidence (e.g., backup exists without current-revision restore + transaction check) — not an observed defect |
+| Improvement opportunity | Supported improvement justified without a defect |
 
-## Engineer the improvement and proof
+- Inspect controls rather than demanding named patterns: e.g., an enforced shared overall deadline
+  that cancels transport and releases connections protects the path without a circuit breaker.
+- For **existing-service readiness audits**, check owner/on-call, runtime/health check,
+  deploy/rollback path, telemetry arrival, SLI/SLO/alerts with runbooks, dependencies/headroom, and
+  dated restore drills. Present-but-undocumented = documentation gap; absent from both = readiness gap.
 
-Compare the smallest effective change with existing controls and consequential alternatives. Specify
-the mechanism it changes, compatibility, degraded behavior, operational burden, recovery, owner and
-acceptance criteria. Return consequential shared-contract decisions for `principal-engineer`. Implementation,
-independent change review and live execution retain their existing owners.
+## Engineer improvements, retry/capacity bounds, and proof
 
-Include these elements within the caller's permitted sections or fields when their condition applies:
+Compare the smallest effective change against alternatives (`principal-engineer` owns shared
+contracts; application team implements; human owner approves production changes). Include when
+applicable:
 
-- For a retrying path, **Retry paths:** the condition for another call and the exit paths.
-  When client behavior is unknown, explain conditionally: a false return may permit another call
-  if the retry condition and budget allow;
-  an uncaught exception exits the path; a caught exception depends on its handler. Which behavior a
-  timeout produces stays unknown until source or observations establish it.
-- For retry timing, **Retry-count basis:** the source wording and whether it establishes maximum
-  total calls or retries after the initial call. If that meaning is unresolved, state each compatible
-  total-call count as an interpretation; do not label one selected count as sourced. Keep these
-  alternatives beside every derived sum and later reuse until code or target-bound evidence resolves them.
-- For a numeric timing or capacity claim, **Timing and capacity basis:** the equation and units,
-  with measured and assumed inputs separated. For retry timing, use the retry-count basis, requested versus
-  enforced timeout, backoff, cancellation and slot release.
-  A timeout sum alone bounds neither elapsed time nor occupancy. A throughput estimate from slots
-  needs actual or explicitly hypothetical mean slot residence and capacity after shared demand;
-  a maximum duration alone supplies neither a mean nor a throughput ceiling.
+- **Retry paths:** State which return values (`false`/error vs. exception) re-enter the loop and
+  which exit; unknown timeout behavior stays explicit until code/tests confirm it.
+- **Retry-count basis:** Distinguish `"up to N total calls"` from `"initial call + N retries"`
+  unless source resolves it; carry both interpretations beside derived sums and correct helper
+  summaries that collapse them.
+- **Timing and capacity basis:** Separate measured from assumed inputs. Never multiply per-attempt
+  timeouts into a proven elapsed/occupancy bound — and when an enforced overall deadline is
+  established, keep that effective overall bound instead of reopening per-attempt products. A
+  concurrency bulkhead protects shared capacity only if admission/waiting happens *before* acquiring
+  shared worker slots (or rejects/defers without holding a shared slot). Throughput from slots needs
+  actual/explicit mean residence and shared-demand accounting (never substitute a max timeout for
+  the mean).
 
-Carry the conditions beside every reused number in recommendations, tables and proposed checks.
-An earlier caveat does not turn conditional arithmetic into a worst case or capacity limit later.
-When supplied evidence already establishes an overall deadline, preserve that scope and examine
-enforcement or release gaps rather than reopening per-attempt scope.
-Reconcile a helper's calculation with its source before endorsing the summary: source-reported
-inputs are sourced; the derived number and its assumptions remain a separate calculation.
-Use existing permitted calculators when available; no tool capability may be invented. A model
-estimate is not measured load-test evidence.
-A concurrency limit protects shared capacity only if admission or waiting does not retain the
-slots being reserved.
-
-Verification names the target/version, stimulus, expected user and resource behavior, discriminating
-measurements, bounds/stop conditions, and recovery checks. To verify an admission or isolation control,
-drive arrivals above completion capacity until its limit and overflow path are exercised, while
-protected work runs concurrently. Count active work, permit waiters and retries in shared-slot
-occupancy; representative demand alone may never exercise the protection. Preserve actual results
-separately from the proposed test. Assess findings and coverage, not a blanket reliability score; test passes do not
-approve a deployment. See [worked contrasts](references/worked-contrasts.md) for supported risks,
-effective controls and missing evidence. External practices, including Google SRE guidance on
-non-abstract design, cascading failures, reliability testing and SLOs, are guidance, not company
-policy; check platform documentation for version-specific mechanisms.
+**Verification proposals** stay `proposed` (never claim execution or trigger production faults): name
+target/version, overload stimulus above completion capacity while protected work runs concurrently,
+occupancy counts (active + waiting + retries), stop bounds, post-fault drain, and reconciliation checks.

@@ -82,5 +82,5 @@ MCP still needs a registered server; native VS Code opens an isolated page, or u
 explicitly shares, with that tab's sign-in.
 Neither frontmatter nor a viewing-only prompt enforces read-only account rights, secret masking,
 origin confinement or image delivery. The
-[Grafana visual reference](../skills/grafana/references/visual-verification.md) owns those
+[Grafana dashboard-reading reference](../skills/grafana/references/dashboard-reading.md) owns those
 prerequisites.

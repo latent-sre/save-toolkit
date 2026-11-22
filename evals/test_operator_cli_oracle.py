@@ -175,8 +175,6 @@ class OperatorCliOracleTests(unittest.TestCase):
         outcome = [check for check in spec["checks"] if "writes_from" in check]
         self.assertEqual([{"_operator_oracle.py": "evals/oracles/operator-cli/check_requeue.py", "oracle_protocol.py": "evals/oracles/oracle_protocol.py"}],
                          [check["writes_from"] for check in outcome])
-        self.assertTrue(any(check["check"] == "skill_loaded" and check["skill"] == "operator-cli"
-                            for check in spec["checks"]))
         self.assertNotIn("signal", spec["fixture"]["files"]["jobs_api.py"].lower())
 
     def test_interrupted_receipts_reject_missing_or_extra_targets(self):

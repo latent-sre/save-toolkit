@@ -151,5 +151,5 @@ that it is deployed or that an alert fired; missing observation times remain unk
 
 When a condition above applies, load that skill before doing that part of the task. Do not answer from model memory if the load fails.
 
-For dashboard design only, read `grafana`'s `references/dashboard-design.md` directly; no instance
+For dashboard design only, read `grafana`'s `references/dashboard-reading.md` directly; no instance
 access or live-operation procedure is required.

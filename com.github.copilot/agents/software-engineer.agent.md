@@ -112,7 +112,7 @@ Tie-breakers: correctness first; then clarity over brevity or cleverness; a smal
 - **Helpers (`scribe`, `researcher`).** When the caller requests a runbook update alongside a code change, give `scribe` one bounded assignment with the runbook path, changed behavior, and verification evidence, and check the returned edit against the implementation (if delegation is unavailable, return the handoff to the caller). Use `researcher` for external library, API, or upstream documentation lookups with public questions only.
 
 ### Required on-demand skills
-- `cicd-github` — before submitting or rerunning GitHub Actions validation, including failed checks. Follow its `references/validation-runs.md`.
+- `cicd-github` — before submitting or rerunning GitHub Actions validation, including failed checks. Follow its bounded CI runs section.
 - `stack-profile` — when its description marks the detected stack support-only (`Java/JVM`), or before choosing or changing a runtime, dependency, tool, infrastructure option, or a toolchain default the repository does not settle
 - `root-cause` — when a defect or test failure is non-obvious, unexplained, or flaky, or when a fix attempt fails, hits three failed fixes, or starts guessing ("it's probably X, let me change it and see"); load before further patching and follow its full loop
 - `api-craft` — before designing or changing HTTP APIs, webhook receivers, HTTP clients, or the persistence and asynchronous work needed to fulfill an API contract
@@ -120,7 +120,6 @@ Tie-breakers: correctness first; then clarity over brevity or cleverness; a smal
 - `python-craft` — before writing, refactoring, or modernizing Python; compose with the applicable service or CLI contract
 - `go-craft` — before writing, refactoring, modernizing, or testing Go; compose with the applicable API or CLI contract
 - `frontend-craft` — before writing web UI code
-- `operator-cli` — before building or changing a CLI's output, configuration, failure, or effect contract
 
 ## 5. Return format
 

@@ -1,79 +1,45 @@
-# Signal patterns
+# Signal patterns, symptom comparisons, and systemic analysis
 
-Patterns guide comparisons; evidence may change ranking or leave it unchanged. For multi-service
-impact or harm outliving its trigger, also read [systemic analysis](./systemic-analysis.md).
+Interpret evidence strictly within target, population, coverage, and window bounds. Correlation or
+post-change improvement alone never proves causation, and an exhaustion mechanism never excludes the
+upstream demand, dependency, or change that drove it.
 
-For a comparison, state the observed difference, the causes still compatible with it, and the next
-check that distinguishes those causes. Timing or improvement after a change alone does not attribute
-the outcome to that change. Establishing a mechanism such as exhaustion does not exclude the
-dependency, demand, or change that produced it.
+## Symptom comparisons
 
-## Dependencies
+Choose a comparison within confirmed access (for known PCF apps with confirmed view access, use
+Apps Manager -> app -> Overview -> app events; otherwise request owner exports or safe tickets):
 
-- errors or timeouts on calls to one dependency while other calls stay healthy point at that
-  dependency or at the app's client for it (its pool, timeout, or credentials): split the caller's
-  errors and latency by downstream target before blaming either;
-- several services failing together suggest a shared dependency; verify their common calls;
-- a dependency that is fast from the caller's side, for the failing requests, is not slow however
-  many times it is called — count the calls instead; its own flat dashboard clears only the series
-  it covers, so it stays open until timings split by the failing region, route, or account type
-  are compared;
-- for a 429, identify which component enforced the limit and compare its scope and window with
-  the caller's request and retry volume;
-- a refused or reset connection can reflect the caller's endpoint selection or connection reuse,
-  an intermediary, or the dependency's listener. Compare callers attempting the same endpoint in
-  the same window and match their attempts to proxy or listener records;
-- for a certificate error, compare the hostname and chain presented to failing and healthy callers
-  with their trust stores and, for mutual TLS, their client certificates. A caller trust change and
-  a dependency certificate change remain possible even at steady call volume;
-- retries against a struggling dependency multiply its load and can keep it down after the trigger
-  is gone: compare the caller's retry rate with the dependency's load;
-- a normal status code and latency do not prove correct content: a stale quote, wrong price, or
-  wrong position can come back fast with a 200 — check the content itself.
+| Symptom | Useful first comparison | Decision impact |
+|---|---|---|
+| "Users cannot log in" | Compare failing vs working attempts by stage: page reachability, submit/MFA, callback, protected action | Narrows stage; denial after sign-in points to permissions/session. Never collect passwords, tokens, or cookies |
+| "It fails sometimes" | Compare failure/success over the same interval by cohort, route, region, version, or request ID | Cohort differences lead; uniform rates keep shared paths open. Green aggregates never clear a minority |
+| "Requests are slow" | Separate pre-work wait, processing, and downstream time against normal baseline | Total duration alone hides where delay sits; inspect a sample breakdown before sizing |
+| "Monitor/Situation says down" | Compare failing/passing external vantages against in-network requests and platform state | External-only failure points to edge/DNS/network; treat Situation scope/start as hypothesis; restarting healthy apps worsens impact |
+| "Data is old or wrong" | Compare one safe record's source, processed result, and published value/version with clock zones | Newer processed record + stale visible view narrows to publication/serving; stale processed narrows ingestion/processing; never substitute a summary count for one end-to-end record |
+| "Job never finished" | Compare due time/zone, dispatch/start/progress events, and delivery/recipient readback | Matching readback at 08:20 after 08:00 finish proves receipt, not delivery latency/path (ask provider-acceptance + delivery events with zones); reconcile before any rerun |
 
-## Other patterns
+## Dependency and signal patterns
 
-- latency rising before errors is consistent with waiting followed by timeouts, among other
-  mechanisms. Compare the affected requests' waits, processing and downstream timing with limits;
-  compare any change's exposure time with observed onset before ranking it;
-- one hot instance among calm ones is instance-scoped impact, not yet a local cause: routing
-  skew, sticky sessions, or poison input can land a shared fault on one process, so compare
-  routing, inputs, and resources before calling it local. Uniform impact across instances leaves
-  both shared resources and the same local defect or configuration on each instance open; compare
-  their revisions, inputs and dependency paths before locating the cause;
-- a restart timestamp establishes a restart, not its cause or deployed revision. Compare actual
-  revision identities before treating a restarted cohort as the new-code cohort;
-- a sampled thread waiting to *get* a connection establishes an acquisition wait at that instant.
-  Compare wait duration with separately observed configured maximum, created, borrowed and
-  idle/eligible connections for that pool. Borrowed count divided by the matching configured
-  maximum measures use of the limit; their difference is unused configured capacity, not a count
-  of ready connections. Waiting below that maximum leaves creation, validation, acquisition-path
-  contention and other client limits open. Ask the owner for the missing stage's observations;
-  neither low occupancy nor long acquisition waits alone locate or exclude the bottleneck. A
-  holder's downstream wait can explain its lease duration without explaining every waiter's delay;
-- capacity is a limit, not observed occupancy or a count of workers. Combine counts only when their
-  units, population, and observation window match; otherwise the derived count stays unknown.
-  A count without the relevant denominator or impact bound does not establish that impact is small;
-- load-balancer seconds versus application-log milliseconds can reflect time outside the logged
-  interval, including in-process queueing. Match the same request and timer boundaries before
-  locating the delay;
-- repeated snapshots establish repeated observations, not uninterrupted duration. A sample's timestamp
-  does not replace its aggregation window, and a later fresh view does not establish an earlier view's freshness.
-  Completion time does not establish start time. An observed failure bounds onset at or before that
-  observation, not at or after it;
-- low aggregate CPU with high latency leaves waiting, per-core saturation, and CPU throttling
-  open — a blocked pool, one hot instance, or one saturated thread hides under a low average, so
-  check the affected requests' waits and the instance's CPU limit or per-core usage;
-- an old last-event time or an empty view is a missing observation: it proves neither staleness,
-  a broken pipeline, nor health — check coverage and signal arrival;
-- earlier onset excludes a later change as the initiator of that earlier symptom, not as an amplifier
-  of later impact. Old-version failures do not exclude shared deployment effects. A pre-existing
-  leak does not prove rollback cannot help: it may remove amplification or recycle affected state.
-  Unreturned connections may still be legitimately in flight; check owner completion and return
-  behavior before calling a gap a leak. A sample does not establish permanence or exclude later reclamation;
-- a fresh zero covers the metric's outcome definition and window. It does not exclude user failures
-  that the metric may not count; absent errors cannot identify which telemetry component is faulty;
-- a running instance does not establish that a job was accepted, completed, or had its intended effect;
-  use operation-bound receipts and outcome evidence for those claims;
-- degradation after rollback/flag-off: confirm effective removal, then test sustaining mechanisms
-  under [systemic analysis](./systemic-analysis.md). Did dependency load actually fall?
+- **Downstream & network splits:** Split caller errors/latency by downstream target before blaming client or dependency. Multiple callers failing together suggest a shared dependency. A dependency that looks fast from the caller on failing requests is not slow — count calls instead, and split flat aggregate dependency dashboards by failing region/route/account before clearing it.
+- **429s, resets & TLS:** For `429`, identify which layer enforces the limit and compare caller request + retry volume against the limit's window. For connection refused/reset, compare multiple callers in the same window with proxy/listener records. For TLS/mTLS errors, compare presented hostname/chain with caller trust store and client certs even when traffic is flat. Confirm payload correctness separately from `200 OK` + fast latency (stale quotes/prices/positions return `200`).
+- **Timing, hot instances & restarts:** Latency rising before errors fits waiting followed by timeouts — compare change exposure time against onset (earlier onset excludes a later change as initiator, not as an amplifier; pre-existing leaks do not prove rollback won't help via amplification/state recycle). A single hot instance points to routing skew, sticky sessions, or poison input as well as local faults; uniform instance failures leave shared dependencies and uniform code/config defects open. Restart time != deployed revision identity.
+- **Pools, capacity & CPU:** `"Waiting to acquire a connection"` proves an acquisition wait at that instant — compare configured maximum, created, active/borrowed, idle/eligible, and waiting counts (`borrowed / maximum` = limit use; `maximum - borrowed` = unused configured capacity, NOT ready connections; waiting below max leaves creation/validation/lock/downstream-lease duration open). Capacity is a limit, never occupancy; match units/populations/windows before deriving ratios (`LB seconds` vs `app milliseconds` can reflect in-process queueing; `unreturned` count at one snapshot can still be in-flight requests). Low aggregate CPU with high latency leaves pool waits, hot instances, single-thread stalls, and per-core CPU throttling open.
+- **Snapshots & telemetry coverage:** Repeated snapshots != uninterrupted duration; sample time != aggregation window; completion time != start time (an observed failure proves onset at or before that time, never after). Empty views or old last-event times prove missing coverage, not staleness or health. Fresh zero only covers what the metric defines and captures. Running instances never prove job completion or downstream effect; verify operation receipts.
+
+## Systemic analysis (cascades, shared fate, and persistence)
+
+Sketch affected callers, dependencies, queues, and shared failure domains (pool, partition, tenant,
+cell, zone, DB, identity, network path) and compare with an unaffected cohort:
+
+| Candidate mechanism | Discriminating check |
+|---|---|
+| Cascading timeouts | Did downstream latency rise before caller pool occupancy and caller timeouts on the same requests? |
+| Retry amplification / herd | Compare total attempts per original request and retry burst timing vs successful work (are retries keeping the dependency down?) |
+| Saturation collapse | Compare arrival rate, queue age, service time, and limits across onset |
+| Poison item / stuck partition | Compare repeated failing item IDs, partition offset lag, and oldest-item age against healthy partitions |
+| Control-loop feedback | Align autoscaler, health-check restart, or failover events with load/error spikes (controllers can amplify harm) |
+| Shared dependency / domain | Trace common downstreams/quotas/paths across co-failing services (simultaneous alerts alone do not prove shared cause) |
+| Self-sustaining degradation | First confirm trigger removal (did rollback/flag-off land and dependency load drop?), then check remaining backlog, retries, or cold caches |
+
+Interrupt the mechanism (suppress retries, isolate poison partitions) while warning of destructive side
+effects (dropping queued work loses data). Confirm recovery across affected partitions and cohorts over the full window, not just an improved aggregate mean.

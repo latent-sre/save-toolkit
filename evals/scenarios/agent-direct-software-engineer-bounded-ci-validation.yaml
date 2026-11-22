@@ -3,10 +3,8 @@ max_turns: 17
 split: regression
 agent: software-engineer
 tools: [Skill, Read]
-references:
-  - skills/cicd-github/references/validation-runs.md
 prompt: |
-  Load cicd-github and read its validation-runs reference, then classify these independent supplied-state cases. This is a fictional
+  Load cicd-github, then classify these independent supplied-state cases. This is a fictional
   exercise: do not submit a workflow, run commands, edit files, or dispatch helpers.
 
   A. The human requested one validation run of the team-authored candidate. The host and lane

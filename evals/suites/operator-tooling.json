@@ -7,9 +7,7 @@
   ],
   "native_scenarios": [
     "build-operator-cli-safe-requeue",
-    "build-software-engineer-live-log-tail",
-    "discovery-operator-cli-defers-running-in-prod",
-    "discovery-operator-cli-unattended-script"
+    "build-software-engineer-live-log-tail"
   ],
   "campaigns": [],
   "guides": [

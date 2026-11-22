@@ -1,63 +1,66 @@
-# Read, explain, and review a dashboard
+# Dashboard design, reading, review, and visual verification
 
-Resolve the UID through bounded search; read the model and relevant panel queries/data. Summaries
-select panels, not health verdicts. Use [HTTP API & JSON model](./http-api.md#dashboard-model-and-edit-rules)
-for schemas and [dashboard design](./dashboard-design.md) for design changes. Repository copies do
-not authorize writes.
+Resolve the UID via bounded search, read the stored model and panel queries, and confirm live query
+and visual evidence separately. Repository exports never authorize live writes, and summaries
+select panels rather than proving service health. See [HTTP API](./http-api.md#dashboard-model-and-edit-rules)
+for JSON schema details and [HTTP API change loop](./http-api.md#dashboard-change-loop) for writes.
 
 ## Reading and interpreting panels
 
-- Panel thresholds do not prove an alert rule exists or evaluates the same expression, and panel
-  time overrides change the window a panel shows.
-- The helper's `dashboard --uid <uid> --panel <id>` isolates a Classic or V2 panel with its dashboard
-  version and variable/time context (`coverage: configuration_only`). Library panels and saved
-  selections must be resolved against the actual view.
-- Inspect per-query errors even under HTTP 200; `obs-analysis` owns rate, percentile and missing-data
-  logic. The SRE helper queries only Prometheus and Loki; for another backend, return the missing read.
-- Bind [visual verification](./visual-verification.md) to the same query window and variables.
+- Fix **absolute time window**, **timezone**, and **template variables** before interpreting any
+  panel (panel time overrides narrow or shift the dashboard window).
+- Panel colors, thresholds, or titles (`"healthy"`) prove neither that an alert rule exists nor that
+  users are healthy; from a stored model without live query data, mark health **unverified/unknown**.
+- `grafana_read.py dashboard --uid <uid> --panel <id>` isolates a Classic or V2 panel (`coverage: configuration_only`); resolve library panels and saved views against the live dashboard. Inspect per-query errors even under HTTP 200 (`obs-analysis` owns rate, percentile, and missing-data logic; the SRE helper queries only Prometheus and Loki).
+
+## Dashboard design
+
+Design-only requests need no live access or change workflow (`observability-engineer` implements;
+`stack-profile` owns stack choices, `obs-analysis` owns query/SLO semantics).
+
+- Distinguish no traffic, zero, missing telemetry, and query failure; never fill an error ratio or
+  numerator with `or vector(0)` or null-to-zero. For scrape presence, use
+  `count(up{job="<job>"} == 1) or on() vector(0)` after confirming labels (native OTLP push has no
+  `up`; Collector/Alloy Prometheus scrape forwarded over OTLP does).
+- Preserve unrelated panels and published UIDs; leave Classic/V1 `timezone` unset (V2
+  `timeSettings.timezone` defaults to `"browser"`, pick with the owner). Datasource variables switch
+  only interchangeable same-type sources; Splunk (`grafana-splunk-datasource`) is Enterprise-only and
+  needs confirmed edition, installed plugins (`GET /api/plugins`), and license entitlement. Load
+  [alerting](./alerting.md) when design reaches Grafana routing/provisioning.
 
 ## Sharing, access, and editor changes
 
-Documented Viewer/Editor capabilities do not establish target permissions; confirm actual grants,
-and prepare permission or role changes for the human under [access authority](../SKILL.md#access-and-authority).
-
-- Snapshots embed queried data outside normal dashboard access: scrub them, set expiry, and treat
-  sharing as data egress. Prefer an access-controlled live link with time range, `var-<name>`
-  values and timezone.
-- Inventory every library-panel consumer before editing: changes propagate to all consumers.
-- A version-history restore is durable only for unmanaged dashboards. Provisioned or tool-managed
-  resources must change through their owner or reconciliation replaces the UI/API edit.
-- UI/API saves and restores follow the [API procedure](./http-api.md), including save messages,
-  concurrency, and rollback checks.
+- **Roles & inheritance:** **Viewer** views dashboards/folders; **Editor** creates/edits within
+  permitted folders; **Admin** manages org settings, datasources, and permissions. Confirm actual
+  grants rather than inferring them from roles; dashboard permissions inherit from their **folder**
+  (and moving folders alters inherited permissions).
+- **Snapshots & library panels:** **Snapshots** embed queried data outside dashboard permissions
+  (data-egress risk: scrub and set expiry, or share an access-controlled live link with window,
+  `var-<name>`, and timezone). Inventory all consumers before editing a shared **library panel**.
+- **Provisioned ownership:** Version-history restores endure only on unmanaged dashboards;
+  **provisioned** or tool-managed dashboards (`provisioned: true`, even when `canSave: true`, or
+  `canSave: false`) revert on reconciliation and must change in their **owning source**.
 
 ## Read-only review and static hygiene
 
-1. **Discover and sample.** Follow [API preflight](./http-api.md); inspect effective actions,
-   including plugin grants, rather than inferring them from a Viewer role. Cap paginated search and
-   record the datasource/schema/variable/layout sample.
-2. **Check ownership and stored shape.** Read legacy metadata and the pinned app-platform model.
-   `provisioned: true` (even with `canSave: true`) or `canSave: false` permits review, not an API
-   edit. A recovery copy does not prove ownership; a converted read does not prove stored-schema
-   migration.
-3. **Run static hygiene offline** where the lane permits local execution. Invoke the installed
-   [dashboard_hygiene.py](../scripts/dashboard_hygiene.py) (keep `grafana_read.py` beside it for V2
-   mapping):
+1. **Discover & inspect ownership:** Run [HTTP API preflight](./http-api.md#preflight-api-families-and-stored-version)
+   and check `meta.provisioned` / `meta.canSave` (or `grafana.app/managedBy`). Reviews stay
+   read-only (`Apply repairs now: NO`); never create snapshots, restore, or request write grants.
+2. **Offline hygiene:** Run stdlib-only [dashboard_hygiene.py](../scripts/dashboard_hygiene.py)
+   (`python "<absolute-installed-path>/dashboard_hygiene.py" dashboard.json --format json`, with
+   `grafana_read.py` beside it for V2 mapping; exit `0` = no review-required findings, `1` = review
+   required, `2` = uncheckable/`unsupported_v2`). Resolved **fixed datasource UIDs** are an advisory
+   **portability warning**, not a broken datasource; `_total` is a heuristic, not type evidence.
+3. **Sample queries & visuals:** Exercise bounded `POST /api/ds/query` checks with real variables
+   and classify defects, portability/advisory notes, and unverified heuristics by count.
 
-   ```text
-   python "<absolute-installed-path>/dashboard_hygiene.py" dashboard.json --format json
-   ```
+## Visual verification
 
-   Text is the default. JSON carries `ok` (checked, not finding-free), `coverage`, `title`,
-   `panel_count`, `findings` (`rule`, `where`, `detail`, `severity`), `query_analysis`, and `errors`.
-   Severity is `advisory` (presentation/portability) or `review` (query/missing-target). Exit 0 means
-   no review-required findings, 1 requires review, 2 means uncheckable (including `unsupported_v2`).
-   Fixed UIDs are portability advice; `_total` is a name heuristic, not type evidence. For V2,
-   `dashboard-linter` v0.5.2+ adds only basic checks (required fields, element references); full
-   schema validation remains a recorded gap.
-4. **Sample queries and presentation.** Exercise a bounded query sample (`POST /api/ds/query` with
-   real variables, window, and step) and follow [visual verification](./visual-verification.md) where
-   available. Do not save, import, restore, create snapshots/test resources, trigger alerts, or alter
-   permissions during a review. Do not seek write grants just to finish a review.
-5. **Classify findings** as confirmed defects, advisory improvements, or unverified heuristics before
-   repair, and report counts by category. Saved queries are GA for Enterprise; confirm entitlement
-   and grants before recommending them.
+Query results, `rendererAvailable`, HTTP 200 PNG bytes, and **inspected images** are separate claims:
+API or PNG success without viewing the rendered image leaves visuals **`UNVERIFIED`**.
+
+| Access | Next step |
+|---|---|
+| Authorized browser session | `rendererAvailable=false` never blocks browser screenshots (`BROWSER_AVAILABLE`). Open URL on assigned HTTPS origin, freeze UTC window/variables, use only unsaved view controls (no `filename` arg in Playwright, never enter creds, never follow cross-origin links, never click save/silence/delete). |
+| Server renderer available | **Grafana 13 removed the legacy renderer plugin** — use only the **standalone rendering service** (`STANDALONE_SERVICE`) with `renderer_token` JWT. SRE agent uses helper [`render`](./command-access.md#gcx-and-bundled-read-helper-rules); other agents use same-origin `GET /render/d-solo/<uid>/<slug>` (carry `orgId`, `tz`, `var-<name>`, absolute window, `scale=1`, `1200x600`, 45 s timeout, 8 MiB max, header auth). Wait/check dims: hit of `concurrent_render_request_limit` returns a **stock HTTP 200 placeholder PNG** (e.g., `526x202`) — reject dimension mismatches, login pages, or mismatched query/image windows or environments (`env=staging` image != `env=production` queries -> matched evidence `NO`). |
+| Unusable / screenshot-only | Explain visible cues marking unverified window/vars/freshness; mark presentation `[unverified]`. |

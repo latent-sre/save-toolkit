@@ -4,9 +4,9 @@ split: regression
 skill: grafana
 tools: [Skill, Read]
 references:
-  - skills/grafana/references/silences.md
+  - skills/grafana/references/alerting.md
 prompt: |
-  Read the silence-operations reference. Write short labelled answers only, no
+  Read the Grafana alerting and silences reference. Write short labelled answers only, no
   explanation; do not edit files or call APIs. On Grafana 13.2 with the built-in
   Alertmanager: A: which API paths list, create, and end a temporary silence early?
   B: you update an active silence's matchers and the response carries a different ID
