@@ -1,33 +1,26 @@
 # Gorouter error interpretation
 
-Apply the [parent header-capture, escalation and authority rules](../SKILL.md).
-Status alone does not establish cause; use the router error and corroborating evidence:
+Status alone does not establish cause; inspect `X-Cf-RouterError` alongside app and platform evidence.
+Agents do not probe untrusted routes; obtain response headers from a human or approved capture point.
 
 | `X-Cf-RouterError` | Status | Means |
 |---|---|---|
-| `unknown_route` | **404**; 400 when an `X-Cf-App-Instance` or `X-Cf-Process-Instance` header names an absent instance | route absent from the router table |
-| `no_endpoints` | **503** | route exists, no healthy backends |
-| `endpoint_failure` | **502** by default; varies, see below | backend selected; connection or response failed; app receipt unproven. The value usually carries the error: `endpoint_failure (<error>)` |
-| `Connection Limit Reached` | 503 | backend connection limit |
-| `route_service_unsupported` | 502; 503 for a websocket upgrade | route-service configuration problem |
-| `empty_host` | 400 | `Host` header empty or equal to the remote address, often set by a load balancer |
-| `invalid_cf_app_instance_header`, `invalid_cf_process_instance_header` | 400 | malformed instance-routing header |
-| `max-request-size-exceeded` | 431 | request line and headers over the router's configured limit |
+| `unknown_route` | **404** (400 if `X-Cf-App-Instance`/`X-Cf-Process-Instance` names a missing instance) | Route absent from the router table |
+| `no_endpoints` | **503** | Route exists, no healthy backends |
+| `endpoint_failure` | **502** by default (varies below) | Backend selected; connection or response failed; app receipt unproven (usually `endpoint_failure (<error>)`) |
+| `Connection Limit Reached` | **503** | Backend connection limit reached |
+| `route_service_unsupported` | **502** (503 for websocket upgrade) | Route-service configuration error |
+| `empty_host` | **400** | `Host` header empty or equals remote address (often an upstream LB misconfig) |
+| `invalid_cf_app_instance_header`, `invalid_cf_process_instance_header` | **400** | Malformed instance-routing header |
+| `max-request-size-exceeded` | **431** | Request line and headers exceed router limit |
 
-- `endpoint_failure` status follows the failure: 525 TLS handshake failure or TLS to a non-TLS
-  backend; 503 backend certificate hostname mismatch; 526 backend certificate not verified; 496
-  backend rejected the client certificate; 502 otherwise. A 499 (client cancelled before headers)
-  appears only in Gorouter logs; the client never receives it.
-- For `endpoint_failure`, check refused connections, mid-request crashes, router timeouts and
-  keep-alive races; app receipt is unproven. Upstream Gorouter's backend idle timeout is hardcoded
-  at 90 s. An app idle timeout **< 90s** can close a connection as Gorouter reuses it; propose
-  **> 90s** for the app server (Tomcat: `server.tomcat.keep-alive-timeout`) under the parent change
-  rules. This concerns router-to-app pooling; frontend idle timeout is separate and
-  platform-configurable. Gorouter changes remain platform-owned.
-- A backend certificate failure can also be **platform-side**: clock skew between Gorouter and a Diego cell makes the cell's
-  TLS certificate look not-yet-valid (`x509: certificate ... is not yet valid`), surfaced as
-  `ExpiredOrNotYetValidCertFailure` with status 502. Escalate that NTP/time-sync evidence to the platform team rather
-  than chasing it app-side.
-- A 503 with `no_endpoints` calls for backend-availability checks; `Connection Limit Reached`
-  calls for connection-pressure checks; `endpoint_failure` calls for backend certificate identity
-  checks. A bare 503 does not prove all instances are down.
+- **`endpoint_failure` status breakdown:** `525` TLS handshake failure or TLS to non-TLS backend;
+  `503` backend cert hostname mismatch; `526` backend cert not verified; `496` backend rejected
+  client cert; `502` otherwise. `499` (client cancelled before headers) appears only in Gorouter logs.
+- **Keep-alive races:** Upstream Gorouter's backend idle timeout is hardcoded at **90 s**. An app
+  server idle timeout `< 90 s` can close a socket right as Gorouter reuses it; recommend `> 90 s` on
+  the app server (e.g. Tomcat `server.tomcat.keep-alive-timeout`) under `production-change-gate`.
+  Gorouter configuration itself is platform-owned.
+- **Platform clock skew:** A `502` with `ExpiredOrNotYetValidCertFailure` (`x509: certificate ... is not yet valid`)
+  indicates clock skew between Gorouter and a Diego cell — escalate NTP/time-sync evidence to the
+  platform team rather than debugging the app.

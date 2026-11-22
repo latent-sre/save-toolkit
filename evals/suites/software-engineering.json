@@ -25,8 +25,7 @@
     "evals/test_python_project_baseline_oracle.py",
     "evals/test_reviewer_cases.py",
     "evals/test_root_cause_probe.py",
-    "evals/test_software_engineer_overtesting.py",
-    "scripts/test_frontend_craft_assets.py"
+    "evals/test_software_engineer_overtesting.py"
   ],
   "native_scenarios": [
     "agent-direct-handoff-software-engineer-accepts-approved",

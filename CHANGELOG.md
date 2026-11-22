@@ -13,6 +13,8 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
 
 ### Changed
 
+- Consolidate `pcf-deploy` into `pcf-ops` and streamline `production-change-gate`, `gcp-ops`,
+  `frontend-craft` (removing bundled starter assets), and `api-craft`.
 - **Software Engineer:** Reconcile shift-left assumption probing with standing-evidence reuse,
   clarify internal vs. external caller modernization, name `Java/JVM` support-only, and align `root-cause` triggers.
 - **Reviewer:** Make the review method self-contained without `Skill`, add a scratch-pad loop and

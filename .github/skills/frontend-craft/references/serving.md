@@ -1,73 +1,41 @@
-# Build, configure and serve
+# Production build, serving, and runtime configuration
 
-When [verification calls for a served build](../SKILL.md#verify-before-handing-off), run the
-[serving contract](../assets/serving-contract.mjs) against a production build behind the production
-server configuration, locally or on a non-production route. If neither is available, report the
-contract as unverified. `vite preview` fails its missing-file check by design.
+Run served-build checks against a production build behind the real server/nginx configuration (`vite preview`
+does not enforce missing-file 404 or header rules).
 
-## Localhost and runtime configuration
+## Localhost & runtime configuration
 
-Proxy the actual API through Vite `server.proxy` (`API_TARGET`, `ws: true` for WebSockets) to
-keep cookies/calls on one origin; discover its port rather than assuming a framework default.
+- Proxy the backend API in Vite (`server.proxy` with `API_TARGET` and `ws: true`) to keep cookies and
+  requests same-origin; discover the actual backend port.
+- Build once (`vite build`) and fetch same-origin `/config.json` with `cache: "no-store"` before first
+  render (`public/config.json` in dev). Validate against a strict schema (reject unknown keys and
+  cross-origin `//` or non-`http(s)` URLs), show an explicit startup error on failure rather than a blank
+  screen, display the environment in the shell and destructive confirms, and never place secrets in
+  `config.json` or `VITE_*`.
 
-When promoting one build (`vite build`, hashed `dist/assets/`) across environments, load
-same-origin `/config.json` before first render with [runtime-config.ts](../assets/runtime-config.ts)
-(`public/config.json` in dev). Render startup errors and show the environment in the shell and
-destructive confirms. Never put secrets in `config.json` or `VITE_*`.
+## PCF delivery (`staticfile_buildpack`)
 
-## PCF
-
-For PCF delivery, assemble a CI deploy directory with `dist/` and these files (never push the source tree):
+Deploy a CI-assembled bundle containing `dist/` and these files (never push `src/` or `node_modules`):
 
 | File | Contract |
 |---|---|
-| `Staticfile` | `root: dist` (without it the app is served under `/dist/`, and `location_include` is documented to need an alternative root); `pushstate: enabled`; `location_include: includes/*.conf`; `force_https: true` and `http_strict_transport_security: true` |
-| `nginx/conf/includes/spa.conf` | Inside `location /`: HTML gets `Cache-Control: no-cache`, CSP, `nosniff` and referrer policy with `always` (no HSTS here; the buildpack adds it in this location). Nested locations with their own `add_header` inherit none of these, so repeat them, HSTS included: `location ^~ /assets/` (`max-age=31536000, immutable`, `try_files $uri =404`), `location = /config.json` (`no-cache`), and a regex location for file extensions with `try_files $uri =404` (real files serve; a missing one gets an uncached `404`) |
-| `.profile` | Writes `$HOME/public/config.json` atomically from `UI_*` env vars before nginx starts; fails on missing required values, control characters, or non-root-relative API paths |
-| `manifest.yml` | `staticfile_buildpack`, workload-appropriate memory, HTTP health check on `/`, host route and `UI_*` values |
+| `Staticfile` | `root: dist` (required so `location_include` paths resolve); `pushstate: enabled`; `location_include: includes/*.conf`; `force_https: true`; `http_strict_transport_security: true`. |
+| `nginx/conf/includes/spa.conf` | Inside `location /`: HTML sets `Cache-Control: no-cache`, CSP, `X-Content-Type-Options: nosniff`, and `Referrer-Policy` with `always` (buildpack adds HSTS here). Because nginx nested `location` blocks with `add_header` **do not inherit parent headers**, repeat security headers and HSTS inside `location ^~ /assets/` (`max-age=31536000, immutable`, `try_files $uri =404`), `location = /config.json` (`no-cache`), and a file-extension regex location with `try_files $uri =404`. |
+| `.profile` | Atomically generates `$HOME/public/config.json` from `UI_*` env vars before nginx starts; fails closed on missing required vars, control characters, or non-root-relative API paths. |
+| `manifest.yml` | `staticfile_buildpack`, memory limit, HTTP health check `/`, host route, and `UI_*` vars. |
 
-Serve the API on a context-path route of the same host (e.g. `host.domain/v1`). If `staticfile`
-rewrite precedence cannot satisfy the contract, use `nginx_buildpack` with a full `nginx.conf`
-(`try_files $uri /index.html` for routes, `try_files $uri =404` for assets).
+Co-serve the API on a context-path route of the same host (e.g. `host/v1`). Use `nginx_buildpack` with
+a full `nginx.conf` if `staticfile` rewrite rules cannot satisfy the contract.
 
-## Security headers and the CSP
+## Security headers, caching, and verification
 
-Serve HTML with `X-Content-Type-Options: nosniff`,
-`Referrer-Policy: strict-origin-when-cross-origin` and:
-
-```text
-default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'
-```
-
-Set `build.assetsInlineLimit: 0` so small assets emit files; tighten `style-src` when kits emit
-stylesheets. Never loosen `script-src` for styling. Separate API origins require explicit
-`connect-src`, profile and CORS updates; list `X-Request-ID` and `Retry-After` by name in
-`Access-Control-Expose-Headers`, or scripts cannot read them.
-
-To persist theme before first paint, include this inline script and add its `sha256-...` hash to
-`script-src`:
-
-```html
-<script>
-  (function () {
-    var saved = null;
-    try { saved = localStorage.getItem("theme"); } catch (e) {}
-    var dark = saved ? saved === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
-    document.documentElement.dataset.theme = dark ? "dark" : "light";
-  })();
-</script>
-```
-
-## Caching, rollout and verification
-
-HTML and `/config.json` revalidate (unqualified `no-cache`) or prevent storage (`no-store`);
-`max-age=0` alone is insufficient because shared-cache and stale-reuse directives can override freshness.
-Hashed assets cache `immutable` for a year;
-missing assets return uncached `404`. Retain prior chunks during rollout or handle
-`vite:preloadError` with bounded recovery that preserves unsaved input (never reload in a loop).
-
-Set `BASE_URL` to the served build. Supply the API and runtime config paths when the app uses them.
-
-```sh
-BASE_URL=https://orders-console.apps.example.internal API_PREFIX=/v1/ RUNTIME_CONFIG_PATH=/config.json node --test serving-contract.mjs
-```
+- Serve HTML with `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, and CSP:
+  `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'`
+- Set `build.assetsInlineLimit: 0`; list `X-Request-ID` and `Retry-After` in `Access-Control-Expose-Headers`.
+  If using an inline pre-paint theme script (`localStorage.getItem("theme")`), add its `sha256-...` hash to `script-src`.
+- HTML and `/config.json` must send an unqualified `no-cache` or `no-store` directive (`max-age=0` alone
+  permits shared-cache stale reuse). Verify on the live served build that: `/` and deep client routes
+  return `200 text/html` with `no-cache` and `frame-ancestors 'none'`; the hashed JS bundle serves as
+  JavaScript; missing `.js`/`.css`/`.png`/`.woff2` paths return uncached `404` (never SPA HTML); unknown
+  API paths return `>=400` non-HTML; and `/config.json` returns fresh JSON. Handle `vite:preloadError`
+  without reload loops or losing unsaved input.

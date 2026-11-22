@@ -1,51 +1,42 @@
-# FastAPI
+# FastAPI and Go HTTP services
 
-Read FastAPI, Pydantic, Starlette and Python versions from manifests/lockfiles.
+Read locked framework, Pydantic, Starlette, SQLAlchemy, and Go versions from manifests (`uv.lock`,
+`go.mod`) before editing.
 
-## App and handlers
+## FastAPI & Starlette
 
-- A returned `Response` bypasses validation/serialization: enforce its contract explicitly.
-- Put authentication dependencies on protected routers and authorize objects/collections using
-  the trusted caller. Authentication setup alone protects no route.
-- Shared clients/pools belong to `lifespan=` on `app.state`, closed after `yield`;
-  `on_event` handlers do not run with `lifespan`. Configure proxy root paths through the server's
-  supported `--root-path` option.
-- Map failures to the service's error contract. For RFC 9457, cover Starlette's `HTTPException`
-  (including router 404/405), `RequestValidationError` and unexpected exceptions; redact internal details.
-- Keep correlation and browser/host middleware streaming-compatible; avoid buffering whole responses.
-- Where strict JSON content-type checks are enabled, a sender omitting the header needs an
-  endpoint-scoped exception (`APIRouter(strict_content_type=False)` when supported) and explicit
-  body validation; do not relax unrelated routes.
-- Form/file missing-value normalization and default validation depend on the pinned versions.
-  Test omitted booleans, empty scalar forms, unselected files and invalid defaults on upgrades.
-- Use native typed JSONL/SSE support when the pinned framework and client support it. Verify
-  buffering, reconnects and event types through the actual proxy/client chain; response headers
-  alone do not establish streaming delivery. Check the generated schema under [OpenAPI](./openapi.md).
+- **Handlers & routing:** A returned `Response` bypasses response-model validation/serialization. Attach
+  auth dependencies to protected routers and enforce object/collection authorization in handlers. Map
+  Starlette `HTTPException` (including 404/405), `RequestValidationError`, and unexpected errors to
+  the service error contract without leaking internal exceptions or submitted secrets. Use
+  `APIRouter(strict_content_type=False)` only on endpoints that must accept headerless JSON. Keep
+  middleware streaming-compatible (do not buffer whole responses).
+- **Lifespan & proxies:** Put shared HTTP clients and pools in `lifespan=` on `app.state`, closing after
+  `yield` (`on_event` hooks do not run when `lifespan` is used). Use `--root-path` behind path prefixes,
+  scope `--forwarded-allow-ips` strictly to trusted proxies (`'*'` only when ingress strips client-supplied
+  forwarded headers), align Uvicorn graceful shutdown timeout inside the deploy deadline, and budget DB
+  connection pools across `--workers N` / `WEB_CONCURRENCY`.
+- **SQLAlchemy & drivers:** Use one `AsyncSession` per request/task with `expire_on_commit=False` and
+  eagerly load response data before returning (prevents `MissingGreenlet`). Keep the repo's driver:
+  PostgreSQL uses `postgresql+psycopg` (psycopg 3, sync or async); SQL Server uses sync
+  `mssql+mssqlpython` (SQLAlchemy 2.1, off the event loop, no ODBC manager needed) or async
+  `mssql+aioodbc` (requires Microsoft's host ODBC driver).
+- **Tests:** `with TestClient(app) as client:` and `schemathesis.openapi.from_asgi(schema_path, app)` /
+  `from_dict(app.openapi())` execute `lifespan` automatically (do not wrap Schemathesis inside
+  `TestClient` or `LifespanManager`). Bare `TestClient(app)` and HTTPX `ASGITransport` skip `lifespan`
+  unless wrapped in `asgi_lifespan.LifespanManager`. On FastAPI/Pydantic upgrades, test omitted booleans,
+  empty scalar forms, and unselected files.
 
-## Concurrency and data
+## Go HTTP services
 
-- Plain `def` routes/dependencies use the thread pool.
-- SQLAlchemy: one `AsyncSession` per request/task with `expire_on_commit=False`; load serialization
-  data before returning. Implicit lazy loading or post-commit attribute refresh at response time
-  fails (`MissingGreenlet`).
-- Preserve the project's driver. PostgreSQL's psycopg 3 uses SQLAlchemy `postgresql+psycopg`,
-  sync or async. For SQL Server, SQLAlchemy 2.1's `mssql+mssqlpython` is sync (keep calls off the
-  event loop, no ODBC manager needed); async `mssql+aioodbc` requires Microsoft's host ODBC driver.
-
-## Tests and runtime
-
-- `with TestClient(app) as client:` runs lifespan; bare `TestClient(app)` does not.
-  HTTPX `ASGITransport` also skips it: use `asgi_lifespan.LifespanManager`.
-  Assert startup and cleanup.
-- For in-process [OpenAPI checks](./openapi.md), use
-  `schemathesis.openapi.from_asgi(schema_path, app)` with the service's actual schema URL path, or
-  `schemathesis.openapi.from_dict(app.openapi())` with `case.call_and_validate(app=app)` when no
-  schema route is served. Schemathesis's ASGI transport runs the app's lifespan itself in both
-  cases; do not also wrap the app in a `TestClient` or `LifespanManager`.
-  Keep test credentials isolated.
-- Configure Uvicorn's graceful timeout inside the deployment deadline.
-- Behind a proxy, trust only its known addresses through `--forwarded-allow-ips`; `'*'` requires
-  the ingress to be the sole route to the app and to remove client-supplied forwarded headers
-  before setting its own; otherwise clients can spoof their address.
-- `--workers N`/`WEB_CONCURRENCY` creates N processes and pools; budget memory and database
-  connections across them.
+- **Timeouts & lifecycle:** A zero `http.Server` has no timeouts — always configure `ReadHeaderTimeout`,
+  `ReadTimeout`, `WriteTimeout`, and `IdleTimeout` (with per-response write deadlines for streaming
+  handlers) and verify header timeouts against a live `httptest`/serving listener. Use
+  `signal.NotifyContext` with deadline-bounded `srv.Shutdown`.
+- **Middleware & CSRF:** Preserve the repo's router/framework; `http.CrossOriginProtection` requires
+  Go 1.25+. Enforce authentication, authorization, and browser protections across the full handler chain,
+  including routes mounted outside framework middleware.
+- **Databases:** With PostgreSQL `pgx`/`pgxpool`, propagate request context cancellation and bound pool
+  size. With SQL Server `github.com/microsoft/go-mssqldb` (no ODBC needed), configure TLS encryption and
+  certificate verification explicitly, and bound `database/sql` open/idle connections and lifetime.
+  (`sqlc` supports PostgreSQL, not SQL Server.)

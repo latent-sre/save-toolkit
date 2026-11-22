@@ -400,8 +400,17 @@ class PlatformAdapterTests(unittest.TestCase):
         self.assertIn("x" * 29_000, adapters.render_copilot_agent(source))
 
     def test_manual_skills_get_host_native_invocation_controls(self) -> None:
+        root = self._canonical_root()
         for name in sorted(adapters.MANUAL_ONLY):
-            copilot = (ROOT / adapters.COPILOT_SKILLS / name / "SKILL.md").read_text(encoding="utf-8")
+            skill_dir = root / "skills" / name
+            skill_dir.mkdir(parents=True, exist_ok=True)
+            (skill_dir / "SKILL.md").write_text(
+                f"---\nname: {name}\ndescription: Manual-only probe skill.\ndisable-model-invocation: true\n---\n\n# {name}\n",
+                encoding="utf-8",
+            )
+        outputs = adapters.expected_outputs(root)
+        for name in sorted(adapters.MANUAL_ONLY):
+            copilot = outputs[adapters.COPILOT_SKILLS / name / "SKILL.md"].decode("utf-8")
             self.assertIn("disable-model-invocation: true", copilot)
             self.assertIn("explicit-only through Copilot's frontmatter switch", copilot)
 
@@ -517,12 +526,18 @@ class PlatformAdapterTests(unittest.TestCase):
                 self.assertEqual("unchanged", sentinel.read_text(encoding="utf-8"))
 
     def test_installed_skill_names_remain_namespaced_and_workspace_names_are_bare(self) -> None:
-        canonical = (ROOT / "skills/pcf-deploy/SKILL.md").read_text(encoding="utf-8")
-        outputs = adapters.expected_outputs(ROOT)
-        workspace = outputs[Path(".github/skills/pcf-deploy/SKILL.md")].decode("utf-8")
-        self.assertIn("/save-toolkit:pcf-deploy", canonical)
-        self.assertNotIn("save-toolkit:pcf-deploy", workspace)
-        self.assertIn("/pcf-deploy", workspace)
+        root = self._canonical_root()
+        skill = root / "skills/pcf-ops/SKILL.md"
+        skill.write_text(
+            skill.read_text(encoding="utf-8") + "\nInvoke `/save-toolkit:pcf-ops` directly.\n",
+            encoding="utf-8",
+        )
+        canonical = skill.read_text(encoding="utf-8")
+        outputs = adapters.expected_outputs(root)
+        workspace = outputs[Path(".github/skills/pcf-ops/SKILL.md")].decode("utf-8")
+        self.assertIn("/save-toolkit:pcf-ops", canonical)
+        self.assertNotIn("save-toolkit:pcf-ops", workspace)
+        self.assertIn("/pcf-ops", workspace)
 
     def test_platform_authoring_references_preserve_the_original_host_syntax(self) -> None:
         root = self._canonical_root()

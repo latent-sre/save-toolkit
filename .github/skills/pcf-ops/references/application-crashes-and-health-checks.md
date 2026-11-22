@@ -1,79 +1,53 @@
 # Application crashes and health checks
 
-Apply the [parent scope, evidence and human-execution rules](../SKILL.md); this reference grants no
-access or change authority. Foundation-specific behavior remains unconfirmed until observed.
+Foundation-specific limits remain unconfirmed until observed on the target foundation.
 
 ## Exit codes (`cf events` / `cf app`)
 
-- `Exited with status 137` = **SIGKILL** (128+9). **Not proof of OOM.** Corroborate before
-  recommending memory changes. Diego appends **`(out of memory)`** when Garden reported an OOM event:
+- `Exited with status 137` = **SIGKILL** (128+9), **not proof of OOM**. Garden appends
+  **`(out of memory)`** when an OOM event was reported (`APP/PROC/WEB: Exited with status 137 (out of memory)`).
+  Corroborate with `cf events <app>` (`app.crash` → `exit_description`), recent logs, and Overview
+  memory/quota (`usage.mem` vs. `mem_quota` in `/v3/apps/<guid>/processes/web/stats`), plus PCF App
+  Metrics or Grafana for trends. A missing suffix does not rule out OOM.
+- Every routed app must listen on the platform-assigned **`$PORT`** (not a hardcoded port or `127.0.0.1`),
+  or health checks fail and instances crash-loop.
 
-  ```text
-  APP/PROC/WEB: Exited with status 137 (out of memory)     <- OOM, corroborated
-  APP/PROC/WEB: Exited with status 137                     <- SIGKILL; cause unverified
-  ```
+## Health checks (`manifest.yml`; `cf set-health-check` for liveness only)
 
-  Check Apps Manager Events (`cf events <app>`, `app.crash` → `exit_description`), recent logs,
-  and Overview memory/quota (`cf app`; human-only `/v3/apps/<guid>/processes/web/stats`, `usage.mem`
-  versus `mem_quota`). These are current snapshots; use PCF App Metrics or Grafana for trends.
-  A missing suffix does not disprove OOM.
-- The app must listen on the platform-assigned **`$PORT`**, or health checks fail and it crash-loops.
-  A starting/down/failing pattern after a push is a hypothesis, not proof of memory or port failure.
-
-## Health checks (manifest; `cf set-health-check` for liveness only)
-
-- Types: **`port`** (TCP on `$PORT`), **`http`** (GET an endpoint, must return `200`—preferred for
-  web), **`process`** (process alive only—for workers / `--no-route`).
-- **Liveness** (default type `port`): on failure CF considers the instance crashed and stops and
-  restarts it.
-- **Readiness** (default type `process`; manifest only, `cf set-health-check` has no readiness
-  option): on failure CF removes the instance from the route pool but does not restart it.
-- Slow `/health` timing out? A human release owner may propose raising the invocation timeout:
-  `cf set-health-check <app> http --endpoint /health/live --invocation-timeout 10`.
-- **Startup timeout:** `Failed after <duration>: startup health check never passed.` plus
-  `Instance never healthy after <duration>: <check error>` means the startup check did not pass
-  within manifest `timeout` / `cf push -t` (default 60 s; foundation
-  `cc.maximum_health_check_timeout` caps it, default 180 s). Older Diego logs say "readiness health
-  check". Startup reuses liveness type, endpoint and invocation timeout.
-  1. Check the same instance's evidence for look-alikes. An OOM kill can show
-     `Exited with status 137 (out of memory)`. A listener on a different port from `$PORT`
-     keeps failing however long the app is given. For a platform signal, use the parent skill's
-     escalation criteria.
-  2. In Apps Manager Logs (`cf logs <app> --recent`), compare start-to-listening time on current
-     and previous droplets; check Events (`cf events <app>`). Investigate changed dependency
-     warm-up, boot migration or classpath before proposing a timeout that hides the regression.
-  3. A human release owner may propose raising the start timeout (`timeout` / `-t`), not the
-     invocation timeout, which bounds each probe (1 s by default) and fixes only a slow endpoint.
-
-  Repeated crashes back off: three immediate restarts, then a 30 s wait that doubles up to 16 min,
-  and no restarts after the 200th. Apps Manager → app → Settings → Health Check shows the check
-  type and endpoint; whether it shows the start timeout is unconfirmed.
-
-Health-check changes require the parent's exact approved-change packet and human execution.
+- Types: **`port`** (TCP on `$PORT`, liveness default), **`http`** (`GET` returning `200`, preferred
+  for web), **`process`** (process alive only, readiness default / `--no-route` workers).
+- **Liveness** failure restarts the instance; **readiness** (manifest-only, not configurable via
+  `cf set-health-check`) failure removes the instance from the route pool without restarting it.
+- **Startup timeout:** `Failed after <duration>: startup health check never passed.` / `Instance never healthy after <duration>`
+  means the startup probe (which reuses liveness type, endpoint, and 1 s default `--invocation-timeout`)
+  failed within manifest `timeout` / `cf push -t` (default 60 s; foundation `cc.maximum_health_check_timeout`
+  caps it, default 180 s). Older Diego logs call this "readiness health check".
+  1. Check for OOM (`137 (out of memory)`), wrong listen port (`$PORT`), or platform signals.
+  2. Compare start-to-listening time across current and prior droplets before proposing a larger
+     `timeout` (`-t`) — investigate changed boot warm-up, migrations, or classpath first.
+  3. Only raise `--invocation-timeout` (`cf set-health-check <app> http --endpoint /health/live --invocation-timeout 10`)
+     when the endpoint itself is slow to answer; raising `timeout` (`-t`) governs total startup time.
+- Repeated crashes back off: 3 immediate restarts, then 30 s doubling up to 16 min, and stop after
+  the 200th crash.
 
 ### Supporting Spring Boot services
 
-A separate management port can stay healthy while the app listener fails; check the main port. A
-dependency check inside liveness turns a dependency outage into a restart loop. For requests cut off
-at shutdown, compare `spring.lifecycle.timeout-per-shutdown-phase` with the platform's stop grace
-period. Java source changes belong to the application's development owner.
+A separate management actuator port can stay healthy while the main app listener fails; check the
+main port. Putting a dependency check inside liveness turns a dependency outage into a restart loop.
+For cut-off requests during shutdown, compare `spring.lifecycle.timeout-per-shutdown-phase` with the
+platform stop grace period. Java source changes stay with the application owner.
 
 ## JVM memory sizing (Java buildpack)
 
-- The Java buildpack memory calculator uses `$MEMORY_LIMIT` at each start for heap (`-Xmx`),
-  metaspace, stacks (`-Xss` × `stack_threads`, default 250), code cache and direct memory:
-  1. `cf scale -m/-k` stops and starts every instance itself; no restage is needed — the numbers
-     are recomputed at start.
-  2. A pinned `-Xmx` still must fit with non-heap or startup fails:
-     `required memory … is greater than … available for allocation`. If non-heap alone exceeds
-     memory, lowering heap cannot fix it; check pool/thread estimates and container limit.
-     If non-heap fits but the heap pin makes the total too large, propose reducing or removing it.
-  3. The staging log line `Loaded Classes: <n>, Threads: <n>` is the calculator's input; tune
-     `stack_threads` via `JBP_CONFIG_OPEN_JDK_JRE` rather than hand-setting `-Xss`.
-
-  A container OOM shows total pressure, not which JVM pool caused it, and more container memory
-  mostly enlarges heap: diagnose the pool before sizing.
-- **The buildpack picks the JRE from its own config** (`JBP_CONFIG_OPEN_JDK_JRE`), not from the
-  build file — check the two agree before blaming the code for a `ClassFormatError`. On Java
-  buildpack v5, `BP_JAVA_VERSION` takes precedence and the default JRE is 17, not v4's 8; confirm
-  which buildpack the foundation ships.
+- The Java buildpack memory calculator uses `$MEMORY_LIMIT` at each start to size heap (`-Xmx`),
+  metaspace, stacks (`-Xss` × `stack_threads`, default 250), code cache, and direct memory:
+  1. `cf scale -m/-k` stops and starts every instance; numbers recompute at start with no restage needed.
+  2. A pinned `-Xmx` still must leave room for non-heap or startup fails (`required memory … is greater than … available for allocation`).
+     If non-heap alone exceeds the limit, adjust pool/thread estimates or container memory; if only
+     the `-Xmx` pin overflows, reduce or remove it.
+  3. The staging log line `Loaded Classes: <n>, Threads: <n>` drives the calculator; tune thread count
+     via `JBP_CONFIG_OPEN_JDK_JRE` rather than hand-setting `-Xss`.
+- Container OOM reflects total pressure, not which JVM pool leaked; diagnose the pool before raising `-m`.
+- The buildpack selects the JRE from its own config (`JBP_CONFIG_OPEN_JDK_JRE` on v4, default 8;
+  `BP_JAVA_VERSION` takes precedence on v5, default 17), not the build file — check agreement before
+  blaming code for `ClassFormatError`.

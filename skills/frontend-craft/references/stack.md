@@ -1,79 +1,58 @@
-# Stack: toolchain, kits and libraries
+# Stack, design tokens, and API integration
 
-Verify compatibility and licences for added capabilities.
+## React toolchain (greenfield default)
 
-## React toolchain
+- **Core:** React 19.3, Vite 8 (`npm create vite@latest -- --template react-ts`), npm with committed
+  lockfile (preserve pnpm where used), Active LTS Node, Tailwind v4 (`@tailwindcss/vite`).
+- **TypeScript 7:** Typecheck with `tsc -b` (root `tsconfig.json` uses project references and `files: []`).
+  Mirror `@/*` paths in `tsconfig.json`/`tsconfig.app.json` and Vite `resolve.alias` without `baseUrl` (removed in TS 7).
+- **Compiler, lint, tests:** React Compiler (`babel-plugin-react-compiler` via `@rolldown/plugin-babel`),
+  `oxlint` + `oxlint-tsgolint` (`oxlint --type-aware` for `no-floating-promises` / `no-misused-promises`),
+  Prettier, Vitest 5, Testing Library, MSW 3 (`msw/http`, `onUnhandledFrame`; `msw/sse` is browser-only —
+  use `ReadableStream` in Node/jsdom), and `axe-core` (disable `color-contrast` in jsdom; check in browser).
 
-- **React 19.3, Vite 8 and strict TypeScript.** Scaffold with
-  `npm create vite@latest -- --template react-ts`. Node: the current Active LTS; take the floor
-  from the lockfile's `engines`. npm with one committed lockfile (keep pnpm where already used).
-- **TypeScript 7,** as the scaffold pins it. Typecheck with `tsc -b`: the scaffold's root
-  `tsconfig.json` has `files: []` plus project references, so `tsc --noEmit` checks no files there.
-  Set `"paths": { "@/*": ["./src/*"] }` in `tsconfig.json` and `tsconfig.app.json` without
-  `baseUrl` (removed in TypeScript 7), mirrored by Vite's `resolve.alias`.
-- **React Compiler:** `babel({ presets: [reactCompilerPreset()] })` beside `react()`
-  (`@vitejs/plugin-react`, `@rolldown/plugin-babel`, `@babel/core`,
-  `babel-plugin-react-compiler`). `eslint-plugin-react-hooks` recommended rules run under ESLint or
-  oxlint's alpha `jsPlugins`.
-- **Tailwind v4:** `@tailwindcss/vite`.
-- **Lint and tests:** the scaffold's oxlint, adding `oxlint-tsgolint` and `oxlint --type-aware` for
-  `typescript/no-floating-promises` and `typescript/no-misused-promises` (or repo-standard ESLint /
-  Biome 2), and Prettier. Vitest 5, Testing Library, MSW 3, jsdom (or Vitest browser mode for
-  layout) and `axe-core` directly; its `color-contrast` rule does not work in jsdom, so disable it
-  there and check contrast in the browser.
+## Vue toolchain
 
-For Vue apps, use [Vue](./vue.md).
+Use `npm create vue@latest` when the caller or neighboring apps use Vue. Keep TypeScript 6.0.x +
+`vue-tsc` 3.3 until `vue-tsc` and `typescript-eslint` support TS 7. Default kit: `shadcn-vue`, Reka UI,
+Tailwind v4, `motion-v`, `@lucide/vue`, VueUse (Nuxt UI or Vuetify as full alternatives; PrimeVue 5
+requires owner licence approval). Use `@tanstack/vue-query`, Vue Router, Pinia (distant shared state only),
+`@tanstack/vue-table` v9 (`tableFeatures` + `useTable`), `onErrorCaptured` error panels, and strict
+sanitization / protocol allowlists on `v-html` and bound URLs.
 
-## Component kits
+## Component kits, mixing, and OKLCH tokens
 
-Approved kits may start or join an app. One base kit owns reset/tokens/providers; additions follow
-the mixing rules, not a one-kit limit.
+Approved React kits: **shadcn/ui** (default; Base UI, Radix `-b radix`, or React Aria `-b aria`),
+Radix UI, Base UI (`isolation: isolate` on app root), HeroUI v3, Mantine 9 (`styles.layer.css`),
+Material UI 9 (`StyledEngineProvider enableCssLayer`), daisyUI 5 (prefix `d-` when mixing), Magic UI,
+Animate UI, Aceternity UI, React Bits, and Motion (`motion/react` with `LazyMotion`).
 
-| Kit | Fit and integration | Licence |
-|---|---|---|
-| **shadcn/ui** | Default base: CLI source (`shadcn`), Tailwind v4 + CSS tokens; Base UI default, Radix (`-b radix`) or React Aria (`-b aria`); `TooltipProvider` at the root for tooltips | MIT |
-| **Radix UI** | Unstyled `radix-ui` primitives; Radix Themes adds CSS and `<Theme>` | MIT |
-| **Base UI** | Unstyled `@base-ui/react` primitives; no provider; isolate app root (`isolation: isolate`) | MIT |
-| **HeroUI v3** | Styled React Aria kit; Tailwind v4, `@heroui/styles` after Tailwind; no provider | Apache-2.0 |
-| **Mantine 9** | Workbench suite: components, hooks, forms, dates, charts, notifications; `MantineProvider` and `styles.layer.css` | MIT |
-| **Material UI 9** | Material Design + MUI X data-grid; theme provider, Emotion and `StyledEngineProvider enableCssLayer` | Core MIT; X Pro/Premium commercial |
-| **daisyUI 5** | Tailwind `@plugin "daisyui"`; no provider; prefix (`prefix: "d-"`) when mixing | MIT |
-| **Magic UI** | Animated shadcn registry items (`@magicui/…`), Tailwind and Motion | MIT |
-| **Animate UI** | Animated shadcn registry items (`@animate-ui/…`), Tailwind and Motion | MIT with Commons Clause (no resale) |
-| **Aceternity UI** | Effects/sections (`@aceternity/…`), Tailwind, Motion and Tabler icons | Custom (product use allowed, no source redistribution) |
-| **React Bits** | Text/background effects (`@react-bits/…`), CSS/Tailwind, Motion/GSAP/three.js | MIT with Commons Clause (+ GSAP standard licence) |
-| **Motion** | Animation engine `motion/react`; `LazyMotion` limits bundle size | MIT |
+1. Declare CSS layers once before imports (`@layer theme, base, mantine, mui, components, utilities;`)
+   so `utilities` wins last; check third-party licences before adding paid/custom kits.
+2. Keep one owner per interaction primitive (dialogs/modals, tooltips, toasts, icons, dates) to avoid
+   competing focus traps and portals.
+3. Derive light and dark tokens in OKLCH using `light-dark()` from brief knobs (`--brand-hue`,
+   `--surface-hue`, `--density`, `--font-ui`, `--font-code`) with fixed status hues (`ok`, `warn`,
+   `critical`, `info`, `unknown`) kept separate from brand and categorical chart colors.
 
-After `shadcn init` (`-p` selects a named or `shadcn/create` preset), align the font import with
-`--font-sans: var(--font-ui)`,
-replace generated `:root`/`.dark` blocks with the [theme bridge](../assets/theme.css), and set
-`@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));`.
+## Data, typed clients, and API integration
 
-Use one icon set (Lucide, Tabler or Material Symbols). Prefer base-kit drawers over unmaintained
-`vaul`.
-
-## Mixing kits
-
-1. **One global owner:** declare CSS layers once before imports
-   (`@layer theme, base, mantine, mui, components, utilities;`, dropping unused names); use
-   Mantine `styles.layer.css` and MUI `enableCssLayer` so `utilities` stays last.
-2. **Bridge tokens:** map [theme.css](../assets/theme.css) into shadcn's bridge and additional
-   kit providers, including colours, radius and fonts.
-3. **One interaction system per primitive:** keep a single owner for dialogs/modals, tooltips,
-   toasts, icons and dates across the app to avoid competing focus traps and portal roots.
-4. **Weigh additions** by bundle and provider cost against the existing kit.
-5. **Bridge animated collections:** provide `cn` and shadcn token variables when mounting
-   shadcn-registry animations on another base kit.
-
-## Data, routing and forms
-
-| Need | Default and alternatives |
-|---|---|
-| Server state | **TanStack Query 5**, endpoint `queryOptions`; query layer owns retries |
-| Typed API | **openapi-typescript** (generate from a separate tooling package pinned to TypeScript 5: its `^5.x` peer and compiler API do not work with the app's TypeScript 7), **openapi-fetch**, **openapi-react-query**; **@hey-api/openapi-ts** (with TanStack plugin; its peer range allows TypeScript 7 but it still imports the classic compiler API, so isolate it the same way); see [API](./api.md) |
-| Routing | **TanStack Router** (`@tanstack/router-plugin` + Zod 4 search validation) for new apps; keep **React Router** (`nuqs` for typed URL state) in existing apps |
-| Tables | **TanStack Table 9** (`tableFeatures({...})` + `useTable`, keeping `features`, `columns` and empty-array fallbacks outside render or memoized; `useReactTable` is removed) and **TanStack Virtual**; **AG Grid Community** (MIT); **Perspective** |
-| Forms & dates | **react-hook-form** + **@hookform/resolvers** + **Zod 4**, or **TanStack Form**; **date-fns 4** + **@date-fns/tz** |
-| Charts | **Recharts 3**, **uPlot** (streams), **ECharts 6**, **visx**, **@mantine/charts** |
-| Editors/viewers | **CodeMirror 6** (`@uiw/react-codemirror`), **Monaco** (lazy-load), **react-markdown** + **rehype-sanitize**, **shiki**, **@xterm/xterm 6** (lazy-load), **@xyflow/react** |
-| Keyboard | **cmdk**, **react-hotkeys-hook** (region-scoped, inactive in inputs, never destructive) |
+- **Typed client:** Generate from OpenAPI (`openapi-typescript` + `openapi-fetch` or `@hey-api/openapi-ts`).
+  Isolate OpenAPI codegen in a separate TS 5 tooling package because TS 7 dropped the classic compiler
+  API. Verify generators handle OpenAPI 3.2 streaming `itemSchema` rather than typing streams as `unknown`.
+- **Server state, routing, tables, forms:** TanStack Query 5 (`queryOptions`; include path, filters,
+  sort, cursor, and user/tenant scope in keys; render `dataUpdatedAt` and stale banners), TanStack Router
+  + Zod 4 (or React Router + `nuqs`), TanStack Table 9 (`tableFeatures` + `useTable`, memoizing `features`,
+  `columns`, and empty arrays; `useReactTable`/`useVueTable` removed) + TanStack Virtual,
+  `react-hook-form` or TanStack Form + Zod 4, `date-fns 4` + `@date-fns/tz`.
+- **Errors & cursor pages:** With `openapi-fetch`, parse error bodies from `{ error, response }` (stream
+  already consumed); read `X-Request-ID` and map field errors (`errors[].loc` or FastAPI `detail[].loc`)
+  preserving user input. Pass `next_cursor` verbatim as `?cursor=` and deduplicate appended rows by ID.
+- **Idempotent writes:** Match the backend contract (native idempotence, `If-Match` → `412`, or
+  `Idempotency-Key` generated per user intent and reused on unchanged retries, waiting out `409` +
+  `Retry-After` up to `maxWaitMs`). Snapshot mutable/multipart bodies once before retrying.
+- **Live data & sessions:** Default to polling; use SSE (fetch-based `eventsource` for bearer auth,
+  never tokens in URLs) or WebSocket with one reconnect owner, capped jittered backoff, and
+  `requestAnimationFrame`-batched updates. Keep OIDC tokens server-side in `Secure`/`HttpOnly`/`SameSite`
+  cookies (or memory-only if JS must hold bearer tokens). On logout/identity switch, cancel in-flight
+  requests, close streams, clear/re-scope cache, and notify other tabs via `BroadcastChannel`.

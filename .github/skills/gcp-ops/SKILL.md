@@ -13,58 +13,34 @@ argument-hint: "[the GCP service or symptom]"
 
 # GCP application-side triage (console or gcloud, read-only)
 
-Observe the named Cloud Run service through an authorized read path that removes credentials
-(environment values including `VCAP_SERVICES`, logs, errors) before they reach the model; the guard
-admits command syntax and does not mask output. Without that protection or shell access, the human
-uses the console or CLI and returns scoped, sanitized observations. Never request raw configuration
-or credential dumps. Changes require the human release owner's exact approval evidence.
+Observe the named Cloud Run service through an authorized read path that keeps credentials
+(env vars including `VCAP_SERVICES`, Secret Manager values, raw configs) out of agent context. When
+CLI access or output masking is unavailable, ask the human for Console or sanitized excerpts.
+Changes require human release owner approval under `production-change-gate`.
 
 ## First look
 
-Confirm the caller's project, service and region in **Cloud Run → Services**. In the CLI,
-`gcloud config get-value project` and `gcloud config get-value run/region` show ambient target
-defaults; use the caller's explicit target in every command, and read only single named properties,
-because configuration can contain passwords.
+Confirm the caller's explicit project, service, and region (`--project <project> --region <region>`).
+Use `gcloud config get-value project` / `run/region` only for single properties if needed, never full
+config dumps. Ask the caller or check the team's inventory if the service is unnamed.
 
 | Question | Cloud Console | `gcloud` equivalent |
 |---|---|---|
-| Service details? | Select the service to open its details | `gcloud run services describe <service> --region <region> --project <project>` |
-| All requests or some, since when, at max instances? | Service → **Metrics**: request count, request latencies, container instance count, memory utilization | No GA `gcloud` read; `request_count` by `response_code_class` through obs-analysis' Cloud Monitoring reference. It excludes requests rejected at max instances: count those from request logs (`httpRequest.status=429`) |
+| Service details? | **Cloud Run → Services** → select service | `gcloud run services describe <service> --region <region> --project <project>` |
+| Traffic / latency / max instances? | Service → **Metrics** (count, latency, instances, memory) | Use Cloud Monitoring (`request_count` via `obs-analysis`). Note: `request_count` excludes 429s rejected at max instances — count `httpRequest.status=429` in request logs |
 | Which revisions exist? | Service → **Revision history** | `gcloud run revisions list --service <service> --region <region> --project <project>` |
-| Recent request/container errors? | Service → **Logs**; select the last hour | `gcloud run services logs read <service> --freshness=1h --limit=100 --region <region> --project <project>` |
+| Recent errors? | Service → **Logs** (last hour) | `gcloud run services logs read <service> --freshness=1h --limit=100 --region <region> --project <project>` |
 
-Bring back the target, revision names/traffic allocation, observation time and log window in UTC,
-and a small sanitized error excerpt. A revision's existence is not proof it serves traffic or
-that requests succeed. Missing CLI: use the console. An unavailable, empty or denied view leaves
-the observation unknown; ask the service owner for that scoped read and its coverage. Missing
-access or data is not health evidence. For a different log window, use the log
-query guidance below. If the service name is unknown, use
-`gcloud run services list --region <region> --project <project>`.
-
-When the caller has not supplied the project, region or service, use the team's own inventory; if
-it has no match, ask the caller.
+List services if unknown: `gcloud run services list --region <region> --project <project>`. Report the
+target, revision names/traffic splits, UTC window, and sanitized error excerpts.
 
 ## Revisions — correlate changes with symptoms
 
-Every deploy creates an immutable **revision** (image + env + limits + concurrency). A new
-deployment takes traffic only while the service still tracks the latest revision:
-an existing traffic split or previous-revision assignment persists across later deployments,
-and `--no-traffic` keeps the new revision out of the service URL's percentage-based allocation.
-Tagged revision URLs can still receive requests; check tags and request logs as well as percentages.
-A human stages a rollout with
-`gcloud run services update-traffic <service> --to-revisions <revision>=<percentage> --region <region> --project <project>`; `--to-latest`
-instead sends 100% to the latest revision and restores automatic promotion on later deploys.
-
-After listing revisions, inspect one with
-`gcloud run revisions describe <revision> --region <region> --project <project>`.
-
-For startup failures, compare the last observed successful start with the failing starts: revision,
-time, warm-up duration, dependency errors and evidence that listening actually began. Include new
-instances of the serving revision; its earlier ready state does not establish current startup
-capacity. A configured or logged bind address alone does not prove an open listener. If a shared
-dependency delays startup, return the dependency-owner check, serving-revision startup/capacity and
-request-error monitoring, and the recovery evidence needed before the release owner considers
-another attempt. Missing comparisons or recovery evidence stay explicit gaps.
+Every deploy creates an immutable **revision** (image, env, limits, concurrency). A new deploy
+receives traffic **only if** the service still tracks latest: pinned percentage splits persist across
+later deploys until `--to-latest` is set, and `--no-traffic` keeps a new revision off the main URL.
+Check tagged revision URLs separately — they serve requests independently of main percentage splits.
+Inspect a specific revision with `gcloud run revisions describe <revision> --region <region> --project <project>`.
 
 ## Logs — guard-safe filter shapes
 
@@ -72,118 +48,51 @@ another attempt. Missing comparisons or recovery evidence stay explicit gaps.
 gcloud logging read 'resource.type=cloud_run_revision AND resource.labels.service_name=<service> AND resource.labels.location=<region> AND NOT severity=DEFAULT AND NOT severity=DEBUG AND NOT severity=INFO AND NOT severity=NOTICE AND NOT severity=WARNING' --freshness=1h --limit=50 --project <project>
 ```
 
-This keeps ERROR and higher severities using PowerShell-safe exclusions, so it omits 429 aborts
-logged at WARNING: for those, replace the severity terms with `httpRequest.status=429`. Correlate
-the message, capacity and revision before assigning cause. Keep the single quotes, freshness and
-count bounds. Accept `<service>` and `<region>` only as lowercase letters, digits and inner hyphens;
-otherwise stop and ask. Record unknown truncation or sampling instead of assuming the request was
-applied.
-
-For historical UTC windows, other filter shapes, shell restrictions or log bucket/view selection,
-load `obs-analysis` and its **Cloud Logging dialect** reference; it owns those mechanics and sources.
+Keep single quotes, `--freshness`, and `--limit`, and validate `<service>`/`<region>` as lowercase
+alphanumeric/hyphen identifiers. This PowerShell-safe filter keeps `ERROR+` and omits `429` aborts
+logged at `WARNING` — query `httpRequest.status=429` separately when checking capacity rejections.
+For historical UTC windows, bucket/view selection, and Cloud Logging dialect details, load `obs-analysis`.
 
 ## Reading failures
 
-Search the logs for the message, then run its first check (liveness probes are off unless
-configured):
-
 | Code | Documented message | First check |
 |---|---|---|
-| Start fails | "Container failed to start. Failed to start and then listen on the port defined by the PORT environment variable." (search `listen on the port`) | The app must listen on `0.0.0.0:$PORT`, not `127.0.0.1`; the PCF `$PORT` discipline transfers exactly |
-| 429 | "…aborted because there was no available instance." | Instance count against max instances (Metrics). Below max does not clear scaling: a traffic spike, slow startup, or long requests also produce this. A raise is a change to recommend |
-| 500 | "…no available instance", or "…instance could not start successfully" | The first occurs below max instances: a burst arrived faster than new instances could start, so check minimum instances, startup time and client retry/backoff; the second is often a failed Secret Manager access or startup error, so read the container's startup logs |
-| 503 | "…the HTTP response was malformed or connection to the instance had an error." | In order: an [OOM](#oom-evidence) line; `LIVENESS HTTP probe failed` if configured; a framework timeout shorter than the request (Node `server.setTimeout`, Gunicorn `WORKER TIMEOUT`); VPC connector throughput. Over 800 requests/s per instance might exhaust TCP sockets; confirm evidence of that bottleneck and container support for [HTTP/2 cleartext (`h2c`)](https://docs.cloud.google.com/run/docs/configuring/http2#before_you_configure) before recommending HTTP/2 |
-| 503 | "…probably has reached its maximum container instance limit." | Instance count against max instances, and CPU load (Metrics). Raising max instances or lowering concurrency is a change to recommend |
-| 504 | "…reached the maximum request timeout." | Compare the revision's request timeout with the slow downstream call. A [504 can leave application work running](https://docs.cloud.google.com/run/docs/configuring/request-timeout); check completion/effects and retry safety before recommending a retry or timeout increase |
+| Start fails | `"Container failed to start. Failed to start and then listen on the port defined by the PORT environment variable."` | Listen on `0.0.0.0:$PORT`, not `127.0.0.1` |
+| 429 | `"…aborted because there was no available instance."` | Check instance count vs. max instances; below max points to traffic burst, slow startup, or long requests |
+| 500 | `"…no available instance"` or `"…instance could not start successfully"` | Below-max burst (check min instances, startup time, retries) vs. startup/Secret Manager failure (read startup logs) |
+| 503 | `"…the HTTP response was malformed or connection to the instance had an error."` | Check in order: [OOM](#oom-evidence); `LIVENESS HTTP probe failed`; framework timeout shorter than request (`server.setTimeout`, Gunicorn `WORKER TIMEOUT`); VPC connector or >800 rps/instance TCP socket exhaustion (verify container `h2c` support before recommending HTTP/2) |
+| 503 | `"…probably has reached its maximum container instance limit."` | Instance count vs. max instances and CPU; recommend raising max instances or lowering concurrency |
+| 504 | `"…reached the maximum request timeout."` | Compare revision request timeout against slow downstream call; check retry safety before raising timeout (work may still complete) |
 
-If several of these appear at once across services, jobs or worker pools, check for a billing
-spend cap first: a reached cap pauses Cloud Run, returning 5xx and failing job and worker-pool
-starts, and shows a console banner. Resuming can take up to 30 minutes after the cap is lifted.
-
-- **Concurrency/saturation** — exact defaults vary by deploy path: read them from
-  the affected revision and service configuration, don't quote memory.
+If errors appear across multiple services/jobs simultaneously, check for a **billing spend cap**
+banner (resuming can take up to 30 minutes after lifting). Read concurrency/limits from the revision
+config rather than quoting defaults.
 
 ### OOM evidence
 
-Cloud Logging example: *"While handling this request, the container instance was found to be
-using too much memory and was terminated."* (HTTP 500/503).
-**No exit code to grep.** Writes to the default writable container filesystem count toward memory,
-including logs outside `/var/log/*` and `/dev/log`; an ephemeral-disk volume can hold such writes
-outside memory, but each project's regional ephemeral-disk allocation starts at 0 GiB until quota is
-requested. For a leak after PCF migration, check these writes first;
-take `resource.labels.revision_name` from the failing log, select that revision in **Revision
-history**, or use the target-bound `revisions describe` command above. Read its container memory
-limit before recommending a bump; the current service template may describe a later revision.
-
-## Pub/Sub backlogs and GKE pull failures: read the deciding signal first
-
-A growing Pub/Sub backlog looks the same on backlog size alone whether subscribers are too slow for
-the arrival rate or a subset of messages fails on every delivery. Before choosing, read
-`subscription/oldest_unacked_message_age` beside `num_undelivered_messages` (where monitoring must
-survive a single-region outage, use `subscription/oldest_unacked_message_age_by_region` and
-`subscription/num_unacked_messages_by_region`; the global metrics gap): an oldest age rising as
-fast as wall-clock time shows that the oldest cohort has not cleared during that window, not why.
-A large same-publish-time cohort can keep age rising at wall-clock rate while acknowledgements
-succeed; a long-running leased message can do the same. Slower age growth alone does not prove
-completion either: retention expiry can advance the oldest timestamp. Compare acknowledgement/
-completion rates with ingress and backlog trends, then inspect handler failures, lease behavior,
-and repeated message IDs with failed delivery or acknowledgement evidence before assigning a
-failing subset or capacity cause. When an export, sink or view lacks one of these, name the missing
-observation and who can read it from Cloud Monitoring; do not infer the cause from the other alone.
-
-For `ImagePullBackOff` or `ErrImagePull` on GKE, establish that the referenced image address and tag
-exist in the referenced registry, from the build's push record or the registry itself, before
-attributing the failure to access: a missing image and a denied pull both back off. The pull event's
-message separates them (`not found` versus `401 Unauthorized` or `403 Forbidden`; a DNS or `i/o timeout`
-message points to the network path); when that message is unavailable, the
-push record is the next deciding read.
+Cloud Logging reports: *"While handling this request, the container instance was found to be using
+too much memory and was terminated."* (HTTP 500/503; **no exit code 137 to grep**). Writes to the
+default writable container filesystem count toward memory (regional ephemeral-disk volume quota
+starts at 0 GiB until requested). Read the failing `resource.labels.revision_name` via
+`revisions describe` before recommending a memory bump — the current service template may show a newer revision.
 
 ## Mitigation you recommend (never run): traffic rollback
 
-Match the failing `httpRequest.requestUrl` to the serving `resource.labels.revision_name` and
-response status. Compare the current effective routing and last known-good routing for that
-hostname and path, including upstream rules, tags and service percentages. Ask the routing owner
-for missing evidence before recommending a write. Confirm any proposed target still has the
-readiness, compatibility and capacity to serve the affected requests.
+Match failing `httpRequest.requestUrl` to serving `resource.labels.revision_name` and compare current
+vs. last known-good routing (service splits, tagged URLs, upstream LB host/path rules). Confirm the
+target revision has capacity and compatibility before recommending a write:
 
-- **Tagged URL.** If only the tagged path fails, restore its known-good mapping with
-  `--update-tags <tag>=<revision>`. Preserve healthy service percentages and unrelated tags. If a
-  new tag had no prior mapping, agree on a fallback or retirement with its callers before removal.
-- **Service URL.** Restore the full known-good allocation. Use `<previous-revision>=100` only
-  when the prior map assigns all service traffic to that revision. Restore `--to-latest` or a
-  `LATEST=<percentage>` allocation only after confirming the revision it would send traffic to.
-- **Upstream route.** If a load balancer or proxy mapping changed, give its owner the prior
-  host/path rule and backend to restore.
-
-An evidenced 80/20 service split uses this command.
+- **Tagged URL only:** `--update-tags <tag>=<revision>` (retire new tags only with caller agreement).
+- **Service URL:** `<previous-revision>=100` (or restore prior split; use `--to-latest` only after confirming latest):
 
 ```bash
 gcloud run services update-traffic <service> --to-revisions <revision>=80,<previous-revision>=20 --region <region> --project <project>
 ```
 
-The human release owner owns this Tier 2 change. In the packet, include the before and intended
-maps, serving evidence, the exact scoped change and verification. Allow time for routing to
-converge. Read back the effective routes and verify requests on the same hostname and path,
-including the replacement path if a tag was retired. Compare serving revisions and response
-classes with expectations, counting 429s in request logs. During a declared incident,
-`incident-investigation` advises and ITO approves in the TLC under `production-change-gate`'s
-incident fast path.
-
-## Credential-bearing reads are human-only
-
-A human runs a genuinely needed credential-bearing read and returns the smallest sanitized excerpt.
-
-## Provisional project/platform ownership
-
-`stack-profile` carries the working ownership proposal. Confirm the responsible owner before
-recommending a change, and escalate with `pcf-ops`'s packet: symptom and UTC timing (onset unknown
-if not established), scope across services/projects, checks and their limits, shared dependencies,
-and the evidence the receiving owner can add. Broad impact justifies involving owners without
-proving fault ownership.
+Human release owners execute this Tier 2 change under `production-change-gate` (ITO approves in TLC
+for declared incidents); read back effective routes and verify responses + 429 logs afterward.
 
 ## Cloud Foundry → Cloud Run mapping
 
-The concept map and migration gotchas (manifest → service YAML, routes → load balancer vs
-domain-mapping preview, VCAP_SERVICES) live in
-[references/cf-to-cloud-run.md](./references/cf-to-cloud-run.md) — read it before translating any
-PCF habit into a GCP recommendation.
+Read [references/cf-to-cloud-run.md](./references/cf-to-cloud-run.md) before translating PCF habits
+into GCP designs or triage.
