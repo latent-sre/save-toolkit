@@ -11,87 +11,62 @@ argument-hint: "[command or operator workflow]"
 
 # Operator CLI craft
 
-Match existing language, framework, flags, exit codes, and consumers. Load `stack-profile` before
-new tooling choices; the caller retains authority. Before designing effects, establish the target
-API's effect and idempotency contract: can an item be applied twice, and what does a timeout mean?
-For Go implementation, load `go-craft` alongside this command contract.
+Match existing language, flags, exit codes, and consumers. Load `stack-profile` before new tooling
+choices (`go-craft` for Go, `python-craft` for Python). Establish the target API's idempotency and
+timeout semantics before designing mutations.
 
-## Make the command composable
+## Output, exit codes, and composability
 
-- Results go to stdout; diagnostics/progress to stderr. Machine output (`--json` or the existing
-  format) parses even on partial failure.
-- For batch operations, report every item's outcome (`succeeded`, `failed`, `unknown`, `skipped`).
-  `skipped` means never attempted; an attempt the target rejected is `failed`. A new contract uses
-  these exit codes:
+- `stdout` carries results (`--json` parses cleanly even on dry runs, partial failure, or signal
+  interrupt); `stderr` carries diagnostics and progress.
+- Report every planned batch item as `succeeded`, `failed` (rejected by target), `unknown`
+  (timeout/disconnect/uncertain effect), or `skipped` (never attempted: dry-run items or items after
+  an early stop).
+- Exit codes for new contracts: `0` = complete success or `--dry-run`; `1` = operational failure (any
+  `failed` or `unknown` item); `2` = usage error or missing non-interactive confirmation (before any
+  effect or lock); `128+N` = signal `N` (`130` `SIGINT`, `143` `SIGTERM`, returned directly on Windows).
+- Errors name the failure and recovery step (tracebacks only in debug mode); check subprocess and
+  pipeline exit codes explicitly.
+- `--help` covers a worked example, exit codes, config precedence (`flags > env > config > defaults`),
+  and side effects; debug logs show non-secret config and secret sources, never secret values.
+- Bound external calls, retries, pagination, and total work with explicit timeouts. Handle
+  `BrokenPipeError` cleanly (redirect `stdout` to `os.devnull`, exit cleanly; mutating commands take
+  the signal stop path first).
 
-| Exit | Meaning |
-|---|---|
-| 0 | Successful completion, including a dry run |
-| 1 | Operational failure: any item `failed` or `unknown` |
-| 2 | Usage error, including a destructive request without confirmation |
-| 128+N | Stopped by signal N: 130 for SIGINT, 143 for SIGTERM (a Bash convention; on Windows the command returns it itself) |
+## Explicit effects, confirmation, crashes, and signals
 
-- Expected errors name the failure and next step; tracebacks need debug mode. Check subprocess
-  and pipeline outcomes explicitly: strict mode/linting does not prove failure propagation.
-- Keep `--help` useful: one worked example, exit codes, configuration precedence, and side effects.
-  Match existing precedence; for a new contract use flags > environment > config file > defaults.
-  Debug output shows effective non-secret settings and where secrets came from, never their values.
-- Bound external calls, retries, pagination, and total work; progress does not substitute for a
-  timeout. A reader that closes early (`tool --json | head`) ends the command without a traceback;
-  a state-changing command takes the signal stop path first. In Python, catch `BrokenPipeError`,
-  then point stdout at `os.devnull` before exiting, as the `signal` docs show.
-
-## Make effects explicit
-
-- A state-changing command offers a real dry run: the same decision logic computes the plan,
-  while the effect boundary performs no writes. Show exact targets, blast radius, and the target
-  environment (account, project, cluster, org/space, or endpoint) before apply.
-- An empty filter, unset variable, or match-all wildcard never selects everything without
-  `--all`. Validate inputs and permissions before the first write.
-- Confirmation covers the exact set and environment shown: apply consumes the saved plan (checked
-  by hash) or re-selects and refuses if the set changed. Bulk effects run in bounded batches (a
-  `--max-items` cap or a rate) and stop when a batch's failure rate crosses a stated threshold.
-- Destructive actions require explicit confirmation. Prompt only when stdin is a TTY (Go:
-  `x/term.IsTerminal`, not `os.ModeCharDevice`) and `--no-input` is unset; otherwise require the
-  established confirmation flag or exit 2 at once. A non-interactive run names its environment
-  rather than using the default context, and a severe action takes `--confirm=<target name>`. A
-  confirmation flag is not production approval and cannot bypass an owner gate.
-- PowerShell: `-WhatIf` and `-Confirm` reach only effects wrapped in `$PSCmdlet.ShouldProcess`,
-  not native commands, REST calls, or other script modules; `What if:` lines are host text. A
-  destructive command sets `ConfirmImpact='High'`, takes `-Confirm:$false` as the explicit flag,
-  and without it exits 2 before any effect when non-interactive. Check `$LASTEXITCODE` after
-  native commands (or set `$PSNativeCommandUseErrorActionPreference` on 7.4+), end with
-  `exit <code>`, and schedule `pwsh -File` so the code propagates.
-- A hard kill can leave stdout empty after the target commits an effect. For consequential
-  effects, commit a per-item intent to durable storage before issuing the request, then record its
-  outcome. Include target, item, stable operation ID, actor and UTC time. A local journal is
-  optional when a restarted command can identify the same operation and read its outcome from
-  the authoritative target.
-- On restart, skip confirmed successes. Treat an unfinished intent, lost response or error
-  that may follow a committed effect as `unknown`. Reconcile before retrying. A retry is safe
-  when the original request definitively had no effect or the target still guarantees
-  deduplication for that operation ID. If the outcome remains uncertain, report the item as
-  `unknown`, exit with an operational failure and name the next recovery step.
-- Locks carry an owner and an expiry. Take over a stale lock only once its owner is gone.
-- On SIGINT or SIGTERM, stop scheduling work, release owned locks/temp resources, report
-  completed, failed, and `unknown` items, then exit 128+N. Cleanup is time-bounded; a second SIGINT or SIGTERM skips it. In Python,
-  one flag-setting handler for both signals, checked between effects, replaces
-  `KeyboardInterrupt`, which can land mid-effect. In Go, call `stop()` once the
-  `signal.NotifyContext` context fires; `defer stop()` alone ignores a second Ctrl-C. Cleanup does
-  not undo completed external effects or delete another process's resources.
-- Obtain secrets through the established binding or store, never command-line flags, ad hoc
-  environment variables, logs, tracebacks, or configuration dumps.
+- **Dry run & selectors:** `--dry-run` executes the same selection/decision logic with zero writes,
+  showing exact targets, blast radius, and target environment (reporting planned items as `skipped`
+  in `--json`). Empty filters, unset vars, or wildcards never select all items without `--all`.
+  Validate inputs and permissions before the first write.
+- **Confirmation & batching:** Confirmation binds the shown target set and environment (hash-checked
+  plan or re-select/refuse drift). Prompt only on a TTY (`sys.stdin.isatty()`; Go `x/term.IsTerminal`,
+  not `os.ModeCharDevice`) without `--no-input`; piped stdin must never confirm. Non-interactive runs
+  without `--yes` (or `--confirm=<target>`) exit `2` before taking locks or issuing effects.
+  Confirmation flags never authorize production changes. Bound bulk runs (`--max-items`/rate) and
+  stop scheduling on failure/`unknown`, leaving remaining items `skipped`.
+- **PowerShell:** `-WhatIf`/`-Confirm` reach only `$PSCmdlet.ShouldProcess`, not native commands or
+  REST calls. Destructive cmdlets set `ConfirmImpact='High'`, require `-Confirm:$false` when
+  non-interactive (else exit `2`), check `$LASTEXITCODE` / `$PSNativeCommandUseErrorActionPreference`,
+  end with `exit <code>`, and schedule via `pwsh -File`.
+- **Uncertain outcomes, restarts & locks:** Write a per-item intent (target, item, stable op ID,
+  actor, UTC time) before consequential requests, or reconcile from the authoritative target
+  (`get_status`/readback) on timeout/restart. On restart, skip confirmed successes and never blindly
+  replay `unknown` items: retry only if no effect occurred or the target deduplicates by op ID;
+  otherwise mark `unknown`, stop dependent work, exit `1`, and name recovery. Locks carry owner +
+  expiry; break stale locks only once the owner is gone.
+- **Signals & secrets:** Handle both `SIGINT` and `SIGTERM` (in Python use one handler for both
+  rather than `KeyboardInterrupt` alone; in Go call `stop()` once `signal.NotifyContext` fires so a
+  second signal skips cleanup). On signal, stop new work (leaving rest `skipped`), run time-bounded
+  `finally` cleanup for owned locks/temps, emit the `--json`/status report, and exit `128+N`. Read
+  secrets from established stores/bindings only, never CLI flags, logs, or dumps.
 
 ## Verify the operator contract
 
-Use the project's language and test runner at the real command boundary. Select checks for its
-actual capabilities; a read-only command needs no apply plan, effect receipt, confirmation, or
-lock. Exercise effects against disposable targets or controlled clients.
-
-| Capability | Evidence needed |
+| Capability | Evidence needed at the real CLI boundary |
 |---|---|
-| State changes | Dry run makes zero effect calls; apply uses the shown target set or refuses drift |
-| Destructive actions | Piped input never confirms; missing non-interactive confirmation exits 2 before any effect |
-| Re-runs and locks | No blind replay of succeeded or `unknown` items; competing runs cannot violate the protected invariant; another owner's lock remains intact |
-| Consequential effects | Hard-kill the CLI after the target commits an item and before the final report. Restart the same operation and verify the target saw one effect. If readback is unavailable and deduplication cannot be guaranteed, report `unknown` and send no further request for that item. |
-| Interruptible work | Signal exit status and owned-resource cleanup; completed effects reported and unresolved effects `unknown` |
+| State changes | `--dry-run` makes zero writes and outputs `skipped` plan; apply refuses set drift |
+| Destructive actions | Piped stdin never confirms; missing non-interactive confirmation exits `2` before effects/locks |
+| Re-runs & locks | No blind replay of `succeeded`/`unknown` items; competing runs respect owned locks |
+| Consequential effects | Timeout/hard-kill after commit reconciles via readback or exits `1` with `unknown` (no replay) |
+| Interruptible work | `SIGINT` (`130`) / `SIGTERM` (`143`) stops new items, frees owned locks, emits complete item report |

@@ -114,7 +114,7 @@ Tie-breakers: correctness first; then clarity over brevity or cleverness; a smal
 - **Required review.** A required approval covers the final version. Put a required review you could not get under **Check first**.
 
 ### Required on-demand skills
-- `cicd-github` — before submitting or rerunning GitHub Actions validation, including failed checks. Follow its `references/validation-runs.md`.
+- `cicd-github` — before submitting or rerunning GitHub Actions validation, including failed checks. Follow its bounded CI runs section.
 - `stack-profile` — when its description marks the detected stack support-only (`Java/JVM`), or before choosing or changing a runtime, dependency, tool, infrastructure option, or a toolchain default the repository does not settle
 - `root-cause` — when a defect or test failure is non-obvious, unexplained, or flaky, or when a fix attempt fails, hits three failed fixes, or starts guessing ("it's probably X, let me change it and see"); load before further patching and follow its full loop
 - `api-craft` — before designing or changing HTTP APIs, webhook receivers, HTTP clients, or the persistence and asynchronous work needed to fulfill an API contract

@@ -43,7 +43,7 @@ behavior, and the separate SRE Workbench owns operational commands and CLI/MCP c
 comparison does not establish agent improvement or live operational transfer. Framework choice must
 not delay one useful comparison through an already compatible native path.
 
-Supported authoring languages follow the [stack profile](../../skills/stack-profile/references/application-and-data-stack.md):
+Supported authoring languages follow the [stack profile](../../skills/stack-profile/SKILL.md):
 Python, JavaScript/TypeScript and Go, with shell automation where relevant. Java remains support-only.
 Kubernetes benchmark environments are disposable test labs. They do not change the team's supported
 production stack or imply that a Kubernetes task measures PCF proficiency.

@@ -190,8 +190,8 @@ local note is not delivery, and no background continuation is implied.
 
 ### When explicitly assigned a causal investigation
 
-For an unknown failing stage, use the [symptom comparisons](../skills/incident-investigation/references/symptom-investigation.md);
-for shared impact, cascades, queues, or feedback, use [systemic analysis](../skills/incident-investigation/references/systemic-analysis.md).
+For an unknown failing stage, shared impact, cascades, queues, or feedback, use
+[signal patterns](../skills/incident-investigation/references/signal-patterns.md).
 Use them under this lane's authority and return contract, without taking the advisor's role or
 loading its full incident workflow.
 

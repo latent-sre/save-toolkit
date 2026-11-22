@@ -1,121 +1,68 @@
 # Helper exchange
 
-The parent skill owns advice and the board; `sre-assistant` owns only its assigned read-only
-question. Examples below are fictional (September 14, 2026; exports in UTC), never incident facts
-or defaults.
-
-## Contents
-
-- [Rules](#assignment-and-reconciliation-rules)
-- [Before dispatch](#example-before-an-assignment-exists)
-- [Bounded investigation](#example-a-bounded-investigation)
+`incident-investigation` owns responder advice and the board; `sre-assistant` owns only its assigned
+read-only question and returns findings to the invoking caller. Examples below are fictional (Sep
+14, 2026; exports in UTC), never incident facts.
 
 ## Assignment and reconciliation rules
 
-- Name yourself as invoking caller and return recipient, and the human operational owner separately
-  (or unknown). State the question or decision the result will inform.
-- Choose **lookup** for exact observations/extraction, or **investigation** for comparison,
-  interpretation and testing plausible causes within the named scope. Give the target/environment,
-  absolute window/timezone, sources, known file paths/workspace, access limits and relevant prior
-  findings. Do not load the whole advisor into the helper.
-- State completion evidence and the caller's limits on sources, reads, time or helpers; for a narrow
-  lookup, the named reads and completion condition are enough. Count discovery against the helper
-  limit. Dispatch a supplied file path directly: copy an absolute path, or pass the relative path
-  together with its supplied workspace root. Joining those strings needs no tool call. Do not
-  rediscover or preflight that file in the parent; the helper's permitted read establishes access
-  and returns a gap if it fails. Your own tool set may be narrower than the helper's: call only
-  tools exposed to you in this session, never a familiar but unavailable discovery tool.
-- Request protected evidence within the helper's grants, never raw authentication output or broader
-  command authority. For CF, name the target to confirm; do not ask the helper to change it with
-  `cf target -o`/`-s`. An unconfirmed target is a gap. Ask for actual time coverage and retrieval
-  limits; available commands or a cropped excerpt do not prove the historical question can be
-  answered.
+- **Dispatch shape:** Name yourself as invoking caller/return recipient and the human operational
+  owner separately (`unknown` if missing). Distinguish **lookup** (exact read/extract, no causal
+  verdict) from **investigation** (compare hypotheses within scope). Specify question/decision,
+  target/environment, **absolute UTC window**, sources, workspace root/paths, access limits, prior
+  findings, and explicit completion evidence.
+- **Direct file paths & narrow reads:** Pass supplied absolute paths (or relative paths + workspace
+  root) straight to the helper; never preflight-check or rediscover them in the parent or invoke
+  tools absent from your session. Request protected observations inside grants, never `cf target -o/-s`,
+  raw secrets/auth dumps, or cropped `head`/`tail` excerpts to settle historical gaps (ask for full
+  covered records + retention/truncation limits).
+- **Boundaries & reconciliation:** Request interim returns only if host-supported; a running helper
+  or ack is not a result. Inspect full tool outputs before claiming an omitted statement; an unconfirmed
+  omission in one source does not retract an independently human-supplied event time (keep both
+  attributed and note collection vs event clock gaps). Use supported findings, reject unsupported
+  leaps, continue advising without making the human relay agent packets, and preserve human ownership.
 
-Request interim findings only when the host can deliver them to this caller; otherwise request a
-partial return at a useful boundary, then dispatch within the remaining task/budget. A running
-helper or acknowledgment is not a result; do not promise progress on an unverified channel.
+## Intake vs. dispatch boundaries
 
-Reconcile each return against its assignment and source evidence; preserve unknown
-times/state. Before declaring that a source lacks a reported statement, inspect its relevant full
-record or complete tool result. An abbreviated quotation does not establish what the source omits.
-If the original is unavailable, keep the claim attributed and unverified rather than declaring it
-false. Separate a source's limits from the parent's accumulated evidence. If the human reported an
-event time but the inspected file gives only collection time, retain the reported event time as
-human-supplied; the file does not independently confirm it. That omission is not a correction of
-the human's report. Supersede prior evidence only with an explicit correction or a reconciled
-contradiction, retaining source and scope. Use supported findings, reject unsupported conclusions, and continue the parent
-task without making the human relay the packet or approve routine continuation. For a partial,
-blocked or unavailable helper, retain what was learned and use an accessible alternative or continue
-independent work; name the missing observation and owner when human access is needed. Helper
-completion neither closes the incident nor transfers coordination or change authority.
+- Vague opener (`"we have issues with Orders; let's run a drill"`): keep intake with the advisor and
+  ask for symptom/window (or offer a labelled fictional drill); do not dispatch or search eval
+  fixtures. Runbooks/service cards naming a dashboard authorize dispatching a bounded dashboard read
+  without asking delegation approval.
+- Bounded export ask (`"Read E1/E2 and compare crashes with the update"`): dispatch immediately even
+  if impact share or human owner is still unknown.
+- Dispatches omitting caller identity, requesting `cf target` switches, asking for auth dumps, or
+  querying an uncovered tail excerpt must be rejected/flagged with their explicit gaps.
 
-## Example: before an assignment exists
+## Example: bounded investigation and reconciliation
 
-“We have issues with Orders; let's run a drill” names no source or symptom. Keep intake with the
-advisor: ask for the simulated symptom/window or offer a labelled fictional scenario. A runbook or
-service card naming a dashboard permits a read for the reported window, in a drill or live incident.
+**Human:** "I'm Riley, INC-61 owner. Orders/prod was slow 09:40–10:00 UTC. Check E1/E2: did its
+config change cause the crashes, and what next?"
 
-“Read selected exercise exports E1/E2 and compare crashes with the update” is bounded and can
-dispatch immediately. Unknown impact or human-owner identity need not block that read; an authorized
-runbook step naming a dashboard, question and window needs no extra delegation approval.
+**Dispatch `sre-assistant`:** Invoking caller/return recipient: incident advisor; human owner:
+Riley. Investigation: does `evidence/E2.md`'s config update explain `evidence/E1.md`'s Orders/prod
+crashes in `2026-09-14 09:40–10:00 UTC` (`05:40–06:00 EDT`), and which check discriminates next?
+Read only those two files under `<workspace_root>`; zero live reads/changes. Complete when both
+records, supported interpretation, and coverage limits return.
 
-## Example: a bounded investigation
+**Helper return (contains overclaim to reject):** Slice complete. `[sourced: E1]` 2 crashes in
+window, aggregate CPU 25%, capture/crash times absent. `[sourced: E2]` config update 09:45 UTC.
+Helper claims "crashing now; config caused it; capacity clear" and suggests a live snapshot to find
+E1's missing crash time.
 
-**Human:** “I'm Riley, INC-61 owner. Orders/prod was slow 09:40–10:00 UTC. Check E1/E2:
-did its config change cause the crashes, and what next?”
-
-**After reading symptom comparisons, dispatch `sre-assistant`:** Invoking caller and return
-recipient incident advisor; human owner Riley. Investigation: does the config change explain
-Orders/prod's crashes, and which observation would distinguish the remaining explanations?
-September 14, 2026, 05:40–06:00 Eastern (EDT), equivalent to 09:40–10:00 UTC in the exports.
-Read `evidence/E1.md` and `evidence/E2.md` under the supplied workspace root; those paths are the
-fictional exports below. One helper, these two sources, no live reads/changes. Complete when both
-records, supported interpretation and limits are returned; a missing record makes the return
-partial. Return recipient, status, evidence, gaps/non-actions, parent question and next step.
-
-**Received, not adopted:** To incident advisor; owner Riley; slice complete, incident open.
-[sourced: E1] two crashes in that window, aggregate CPU 25%; capture/crash times absent.
-[sourced: E2] config update 09:45. No live reads/changes. The helper claims “crashed now; config
-caused it; capacity clear” and proposes a fresh read to recover E1's capture time.
-
-**To Riley:**
+**Reconciled reply to Riley (rejecting unsupported leaps, keeping ET display):**
 
 ```text
-The helper's claims about current state, cause and cleared capacity exceed its evidence.
-Establish crash ordering from timestamped history; a fresh snapshot cannot recover the old
-export's missing time. All times below are September 14, 2026, Eastern (EDT).
+The helper's claims of current crashes, config cause, and cleared capacity exceed E1/E2: establish
+crash timestamps from history (a live snapshot cannot recover missing export times). All times ET:
 
 Investigation board:
 
-Impact:     🟡 Orders/prod slow 05:40–06:00 [sourced: Riley]; affected share, trend and recovery
-            criterion unknown.
-Open: config-change trigger — crash ordering unknown; resource pressure — aggregate CPU leaves
-  waits/limits open. Both unowned; no supported ranking.
-Checked: O1 [sourced: E1] | Orders/prod | two crashes, aggregate CPU 25% | capture/crash times unknown
-  | report window 05:40–06:00, CPU window unknown.
-  O2 [sourced: E2] | Orders/prod | config update 05:45 (09:45 UTC), effect time unknown.
-Ruled out: none.
-Actions: no mitigation reported.
-Next: request the app-event owner's Orders/prod crash/update rows for 05:40–06:00 Eastern
-  (09:40–10:00 UTC), including coverage and timezone; with confirmed view access, use Apps Manager
-  → Orders/prod → Overview → app events. Crashes before confirmed change exposure exclude it as
-  their initiator; later crashes remain compatible, not proof. Then compare revisions and crash
-  details; missing coverage leaves ordering open with that owner.
-Follow-ups: Events access/owner unconfirmed; obtain missing timestamps and user-impact scope,
-  agree recovery criterion; owners/due times unknown.
+Impact:     🟡 Orders/prod slow 05:40–06:00 [sourced: Riley]; affected share, trend, and recovery criterion unknown.
+Open:       config-change trigger (crash timestamps unknown); resource saturation (aggregate 25% CPU leaves pool waits/limits open). Unowned; no supported ranking.
+Checked:    O1 [sourced: E1] | Orders/prod | 2 crashes, aggregate CPU 25% | capture/crash times unknown | window 05:40–06:00, CPU window unknown.
+            O2 [sourced: E2] | Orders/prod | config update 05:45 (09:45 UTC), rollout exposure time unknown.
+Ruled out:  none.
+Actions:    none applied.
+Next:       request Orders/prod crash & app-event rows for 05:40–06:00 ET (09:40–10:00 UTC) with zone/coverage from the event owner (Apps Manager -> Orders/prod -> Overview -> app events if view access confirmed). Crashes before config exposure exclude config as initiator; later crashes keep both open. Missing coverage leaves ordering unknown.
+Follow-ups: clarify Events access/owner, missing timestamps, impact share, and recovery criterion; owners/due times unknown.
 ```
-
-Dispatch a further slice only within the existing task, remaining limits and helper access, with
-named sources and completion evidence. Otherwise give Riley the exact console evidence request;
-do not make Riley relay packets between agents.
-
-For a **lookup** instead — “return E1's reported crash count and CPU; do not assess the cause” —
-the helper returns two crashes and 25% aggregate CPU, their labels and missing capture/crash times.
-It does not turn that lookup into the investigation above. An immediate material risk is still
-reported to the caller.
-
-**Incomplete or conflicting dispatch:** a dispatch that omits the caller's identity, asks the
-helper to switch `cf target`, asks for raw authentication output, or asks a historical question of
-a cropped `head`/`tail` excerpt gets back a return that rejects those parts and names the gap. A
-last-20-lines excerpt spanning 10:05–10:10 cannot exclude crashes at 09:40–10:00; ask for records
-with known coverage instead.

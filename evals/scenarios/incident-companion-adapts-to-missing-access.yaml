@@ -4,7 +4,7 @@ split: regression
 skill: incident-investigation
 tools: [Skill, Read]
 references:
-  - skills/incident-investigation/references/symptom-investigation.md
+  - skills/incident-investigation/references/signal-patterns.md
 prompt: |
   Continue this conversation snapshot about ledger on PCF, INC-52. No knowledge repo is
   available. Morgan is incident commander. Nobody has applied a mitigation.

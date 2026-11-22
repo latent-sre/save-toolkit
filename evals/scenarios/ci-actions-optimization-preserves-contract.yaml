@@ -3,10 +3,8 @@ max_turns: 17
 split: regression
 skill: cicd-github
 tools: [Skill, Read]
-references:
-  - skills/cicd-github/references/execution-and-runners.md
 prompt: |
-  Read the execution-and-runners reference. Assess this supplied-state workflow optimization;
+  Load cicd-github and assess this supplied-state workflow optimization;
   do not edit files, run commands, or submit CI. The owner wants lower elapsed time and runner
   usage while retaining all currently supported OS/Python combinations.
 

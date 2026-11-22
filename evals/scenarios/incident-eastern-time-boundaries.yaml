@@ -3,11 +3,8 @@ max_turns: 16
 split: regression
 skill: incident-investigation
 tools: [Skill, Read]
-references:
-  - skills/incident-investigation/assets/closeout-packet.md
 prompt: |
-  This is a fictional training exercise, not a live incident. Use the skill and named closeout
-  reference to decide the timestamp handling below. No platform reads, actions, or dispatches.
+  This is a fictional training exercise, not a live incident. Use the skill and its closeout packet schema to decide the timestamp handling below. No platform reads, actions, or dispatches.
   A. A summer observation is 2026-07-15T14:00:00Z; a winter observation is
      2026-01-15T15:00:00Z. Render both for the human investigation board.
   B. A source event is 2026-09-15T01:00:00Z. Render its Eastern date and time.

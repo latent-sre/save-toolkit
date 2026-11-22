@@ -130,18 +130,18 @@ class NativeConversationRunTests(unittest.TestCase):
                 self.assertEqual("INCONCLUSIVE", summary["status"])
 
     def test_native_reference_assertions_do_not_hint_the_prompt(self):
-        spec = {**self.SPEC, "references": ["skills/incident-investigation/references/symptom-investigation.md"]}
+        spec = {**self.SPEC, "references": ["skills/incident-investigation/references/signal-patterns.md"]}
         self.assertEqual([], probe_catalog.validate_scenario(spec))
         self.assertEqual(spec["prompt"], probe_catalog.scenario_prompt(spec))
 
     def test_native_reference_read_must_match_the_measured_plugin(self):
-        reference = "skills/incident-investigation/references/symptom-investigation.md"
+        reference = "skills/incident-investigation/references/signal-patterns.md"
         for base, expected in ((ROOT, True), (ROOT / "shadow", False)):
             trace = probe_tracing.TraceSummary(read_attempts=[{"tool": "Read", "path": str(base / reference), "outcome": "allowed"}])
             self.assertEqual(expected, probe_assessment.reference_read(trace, reference, ROOT)[0])
 
     def test_native_reference_requires_initial_parent_completion_before_dispatch(self):
-        reference = "skills/incident-investigation/references/symptom-investigation.md"
+        reference = "skills/incident-investigation/references/signal-patterns.md"
         spec = {**self.SPEC, "references": [reference]}
         for placement in ("before", "helper", "after", "followup", "straddles", "failed"):
             with self.subTest(placement=placement), tempfile.TemporaryDirectory() as tmp:

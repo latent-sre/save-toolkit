@@ -277,8 +277,8 @@ class ReferenceReadTests(unittest.TestCase):
 
     def test_incident_contracts_require_successful_reference_reads(self) -> None:
         for name, reference in (
-            ("explains-pool-wait", "symptom-investigation.md"),
-            ("adapts-to-missing-access", "symptom-investigation.md"),
+            ("explains-pool-wait", "signal-patterns.md"),
+            ("adapts-to-missing-access", "signal-patterns.md"),
             ("hands-over-unresolved-work", "mitigation-selection.md"),
         ):
             with self.subTest(scenario=name):
