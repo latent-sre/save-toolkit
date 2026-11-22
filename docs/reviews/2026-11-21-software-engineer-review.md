@@ -20,12 +20,12 @@ after the first two `P1` fixes) against its 9 on-demand skills (`cicd-github`, `
 | **6** | **P1** | **DROPPED** | `:57`, `:65`, `:67`, `:69-70` | Already covered across `:57` (`Understand first`), `:65` (`internal callers you control`), `:67` (`Contracts`), `:69` (`Tests`), and `:70` (`Keep parallel edits in sync`) |
 | **7** | **P2** | **OPEN** | `:4`, `:10-14`, `:102-104` | Unexplained, hazardous, or missing tool grants (`EnterWorktree`/`ExitWorktree` unmentioned and can strand edits outside the working tree; `TodoWrite` unmentioned; `researcher` unmentioned in body; `repository-investigator` missing from `Agent(...)`; `scribe` takes 5 lines of the intro) |
 | **8** | **P2** | **OPEN** | `:128-137` | Mandatory 9-skill loading waterfall before routine coding instead of inlined core craft baselines + optional deep-reference skill loads (or full self-containment) |
-| **9** | **P2** | **FIXED** | `:82`, `:89` | Trimmed duplicate *"simplest design that solves the whole problem"* from `Code standard` (`:82`) and duplicate *"Fix the cause"* from `Do not take these shortcuts` (`:89`) |
-| **10** | **P2** | **OPEN** | `:6-137` (11 sections) | Fragmented 11-section layout (>50% governance/routing/disclaimers) instead of a unified 5-section engineering execution spine (like [`agents/reviewer.md`](../../agents/reviewer.md)) |
-| **11** | **P2** | **OPEN** | `:34-36` | Missing environment, lockfile, and generated-file hygiene (use project virtualenv/runner, never install into system Python, never hand-edit lockfiles or generated projections) |
-| **12** | **P2** | **OPEN** | `:25`, `:103`, `:122-126` | `Untrusted input boundary` is buried at the bottom after `Return format`, and `:103` omits the explicit host-loaded instruction file paths |
-| **13** | **P3** | **OPEN** | `:110-111` | Audience rule in `Return format` (*"who is not an SDE"*) weakens technical precision; should serve both an engineer and an SRE |
-| **14** | **P3** | **OPEN** | `:31-32`, `:60-61`, `:98` | Scattered single-line rules (`source mutations... in a disposable copy`, `Done for HTTP work`, `Negative tests`) separated from their parent topics |
+| **9** | **P2** | **DROPPED** | `:83`, `:90` | Restored full parallel sentences in `Code standard` (`:83`) and `Do not take these shortcuts` (`:90`) |
+| **10** | **P2** | **FIXED** | `:16-141` (5 sections) | Reorganized 11 flat sections into a unified 5-section numbered spine (`## 1.`–`## 5.`) matching [`agents/reviewer.md`](../../agents/reviewer.md) |
+| **11** | **P2** | **FIXED** | `:35-36` | Added stack-agnostic lockfile and generated-file rule (*"update lockfiles and generated files through their tool or generator, never by hand"*) |
+| **12** | **P2** | **FIXED** | `:105`, `:126` | Added `helper returns` to `Untrusted input boundary` (`:126`) and named explicit host-loaded instruction file paths in `Instruction files` (`:105`) |
+| **13** | **P3** | **HOLD** | `:111-112` | Audience rule in `Return format` (*"who is not an SDE"*) held as intentional for Save Toolkit's SRE audience |
+| **14** | **P3** | **FIXED** | `:61` | Updated `Done for HTTP work` (`:61`) to remove the stale `"project-owned contract test"` reference deleted from `api-craft` in PR #542 |
 | **15** | **P3** | **OPEN** | `:22` vs. `:129` | CI validation authority row (`:22`) is split from `cicd-github` (`:129`) and omits default-branch `workflow_run` consumers and `workflow_dispatch` vs. required-check distinction |
 
 ---
@@ -135,65 +135,50 @@ after the first two `P1` fixes) against its 9 on-demand skills (`cicd-github`, `
   into `software-engineer.md`, and either remove `Skill` for 100% self-containment or scope skill
   loads to deep reference procedures, engine-specific tables, or starter assets.
 
-### 9. `P2 [verified] medium` — OPEN: 4-way cross-section repetition across lines 38–91 (`:38-91`)
-- **The flaw:** Four sections (`The SRE lens`, `Before building`, `While building`, `Code standard`,
-  `Do not take these shortcuts`) repeat the same directives `[verified]`:
-  - *"Simplest design that solves the whole problem, not always the smallest diff / fewest lines /
-    simple now over flexible later"* repeats **4 times** (`:53`, `:66`, `:83`, `:85`).
-  - *"Fix a defect's cause where it lives / Fix the cause; no special-cased input or hard-coded
-    value"* repeats **twice** (`:67`, `:90`).
-  - *"Failure paths are as deliberate as the success path / partial-failure behavior decided
-    deliberately / Surface errors; no broad catch"* repeats **4 times** (`:41`, `:69`, `:80`, `:89`).
-  - *"Every piece of state/resource has one clear owner"* repeats **3 times** (`:66`, `:69`, `:79`).
-- **The fix:** Fold `## Do not take these shortcuts` into `## Code standard` and `## While building`
-  and remove the 4-way repeats, saving ~150–200 words.
+### 9. `P2 [verified] medium` — DROPPED: Cross-section repetition vs. parallel sentence structure (`:83`, `:90`)
+- **Disposition:** Dropped and restored `:83` (*"It is the simplest design that solves the whole
+  problem, with nothing unused or speculative."*) and `:90` (*"Fix the cause; no special-cased input
+  or hard-coded value to pass a check."*) so `## Code standard` keeps complete declarative sentences
+  and `## Do not take these shortcuts` preserves its parallel `Verb; no...` self-review checklist
+  `[verified]`.
 
-### 10. `P2 [verified] medium` — OPEN: Fragmented 11-section structure with >50% governance prose (`:6-137`)
-- **The flaw:** The prompt jumps across 11 top-level headings (`Software Engineer`, `Effect
-  authority`, `Workspace and stack`, `The SRE lens`, `Before building`, `While building`, `Code
-  standard`, `Do not take these shortcuts`, `Verify, review, finish`, `Return format`, `Untrusted
-  input boundary`, `Required on-demand skills`), with over half the text devoted to routing,
-  disclaimers, and skill triggers rather than an ordered engineering workflow `[verified]`.
-- **The fix:** Reorganize into the unified 5-section engineering spine below (`§1`–`§5`) so every
-  rule has one authoritative home.
+### 10. `P2 [verified] medium` — FIXED: Reorganize 11 sections into the 5-section engineering spine (`:16-141`)
+- **Flaw on `main`:** The prompt jumped across 11 unnumbered headings with `Untrusted input
+  boundary` stranded after `Return format` and `The SRE lens` separating `Workspace and stack` from
+  `Before building` `[verified]`.
+- **Applied fix:** Reorganized into 5 numbered sections (`## 1. Effect authority and untrusted input
+  boundary` with `<a id="effect-authority"></a>`, `## 2. Workspace, forks, and engineering loop`,
+  `## 3. Code standard, operational surface, and shortcuts`, `## 4. Verify, review, finish, and
+  required skills`, and `## 5. Return format`) `[verified]`.
 
-### 11. `P2 [verified] medium` — OPEN: Missing environment, lockfile, and generated-file hygiene (`:34-36`)
-- **The flaw:** Lines 34–36 say to detect the stack from lockfiles and manifests, but never state two
-  critical operational rules for coding agents `[verified]`:
-  1. Always run tools and tests through the project's isolated environment/runner (`.venv/bin/python`,
-     `uv run`, project test runner) — never `pip install` into system Python or mutate global host
-     state.
-  2. Never hand-edit lockfiles (`uv.lock`, `package-lock.json`, `go.sum`) or generated projections —
-     update them via the repository's locking or generator command so source and projections stay in
-     sync.
-- **The fix:** Add both rules directly to workspace and stack hygiene.
+### 11. `P2 [verified] medium` — FIXED: Lockfile and generated-file hygiene (`:35-36`)
+- **Flaw on `main`:** Lines 34–36 said to take versions from lockfiles, without stating never to
+  hand-edit lockfiles or generated files `[verified]`. (Python-specific `.venv`/`uv` rules remain in
+  `python-craft` and `stack-profile`.)
+- **Applied fix:** Added *"; update lockfiles and generated files through their tool or generator,
+  never by hand"* to `:35-36` `[verified]`.
 
-### 12. `P2 [verified] medium` — OPEN: `Untrusted input boundary` buried at the bottom (`:122-126`) and `:103` omits explicit host-loaded instruction file paths (`:25`, `:103`, `:122-126`)
-- **The flaw:**
-  - `## Untrusted input boundary` (`:122-126`) sits *after* `## Return format`, separated by 100
-    lines from the fork/untrusted-code execution ban in `## Effect authority` (`:25`).
-  - Line 103 says *"If your change edits instruction files that would auto-load as the reviewer's
-    own, and no checkout of the unchanged base is available to run it from, do not dispatch; report
-    that gap"*, without naming which files count (`CLAUDE.md`, `AGENTS.md`, `.claude/`,
-    `.github/copilot-instructions.md`, `.github/{instructions,agents,skills}/`, as
-    [`agents/reviewer.md`](../../agents/reviewer.md) does).
-- **The fix:** Move the untrusted input and helper-return boundary up into §1 beside `Effect
-  authority`, and name the host-loaded instruction paths explicitly in the reviewer dispatch rule.
+### 12. `P2 [verified] medium` — FIXED: `helper returns` in `Untrusted input boundary` (`:126`) and explicit host-loaded instruction file paths in `Instruction files` (`:105`)
+- **Flaw on `main`:** `Untrusted input boundary` omitted `helper returns`, and `Instruction files`
+  omitted the explicit host-loaded instruction paths that [`agents/reviewer.md`](../../agents/reviewer.md)
+  names `[verified]`.
+- **Applied fix:** Added `helper returns` to `Untrusted input boundary` (`:126`) and named
+  `(`CLAUDE.md`, `AGENTS.md`, `.claude/`, `.github/copilot-instructions.md`,
+  `.github/{instructions,agents,skills}/`)` in `Instruction files` (`:105`) `[verified]`.
 
-### 13. `P3 [verified] low` — OPEN: Audience rule in `Return format` (*"who is not an SDE"*, `:110-111`) weakens technical precision
-- **The flaw:** Line 110–111 says *"Write for an experienced IT/SRE practitioner who is not an SDE
-  unless the caller names another audience"*, which nudges the model to gloss over exact symbol,
-  type, and contract details `[verified]`.
-- **The fix:** Replace with: *"Write for an experienced engineer or SRE who needs both exact
-  code/contract facts and operational impact: lead with the result, then root cause, key engineering
-  choice, and observable runtime or rollout effect."*
+### 13. `P3 [verified] low` — HOLD: Audience rule in `Return format` (*"who is not an SDE"*, `:111-112`)
+- **Disposition:** Held for later; commit `69b6f99a` deliberately framed reports for Save Toolkit's
+  primary SRE audience while `:116` (`Changed`) already requires `file/line references` `[verified]`.
 
-### 14. `P3 [verified] low` — OPEN: Scattered single-line rules (`:31-32`, `:60-61`, `:98`)
-- **The flaw:**
-  - `:31-32` (*"Run source mutations that test an assertion in a disposable copy, never in the
-    task's working tree"*) sits in `Workspace and stack` rather than with test/verification hygiene.
-  - `:60-61` (`Done for a new tool` and `Done for HTTP work`) can be combined cleanly.
-  - `:98` (`Negative tests`) sits in `Verify, review, finish` separated from `Tests` (`:70`).
+### 14. `P3 [verified] low` — FIXED: Update `Done for HTTP work` (`:61`) after `api-craft` streamlining
+- **Flaw on `main`:** Line 61 said *"HTTP work adds the project-owned contract test under
+  `api-craft`"*, referencing a section removed when PR #542 streamlined
+  [`skills/api-craft/SKILL.md`](../../skills/api-craft/SKILL.md) `[verified]`. (The disposable-copy
+  rule in `:36-37` and `Negative tests` in `:105` remain in their natural workspace and verification
+  sections.)
+- **Applied fix:** Updated `:61` to: *"`- **Done for HTTP work.** HTTP work verifies the consumer,
+  error, and auth contracts through the real handler and lifespan chain under api-craft.`"*
+  `[verified]`.
 
 ### 15. `P3 [verified] low` — OPEN: CI validation authority row (`:22`) split from `cicd-github` (`:129`)
 - **The flaw:** Line 22 says *"Submit or rerun CI validation | Only within caller-authorized scope
