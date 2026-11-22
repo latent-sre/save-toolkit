@@ -1,9 +1,9 @@
 # Project manifest: dependency groups, lint, format and type-check configuration. The repository is
 # not a package (tool.uv.package = false); uv.lock holds every exact version. Ruff lints the eval runner
 # (evals/build_probe.py and evals/probe/), the run comparison (evals/compare_runs.py), the turn-count
-# summary (evals/turn_counts.py), the graders, the Inspect pilot, the evals tests and their shared
-# helpers (evals/probe_testkit.py), the fleet tooling and its suites (scripts/), and the Python bundled
-# in skills/. It formats the eval code but its tests; scripts/ and skills/ keep their hand layouts.
+# summary (evals/turn_counts.py), the graders, the Inspect pilot,
+# the fleet tooling and its suites (scripts/), and the Python bundled
+# in skills/. It formats the eval code; scripts/ and skills/ keep their hand layouts.
 # Strict mypy covers the eval code without the tests or their helpers, plus the scripts/ modules that
 # are fully typed: the read-only guard and its session preflight, the Gate A path,
 # and the scripts/ test helpers. CONTRIBUTING.md names when each runs; CI runs none of them.
@@ -21,7 +21,7 @@ requires-python = ">=3.14"  # repository-wide compatibility floor (CONTRIBUTING.
 dependencies = []
 
 [dependency-groups]
-# `uv sync` installs `test`: the fleet, build-oracle and Inspect regression tests, lint and type checks.
+# `uv sync` installs `test`: the fleet CI suite, lint, and type checks.
 # Floors are the versions the suite was last proven on before a re-resolution; uv.lock is the pin.
 test = [
     "pytest>=9.1.1",
@@ -29,18 +29,21 @@ test = [
     "pytest-timeout>=2.4.0",
     "pytest-socket>=0.8.1",
     "hypothesis>=6.170.15",
+    "pydantic>=2.14.3",
     "types-PyYAML>=6.0.12.20260906",
+    "ruff>=0.17.5",
+    "mypy>=2.4.0",
+    "pyyaml>=6.0.3",
+]
+# Optional eval-adapter runtime dependencies (`uv sync --locked --group evals`).
+evals = [
     "fastapi>=0.163.1",
     "httpx>=0.28.1",
     "jsonschema>=4.26.0",
-    "pydantic>=2.14.3",
     "inspect-ai>=0.3.290",
     "inspect-swe>=0.3.0",
     "anthropic>=2.8.0",
     "docker>=7.2.0",
-    "ruff>=0.17.5",
-    "mypy>=2.4.0",
-    "pyyaml>=6.0.3",
 ]
 # Optional WP-08 SWE-bench evaluation environment, approved by its run plan.
 swebench = [
@@ -85,12 +88,14 @@ default-groups = ["test"]
 # its upper bound; the WP-09 Harbor smoke on a Docker host remains the live check of that environment.
 override-dependencies = ["filelock>=4.2.7"]
 # harbor and swt resolve apart from the project environment and from each other; swebench installs
-# on top of test.
+# on top of test/evals.
 conflicts = [
     [{ group = "harbor" }, { group = "test" }],
+    [{ group = "harbor" }, { group = "evals" }],
     [{ group = "harbor" }, { group = "swebench" }],
     [{ group = "harbor" }, { group = "swt" }],
     [{ group = "swt" }, { group = "test" }],
+    [{ group = "swt" }, { group = "evals" }],
     [{ group = "swt" }, { group = "swebench" }],
 ]
 

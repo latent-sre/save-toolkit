@@ -86,7 +86,7 @@ from their v1 records (EVAL-012 WP-01): counts, attempts and known and unknown s
 case as a gain, regression, unchanged, unmeasured, missing pair or not compared, then unusable records
 and legacy runs. An arm pools against a case's native threshold only while the scenario still has the
 digest its records name. `--json` prints the logical report. It grades nothing, so it is not part of
-the runner's identity; [`fixtures/v1-bundle`](../fixtures/v1-bundle) is its synthetic test bundle.
+the runner's identity (the synthetic `v1-bundle` fixture was archived in Git history).
 `python evals/turn_counts.py .eval-runs [--scenario ID ...]` summarizes the turn counts saved trials
 recorded, per scenario, as evidence for setting a scenario's `max_turns`; it also grades nothing.
 Older `total_duration_seconds` values are accepted when trial-only elapsed time is absent; they
@@ -164,17 +164,7 @@ a $1 cost limit. Inspect checks limits between operations; an in-flight call can
 Models without pricing metadata require explicit pricing before a cost-limited run can start.
 `-T claude_version=<version>` selects a repeatable CLI version for comparisons.
 
-Run the bridge smoke tests without a paid model (downloads Claude and starts Docker):
-
-```powershell
-$env:RUN_INSPECT_DOCKER_SMOKE = '1'
-python -m pytest evals/test_inspect_pilot.py -k real_swe -q
-Remove-Item Env:RUN_INSPECT_DOCKER_SMOKE
-```
-
-These scripted pass/fail cases verify the bridge and scorers, not model capability. CI does not
-run them; run the offline tests locally, and Docker smoke cases are explicit opt-ins. Details and remaining
-modernization work are in [Python and eval modernization](../../docs/python-eval-modernization.md).
+The historical Inspect bridge smoke cases and modernization record are archived in Git history.
 
 ## Inspect orchestration of native scenarios
 

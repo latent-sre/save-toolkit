@@ -22,7 +22,7 @@ implementation, so this package uses a fixed baseline. Refresh source claims at 
 | [Stack guidance](../../skills/stack-profile/SKILL.md) | [verified] PCF/on-prem and GCP context; benchmark Kubernetes labs do not redefine the production stack |
 | [Judge ADR](../decisions/2026-09-01-rubric-judge-evaluation-contract.md) | [verified] Accepted contract and historical rationale; do not silently rewrite it |
 | [Harness threat model](../decisions/2026-10-03-eval-harness-threat-model.md) | [verified] Proposed local measurement boundary, not proof of hostile-code containment |
-| [Modernization record](../python-eval-modernization.md) | [sourced] Historical Inspect pilot rationale and tests; those dated results are not fresh acceptance of this plan |
+| Modernization record (archived in Git history) | [sourced] Historical Inspect pilot rationale and tests; those dated results are not fresh acceptance of this plan |
 
 Counts came from parsing the selected YAML and reading source in the fixed worktree. No paid model,
 live benchmark, new dependency installation, Docker lab or external-host compatibility check was run

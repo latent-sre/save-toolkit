@@ -49,22 +49,19 @@ platform selection, and a team service's workflow graph; four negatives require
 reliability assessments, small tool builds, an independent review of a design document, and the
 fleet's own workflow-graph design to reach their own lanes. The design-review negative seeds the
 two consumers its document names; a review the main session keeps passes, as does one handed to
-`reviewer`, and the design lane taking it fails. `python -m pytest
-evals/test_principal_cases.py` calibrates them offline; design quality needs document review,; the owner accepted the
+`reviewer`, and the design lane taking it fails. Design quality needs document review; the owner accepted the
 lane's exact candidate on 2026-11-04.
 
 The [PRINCIPAL-001 semantic proposal](../proposals/principal-judgment/README.md) is deliberately
 outside the active catalog and canonical rubric/corpus maps until reviewed activation and a new
 accepted calibration are approved. It retains four paired scenarios, eighteen proposed labels,
-and a rubric containing the full prompt and fixture files for each case. Its offline tests bind
-the rendered context to those fixtures; they do not establish semantic model accuracy. Keeping
+and a rubric containing the full prompt and fixture files for each case. Keeping
 the proposal must not invalidate calibration receipts for unrelated active scenarios.
 
 `build-principal-engineer-live-store-cutover` and `build-software-engineer-live-store-cutover`
 prepare a fresh held-out case for the frozen lane candidate: concurrent writes/deletes during a
 store copy, bounded-pause cutover, and recovery after replacement-only writes. Their prompts,
-fixtures and checks are identical. `python -m pytest evals/test_principal_heldout.py` verifies
-pair equality and the same-count/different-state rehearsal counterexample without model calls.
+fixtures and checks are identical.
 Artifact/boundary and skill-load checks remain separate from substantive design review; no
 keyword semantic oracle is added. The preregistered review protocol
 required uniformly hidden author metadata and a frozen first pass before trace reconciliation.
@@ -99,25 +96,20 @@ items, not regression coverage: the Playwright/Grafana visual path (strict MCP s
 servers), the dispatched child's reads in routing trials (the child runs without Bash), and
 researcher dispatch from the agent.
 
-`python -m pytest evals/ --heavy` covers the runner, graders, and judge without a model. A plain
-`python -m pytest evals/` skips the heavy eval-machinery files listed in the root `conftest.py`
-(`HEAVY`), among them the probe-trial, checking and oracle suites, so it does not. Gate A is
-structural and does not run them, and CI runs no `evals/` tests: these local runs are an eval
-change's only evidence.
-
-For a final local full run, use `python scripts/local_tests.py --heavy` from the repository root.
-It coordinates linked worktrees and saves logs, JUnit timings, and revision/command receipts.
-Local pytest defaults to ten workers; CI explicitly keeps four. Scenario data edits use validation
-and their matching contract/behavioral checks, while evaluator changes require broader coverage;
-the selection rule lives in [CONTRIBUTING.md](../../CONTRIBUTING.md#3-verify-in-proportion-to-the-change).
+`python evals/build_probe.py validate` and `python evals/catalog.py check` validate all native
+scenarios, graders, suites, and tracks offline without model calls. Gate A is structural and does
+not run shipped-code tests, while `python scripts/local_tests.py` runs the coordinated `scripts/`
+CI suite, saves logs and JUnit timings, and records revision/command receipts. Local pytest defaults
+to ten workers; CI explicitly keeps four. Edit verification rules live in
+[CONTRIBUTING.md](../../CONTRIBUTING.md#3-verify-in-proportion-to-the-change).
 ## WP-10 offline adversarial preparation
 
-The [AC-20 inventory](../wider-fleet-inventory.md) maps lane gaps and offline controls.
+The AC-20 wider-fleet inventory (archived in Git history) mapped lane gaps and offline controls.
 The [AC-27 agent-side pairs](../oracles/agent-injection/README.md) cover repository, supplied-log
 and seeded-helper surfaces with scripted obeying/resisting controls.
 The judge-input surface is six `AC-27 judge-input calibration` cases in the active corpus, framed by
 `judge.py`'s per-response marker tag so that a response containing an end marker cannot close its
-frame early; `test_judge_injection.py` checks both offline. Both the fix and the cases need one
+frame early. Both the fix and the cases need one
 owner-approved cold recalibration before any rubric trial uses them. Offline discrimination is not
 candidate acceptance or completion of WP-10.
 
@@ -137,8 +129,6 @@ observability/identity/network (GCP-10, 11, 14, 16), managed-services (GCP-19 to
 (GCP-26, 27, 28, 30, 31, 32) groups are authored, completing the catalog's offline authoring.
 
 `python scripts/generate_gcp_pilot.py` checks that the generated YAML cases and both review records
-match their hidden source data; `--write` regenerates them. `python -m pytest
-evals/test_gcp_cases.py evals/test_gcp_pilot.py` exercises paired isolation, real fixture reads,
-unavailable observations, tool boundaries and useful/wrong/unavailable controls offline.
+match their hidden source data; `--write` regenerates them.
 Mechanical success remains INCONCLUSIVE pending human semantic assessment. The owner accepted the
 64-case catalog on 2026-10-17 (DEC-14); case acceptance does not establish model performance.

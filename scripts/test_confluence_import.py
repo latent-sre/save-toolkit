@@ -36,7 +36,7 @@ from testkit import frontmatter_block, load_path
 ROOT = Path(__file__).resolve().parents[1]
 CONVERTER = ROOT / "skills" / "operational-docs" / "scripts" / "confluence_to_runbook.py"
 # The published `schemas/runbook-frontmatter-v1.schema.json` was removed in the 2026-09-02
-# retention pass, so the template is the frontmatter contract now (see test_runbook_schema.py).
+# retention pass, so the template is the frontmatter contract now.
 # Pinning the converter to the template is the stronger binding anyway: the template is the file a
 # human copies, so a converter that agrees with it agrees with what runbooks actually look like.
 TEMPLATE_PATH = ROOT / "skills" / "operational-docs" / "assets" / "runbook-template.md"
