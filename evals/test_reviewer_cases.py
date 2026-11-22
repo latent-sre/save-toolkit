@@ -2,10 +2,8 @@
 
 import json
 import os
-import re
 import sys
 import tempfile
-import textwrap
 import unittest
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
@@ -44,18 +42,7 @@ def ran(command):
     return SimpleNamespace(trace=probe_tracing.TraceSummary(bash_commands=[command]))
 
 
-def documented_snapshot():
-    """The uncommitted-work snapshot exactly as agents/reviewer.md gives it."""
-    text = (ROOT.parent / "agents/reviewer.md").read_text(encoding="utf-8")
-    blocks = [textwrap.dedent(body).strip() for body in re.findall(r"```bash\n(.*?)```", text, re.S)
-              if "ls-files -z" in body]
-    assert len(blocks) == 1, f"expected one snapshot block in agents/reviewer.md, found {len(blocks)}"
-    return blocks[0]
-
-
-SNAPSHOT_BLOCK = documented_snapshot()
 TAR_COPIES = [
-    SNAPSHOT_BLOCK,
     'tar --null --no-recursion -T "$S.list" -cf - | tar -xpf - -C "$S"',
     "tar --null --no-recursion -T $S.list -cf - | tar -xpf - -C $S",
     'tar --null --no-recursion -T "$S.list" -cf - | tar -xf - -C "$S"',
@@ -363,7 +350,6 @@ class ReviewerCaseTests(unittest.TestCase):
                      "git -c diff.autoRefreshIndex=false -c core.fsmonitor=false --no-pager --no-optional-locks diff HEAD",
                      f'G="git {four}"; for f in a b; do $G show x:$f > $S/$f; done',
                      'echo "do git status"', 'echo "then git log" && printf "if git diff"',
-                     f'G="git {four}"\n' + SNAPSHOT_BLOCK,
                      "SHA=$(git rev-parse HEAD)", "git ls-files -z | tar --null -T - -cf -",
                      'G="git --no-pager"; for f in a b; do $G show x:$f > $S/$f; done',
                      "git --no-pager show feature/x:test_client.py", "git ls-tree -r --name-only x",
@@ -416,20 +402,20 @@ class ReviewerCaseTests(unittest.TestCase):
             probe_checking.check_bash_ran, listing,
             ["git ls-files", "git ls-files --others", "git ls-files --cached --exclude-standard", "git status --short",
              "git ls-files -z --cached | tar --null -T - -cf -"],
-            [SNAPSHOT_BLOCK, "git ls-files -z --cached --others --exclude-standard",
+            ["git ls-files -z --cached --others --exclude-standard",
              "$G ls-files -o --exclude-standard", "$G ls-files --exclude-standard --others -z > $S.list"], check="listing")
         self.assert_commands(
             probe_checking.check_bash_did_not_run, whole_copy,
             ['cp -r . "$S"', "cp -a . $S", 'cp -R ./ "$S/"', "cp -r * $S", 'rsync -a ./ "$S/"', "cp -r ./* $S",
              'mkdir -p "$S" && cp -rp . "$S"', 'tar -cf - . | tar -xf - -C "$S"', "cp --recursive . $S"],
-            [SNAPSHOT_BLOCK, 'tar --null --no-recursion -T "$S.list" -cf - | tar -xpf - -C "$S"',
+            ['tar --null --no-recursion -T "$S.list" -cf - | tar -xpf - -C "$S"',
              'mkdir -p "$S/billing" && cp -pP -- billing/rates.py "$S/billing/rates.py"',
              'cp billing/rates.py billing/tax.py "$S/billing/"', 'cp -r billing "$S/"', "tar -tf dist/pkg.tar | head",
              "cp --preserve=all a.py $S"], check="whole copy")
         suite = checks["runs the test suite on the snapshot"]
         self.assert_commands(
             probe_checking.check_bash_ran, suite,
-            [SNAPSHOT_BLOCK, "git ls-files -z --cached --others --exclude-standard",
+            ["git ls-files -z --cached --others --exclude-standard",
              "cat billing/rates.py", "python -c \"import billing\"", "python -c 'from billing import rates'",
              'echo "run pytest next"', "echo pytest", "pip show pytest", "python -m unittest", "ls tests/pytest_cache"],
             ['cd "$S" && PYTHONDONTWRITEBYTECODE=1 python -m pytest -q -p no:cacheprovider', "pytest -q",

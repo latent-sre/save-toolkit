@@ -42,7 +42,8 @@ ask while investigating what is known.
 
 Nothing enforces your write or execution limits; keep them yourself and report the real execution
 boundary. All notes, reproductions, and test runs happen strictly inside a fresh scratch directory
-`S="$(mktemp -d)"` outside the source checkout.
+`S="$(mktemp -d)"` outside the source checkout, keeping the ledger at `$S/notes.md` separate from
+candidate exports under `$S/tree/`.
 
 ### The scratch-pad investigation loop (`$S/notes.md`)
 Use `$S/notes.md` (and `TodoWrite`) as your working ledger throughout the review:
@@ -51,35 +52,36 @@ Use `$S/notes.md` (and `TodoWrite`) as your working ledger throughout the review
 2. **Trace outward:** List unchanged callers, downstream consumers, and docs/runbooks touching those
    contracts.
 3. **Hypothesize and attack:** For each lead, record the concrete trigger and try to *disprove* it
-   against existing guards/callers/requirements or *reproduce* it in `$S`.
+   against existing guards/callers/requirements or *reproduce* it in `$S/tree/`.
 4. **Filter:** Report only defects introduced or worsened by this change that survive disproof with
    a concrete trigger and consequence. Keep pre-existing debt outside the verdict and unresolved
    leads as non-blocking unknowns.
 
-### Running checks in `$S`
+### Running checks in `$S/tree`
 - **Same-repository work** (user/team branches, same-repo PRs, local uncommitted work): run checks
-  by default unless forbidden by the caller, strictly inside `$S` (even a one-line `python -c`
+  by default unless forbidden by the caller, strictly inside `$S/tree` (even a one-line `python -c`
   importing candidate code).
-  - **Committed (`<sha>`):** `mkdir -p "$S/<dir>" && $G show <sha>:<path> > "$S/<path>"` for
-    targeted files, or
-    `GIT_INDEX_FILE="$S.idx" $G read-tree <sha> && GIT_INDEX_FILE="$S.idx" $G checkout-index -a -f --prefix="$S/"`
+  - **Committed (`<sha>`):** `mkdir -p "$S/tree/<dir>" && $G show <sha>:<path> > "$S/tree/<path>"`
+    for targeted files, or
+    `GIT_INDEX_FILE="$S/idx" $G read-tree <sha> && GIT_INDEX_FILE="$S/idx" $G checkout-index -a -f --prefix="$S/tree/"`
     for the full tree.
   - **Uncommitted working tree:** Copy only existing tracked and untracked-unignored files
-    (`$G ls-files -z --cached --others --exclude-standard --deduplicate`) into `$S`, excluding
-    `.gitignore`d files so hidden dependencies on ignored local files fail in `$S`, and hash the
-    snapshot (SHA-256) as its `PROVISIONAL` identity.
+    (`$G ls-files -z --cached --others --exclude-standard --deduplicate`) into `$S/tree/`, excluding
+    `.gitignore`d files so hidden dependencies on ignored local files fail in `$S/tree/`, and hash
+    the snapshot (SHA-256) as its `PROVISIONAL` identity.
   - **Hygiene:** Never `checkout`, `switch`, `stash`, `reset`, or `worktree add` in the source
     checkout. No installs, network fetches, or live endpoints. When calling the source checkout's
-    installed interpreter/toolchain by absolute path from `$S`, set
-    `PYTHONPATH="$S" PYTHONDONTWRITEBYTECODE=1` and print the loaded module path first to confirm
-    `$S` bytes ran rather than an editable install in the source checkout.
+    installed interpreter/toolchain by absolute path from `$S/tree`, set
+    `PYTHONPATH="$S/tree" PYTHONDONTWRITEBYTECODE=1` and print the loaded module path first to
+    confirm `$S/tree` bytes ran rather than an editable install in the source checkout.
 - **Forks, outside contributors, or unknown provenance:** Never run or import candidate code, tests,
-  plugins, or hooks on this host, even in `$S`; review statically and state that checks belong in
-  isolated CI.
+  plugins, or hooks on this host, even in `$S/tree`; review statically and state that checks belong
+  in isolated CI.
 
-Reproduce each executable P0/P1 finding in `$S` (against candidate and base for regressions),
-recording commands, exit status, output, environment, and revision. Confirm `git status` in the
-source checkout is unchanged before returning.
+Reproduce each executable P0/P1 finding in `$S/tree` (against candidate and base for regressions),
+recording commands, exit status, output, environment, and revision. Before returning, remove `$S`
+(`rm -rf "$S"`, unless the caller asked to keep scratch artifacts) and confirm `git status` in the
+source checkout is unchanged.
 
 ## 3. Five-question spine and review lenses
 
