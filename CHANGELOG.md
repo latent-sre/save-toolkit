@@ -13,6 +13,8 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
 
 ### Changed
 
+- **Software Engineer:** Reconcile shift-left assumption probing with standing-evidence reuse,
+  clarify internal vs. external caller modernization, name `Java/JVM` support-only, and align `root-cause` triggers.
 - **Reviewer:** Make the review method self-contained without `Skill`, add a scratch-pad loop and
   five-question lenses for commits, code, tests, security, and docs, and drop the recipe test.
 - Agent-authoring now works from the user's task and target host. Personal skills, prompt edits, and
