@@ -73,7 +73,7 @@ checks:
   - {check: file_exists, path: alerts/checkout-slo.rules.yml, text: "the rules file landed at alerts/checkout-slo.rules.yml"}
   - {check: changes_within, allowed: ["alerts/checkout-slo.rules.yml", "alerts/checkout-slo.test.yml"], text: "only the new rules file and its optional promtool test changed"}
   - {check: file_contains, path: alerts/platform.rules.yml, needle: "node_filesystem_avail_bytes{mountpoint=\"/\"} / node_filesystem_size_bytes{mountpoint=\"/\"} < 0.05", text: "the platform rules are untouched"}
-  - {check: skill_loaded, skill: obs-alerting, text: "obs-alerting was loaded for alert design"}
+  - {check: skill_loaded, skill: obs-analysis, text: "obs-alerting was loaded for alert design"}
   - {check: bash_ran, pattern: "promtool", text: "the agent ran promtool itself before handing off"}
   - {check: no_new_commits, text: "nothing committed"}
   - {check: no_agents_dir, text: "no .agents/ progress litter"}

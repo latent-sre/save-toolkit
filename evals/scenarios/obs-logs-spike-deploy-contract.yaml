@@ -5,9 +5,8 @@ skill: obs-analysis
 tools: [Skill, Read]
 references:
   - skills/obs-analysis/references/spl.md
-  - skills/obs-analysis/references/query-catalog.md
 prompt: |
-  Read the SPL and query-catalog references. Assess this supplied-state log work; do not
+  Read the SPL reference. Assess this supplied-state log work; do not
   run queries or edit files. A teammate drafted Splunk searches for settlement-api over
   a request-completion sourcetype with one event per eligible request. Their spike
   search filters to failures first and then buckets by time with a statistics command,

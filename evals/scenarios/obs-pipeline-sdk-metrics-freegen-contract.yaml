@@ -1,10 +1,10 @@
 id: obs-pipeline-sdk-metrics-freegen-contract
 max_turns: 17
 split: regression
-skill: obs-pipeline
+skill: obs-analysis
 tools: [Skill, Read]
 references:
-  - skills/obs-pipeline/references/otel-sdk.md
+  - skills/obs-analysis/references/otel.md
 prompt: |
   Read the OTel SDK reference. Write short labelled lists only, no explanation; do not
   edit files or install anything. For a payment API (A) and its worker queue (B), list

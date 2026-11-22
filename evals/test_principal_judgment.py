@@ -79,7 +79,7 @@ class PrincipalJudgmentTests(unittest.TestCase):
                               ("software-engineer", "new-system-baseline")):
             with self.subTest(agent=agent):
                 spec = scenario_file(ROOT / f"build-scenarios/build-{agent}-{suffix}.yaml")
-                self.assertIn({"check": "skill_loaded", "skill": "obs-alerting", "before_effects": True,
+                self.assertIn({"check": "skill_loaded", "skill": "obs-analysis", "before_effects": True,
                                "text": "obs-alerting loaded before the 14-day paging rule was designed"}, spec["checks"])
 
     def test_rubric_renders_the_supplied_facts_and_substantive_failure_modes(self):

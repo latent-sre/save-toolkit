@@ -28,7 +28,7 @@ plugins (`GET /api/plugins`), and the administrator's licence record before prop
 the installed plugins and actual telemetry route before querying, and never invent a plugin type or
 uid.
 
-Alert intent belongs to `obs-alerting`; [alerting](./alerting.md) covers Grafana routing and
+Alert intent belongs to `obs-analysis`; [alerting](./alerting.md) covers Grafana routing and
 provisioning.
 
 Design does not verify queries, health, access or save success. Implementation uses the

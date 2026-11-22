@@ -88,7 +88,7 @@ Describe the problem. Routing is by description; there are no commands to memori
   each result would mean, when to mitigate, and who to page.
 - *"check cf events and recent logs for orders since 14:00 UTC"* → the `sre-assistant` agent
   gathers the requested evidence, then returns to its caller.
-- *"this alert is too noisy"* → `observability-engineer` with `obs-alerting`.
+- *"this alert is too noisy"* → `observability-engineer` with `obs-analysis`.
 - *"write a runbook for the checkout deploy"* → the `scribe` agent with `operational-docs`.
 - *"is PR #42 ready to merge?"* → `production-change-gate`'s merge-readiness checklist.
 

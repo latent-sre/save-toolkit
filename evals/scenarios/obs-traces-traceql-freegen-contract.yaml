@@ -5,7 +5,7 @@ skill: obs-analysis
 tools: [Skill, Read]
 references:
   - skills/obs-analysis/references/traceql.md
-  - skills/obs-analysis/references/otel-semantics.md
+  - skills/obs-analysis/references/otel.md
 prompt: |
   Read the TraceQL and OpenTelemetry-semantics references. Write queries only, with no
   explanation; do not run queries or edit files. Assume OpenTelemetry attributes: the

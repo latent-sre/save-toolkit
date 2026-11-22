@@ -1,10 +1,10 @@
 id: obs-pipeline-alloy-freegen-contract
 max_turns: 17
 split: regression
-skill: obs-pipeline
+skill: obs-analysis
 tools: [Skill, Read]
 references:
-  - skills/obs-pipeline/references/alloy.md
+  - skills/obs-analysis/references/alloy.md
 prompt: |
   Read the Alloy reference. Write Alloy configuration only, plus the two short answers
   labelled A and B; do not edit files. Configure: (1) application log files under

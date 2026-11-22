@@ -13,8 +13,8 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
 
 ### Changed
 
-- Trim `akamai-edge` (absorbing the DataStream 2 SPL query) and consolidate `operational-docs`
-  (removing `assets/runbook-example.md` and folding runbook, postmortem, and ownership methods into `SKILL.md`).
+- Trim `akamai-edge` (absorbing the DataStream 2 SPL query), consolidate `operational-docs`
+  (removing `assets/runbook-example.md` and folding runbook/postmortem/ownership methods into `SKILL.md`), and merge `obs-alerting` and `obs-pipeline` into `obs-analysis` (replacing `error_budget.py` with a burn-rate table and deleting `query-catalog.md`).
 - Consolidate `pcf-deploy` into `pcf-ops` and streamline `production-change-gate`, `gcp-ops`,
   `frontend-craft` (removing bundled starter assets), and `api-craft`.
 - **Software Engineer:** Reconcile shift-left assumption probing with standing-evidence reuse,

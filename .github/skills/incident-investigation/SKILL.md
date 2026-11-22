@@ -329,7 +329,7 @@ does not need a discovery or access-check call before dispatch.
 | A read-only visual dashboard or panel check | `sre-assistant` agent, with the exact dashboard URL, panel scope, absolute time window, timezone, and authentication expectation |
 | Platform faults, revisions, instances, platform logs | `pcf-ops` / `gcp-ops` |
 | Logs / metrics / traces; edge/cache; database | `obs-analysis`; `akamai-edge`; `database-reliability` |
-| External synthetic failure, alert storm, or a Moogsoft Situation | `obs-alerting`, including its `thousandeyes` and `moogsoft` references |
+| External synthetic failure, alert storm, or a Moogsoft Situation | `obs-analysis` (`thousandeyes` and `moogsoft` references) |
 | Deeper causal method once the symptom is confirmed | `root-cause` |
 | Grafana dashboard interpretation, alert-rule state, or a temporary silence | `grafana`; live Grafana changes belong to `observability-engineer` |
 | Which backend serves which signal, and query dialect | `stack-profile` |

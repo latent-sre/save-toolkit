@@ -62,7 +62,7 @@ checks:
   # Empty suffix matches every named dispatch; the handler also rejects unnamed calls.
   - {check: no_task_dispatch, target: '', text: "the bounded design does not delegate"}
   - {check: skill_loaded, skill: stack-profile, before_effects: true, text: "stack-profile loaded before the design was written"}
-  - {check: skill_loaded, skill: obs-alerting, before_effects: true, text: "obs-alerting loaded before the 14-day paging rule was designed"}
+  - {check: skill_loaded, skill: obs-analysis, before_effects: true, text: "obs-alerting loaded before the 14-day paging rule was designed"}
   - {check: bash_did_not_run, pattern: '.+', text: "no shell command runs, as the assignment requires"}
   - check: command_exit_zero
     failure_exit_code: 10

@@ -8,7 +8,7 @@ prompt: |
   configuration. I am not asking about querying the logs or about anything in the Grafana UI.
 target:
   kind: skill
-  name: obs-pipeline
+  name: obs-analysis
 routing:
   expect: fire
 success_criteria:

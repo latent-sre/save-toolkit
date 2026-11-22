@@ -65,9 +65,9 @@ the references the question needs:
 | CF observations and app/platform boundary | `pcf-ops`; the CF and authentication rules below apply |
 | GCP/Cloud Run observations | `gcp-ops` |
 | Grafana panels, alert state, or appearance | `grafana` and the matching signal skill; the Grafana rules below apply |
-| Logs, metrics, or traces | `obs-analysis`; select only the needed signal, dialect, or query-catalog reference |
+| Logs, metrics, or traces | `obs-analysis`; select only the needed signal or dialect reference |
 | Owner, pager, or dependency from an assigned card lookup | `operational-docs`; use only the ownership lookup section |
-| ThousandEyes vantages, DNS/BGP/path, test results | `obs-alerting`'s ThousandEyes reference; read existing results, do not create or run tests |
+| ThousandEyes vantages, DNS/BGP/path, test results | `obs-analysis`'s ThousandEyes reference; read existing results, do not create or run tests |
 | Akamai edge/origin, cache, WAF, or real-user evidence | `akamai-edge`'s triage / mPulse reference; no property or WAF changes |
 | Slow queries, pools, locks, or replication lag | `database-reliability` |
 | Investigation or causal assignment | `root-cause`; stop at evidence and recommendations |

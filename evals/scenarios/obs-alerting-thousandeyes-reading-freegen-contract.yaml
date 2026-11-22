@@ -1,10 +1,10 @@
 id: obs-alerting-thousandeyes-reading-freegen-contract
 max_turns: 17
 split: regression
-skill: obs-alerting
+skill: obs-analysis
 tools: [Skill, Read]
 references:
-  - skills/obs-alerting/references/thousandeyes.md
+  - skills/obs-analysis/references/thousandeyes.md
 prompt: |
   Read the ThousandEyes reference. Write short labelled steps only, no explanation; do
   not run tests or edit files. A synthetic journey to checkout fails from two regions
