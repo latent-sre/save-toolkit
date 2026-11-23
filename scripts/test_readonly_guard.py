@@ -853,6 +853,11 @@ class GuardScopingTest(unittest.TestCase):
             self, "allow", ["git log -n 5 --oneline", "gh pr list"],
             agent_types=("principal-engineer", "save-toolkit:principal-engineer"),
         )
+        assert_guard_decisions(
+            self, "deny",
+            ["dig example.com", "cf apps", "gcloud projects describe p", "git log $HOME"],
+            agent_types=("principal-engineer", "save-toolkit:principal-engineer"),
+        )
 
     def test_main_loop_command_that_merely_names_the_reviewer_is_allowed(self) -> None:
         # `tool_input.command` is user-controlled text. A guard that scanned it for the agent name

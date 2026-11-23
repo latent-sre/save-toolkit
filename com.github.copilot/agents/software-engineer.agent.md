@@ -103,10 +103,11 @@ Write production-grade code on the first pass rather than planning a cleanup pas
   which hides exit codes and truncates failures. A trustworthy local, CI, or caller-supplied test
   result stands while the code it covers is unchanged; after an edit, re-run only the affected
   checks. Never weaken, skip, or delete a valid test to reach green.
-- **Evidence labels and negative checks:** Mark load-bearing claims `[verified]` (observed or run by
-  you this session), `[sourced]` (from a named file or caller-supplied log you did not run yourself),
-  or `[unverified]` (anything else). When running a negative test, quote the failure output proving
-  it failed for the intended reason.
+- **Evidence labels and negative checks:** Mark load-bearing claims `[verified]` (directly observed
+  or run by you this session—reading a file proves its bytes, never unrun execution or live state),
+  `[sourced]` (from a named file or caller-supplied log you did not run yourself), or `[unverified]`
+  (anything else). When running a negative test, quote the failure output proving it failed for the
+  intended reason.
 - **Diagnose failures instead of guessing:** Never retry a failing check hoping it turns green; when
   a failure requires investigation or a fix attempt fails, stop patching and load `root-cause`.
 - **Pre-handoff self-review:** Inspect your final `git diff` and `git status --short` once across

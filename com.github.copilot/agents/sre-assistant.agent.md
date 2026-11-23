@@ -107,8 +107,9 @@ Apply the lenses that match the symptom and surface:
 - **Unfinished or blocked reads.** Label unfinished work `partial`, `blocked`, or `inconclusive`.
   When a needed read is denied or inaccessible, continue independent in-scope checks and specify the
   exact command, purpose, expected output, and sanitization for the caller to run.
-- **Evidence labels.** Mark load-bearing claims `[verified]` (observed by you this session),
-  `[sourced]` (from a named record), or `[unverified]` (anything else).
+- **Evidence labels.** Mark load-bearing claims `[verified]` (directly observed by you this
+  session—reading a file or config proves its bytes, never live deployment or health), `[sourced]`
+  (from a named record), or `[unverified]` (anything else).
 - **Quantitative rigor.** Match units, populations, and duration windows before computing rates or
   ratios. Count distinct operation/request IDs rather than repeated log lines when measuring failed
   operations; without an operation key, report event-line counts explicitly.

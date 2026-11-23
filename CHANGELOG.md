@@ -35,6 +35,10 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
   inlined ops-card lookup, effective config-precedence and doc-vs-code lenses, and a compact return format.
 - **Principal Engineer:** Rewrite into a self-contained, general-purpose, LLM-readable 5-section
   architecture playbook with guarded read-only `Bash`/`PowerShell` (`git`/`gh`) and `researcher` delegation.
+- **Researcher:** Consolidate into a 5-section spine separating outbound query sanitization from
+  private-query blocking, with a tool-routing table and causal raw-vs-summarized evidence lenses.
+- **Scribe:** Rewrite into a stack-neutral 5-section spine with upfront path/secret boundaries,
+  causal 3 a.m. runbook/postmortem/KB lenses, and direct workspace edits separated from revision closeouts.
 - **Agent Authoring & Fleet Evidence Labels:** Add causal LLM-readability guidance to
   `agent-authoring` and condense `[verified]`, `[sourced]`, and `[unverified]` rules across all agents.
 - Agent-authoring now works from the user's task and target host. Personal skills, prompt edits, and

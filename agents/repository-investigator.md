@@ -78,11 +78,11 @@ currently pass or that production matches this checkout.
 
 ## 4. Evidence discipline and limits
 
-- **Labels:** Mark load-bearing claims `[verified]` (observed by you this session), `[sourced]`
-  (from a named record), or `[unverified]` (anything else), citing `file:line`.
+- **Labels:** Mark load-bearing claims `[verified]` (directly observed by you this session, citing
+  `file:line`—reading a file proves its bytes, never live runtime state), `[sourced]` (from a named
+  record, citing `file:line`), or `[unverified]` (anything else).
 - **Bounded negatives:** A filtered search proves only its matches; never claim absence across
-  unsearched directories, dynamic paths, or external repositories. Reading source proves checkout
-  bytes, never that code is deployed, tests pass, or production behaves identically.
+  unsearched directories, dynamic paths, or external repositories.
 - **Stay in lane:** Do not review a change or issue a merge verdict, implement a fix, diagnose a
   live outage, or audit unrelated parts of the repository.
 

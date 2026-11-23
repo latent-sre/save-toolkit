@@ -97,8 +97,13 @@ GUARDED_AGENT_NAMES = frozenset({"sre-assistant", "principal-engineer"})
 GUARDED_AGENTS = frozenset(
     set(GUARDED_AGENT_NAMES) | {f"{PLUGIN_NAME}:{name}" for name in GUARDED_AGENT_NAMES}
 )
+_PRINCIPAL_ENGINEER_AGENTS = frozenset({
+    "principal-engineer",
+    f"{PLUGIN_NAME}:principal-engineer",
+})
+_PRINCIPAL_ENGINEER_COMMANDS = frozenset({"git", "gh"})
 
-# Every lane in the roster. The read-only allowlist above covers ONE of them; the credential
+# Every lane in the roster. The read-only allowlist above covers two of them; the credential
 # deny near the bottom of this file covers all of them, because AGENTS.md states that rule for
 # the whole fleet; builders and reviewer hold unguarded Bash.
 FLEET_AGENT_NAMES = frozenset({
@@ -1002,6 +1007,29 @@ def explain(command: str) -> str | None:
     return None
 
 
+def _principal_engineer_reason(command: str) -> str | None:
+    """Restrict principal-engineer to literal read-only git and gh commands."""
+    if "$" in command:
+        return "shell variable expansion (`$`) is not permitted for principal-engineer"
+    for line in command.split("\n"):
+        if not line.strip(" \t"):
+            continue
+        cleaned = _READ_REDIRECT.sub(
+            lambda match: "" if match.group("redirect") else match.group(), line
+        )
+        try:
+            tokens = _tokenize(cleaned, comments=False)
+        except ValueError:
+            return "unbalanced quotes — the guard cannot parse the command"
+        for segment in _split_segments(tokens):
+            if segment and segment[0] not in _PRINCIPAL_ENGINEER_COMMANDS:
+                return (
+                    f"`{segment[0]}` is not permitted for principal-engineer; "
+                    "use read-only `git` or `gh` commands (or `Read`/`Grep`/`Glob` for local files)"
+                )
+    return None
+
+
 def copilot_read_allowed(command: str) -> bool:
     """True when a command the PowerShell grammar rejects is still a documented host read.
 
@@ -1305,6 +1333,8 @@ def main() -> None:
         _allow()
 
     reason = explain_powershell(command) if tool_name == "PowerShell" else explain(command)
+    if reason is None and agent in _PRINCIPAL_ENGINEER_AGENTS:
+        reason = _principal_engineer_reason(command)
     if reason is not None:
         _deny(f"Blocked by the read-only agent allowlist guard: {reason}. {_GUIDANCE}")
     _allow()
