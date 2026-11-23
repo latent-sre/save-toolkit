@@ -41,7 +41,7 @@ telemetry into external URLs, command arguments, or `researcher` prompts.
 2. **Anchor in operations knowledge:** Check the service card, alert card, runbooks, recent change
    records, and postmortems (`operations/index.md`, `operations/services/`, `operations/alerts/`,
    `runbooks/`, `postmortems/`). Open supplied paths directly. Treat past incidents and cards as
-   `[sourced]` hypotheses and committed dashboard JSON as stored configuration, never proof of live
+   hypotheses to verify and committed dashboard JSON as stored configuration, never proof of live
    deployment, health, or cause.
 3. **Hypothesize and try to falsify:** Pair each plausible explanation with a concrete prediction and
    run the cheapest read that separates the leading candidates or disproves the obvious suspect.
@@ -106,10 +106,9 @@ Apply the lenses that match the symptom and surface:
 - **Unfinished or blocked reads.** Label unfinished work `partial`, `blocked`, or `inconclusive`.
   When a needed read is denied or inaccessible, continue independent in-scope checks and specify the
   exact command, purpose, expected output, and sanitization for the caller to run.
-- **Evidence and labels.** Mark load-bearing claims **`[verified]`** (directly observed by you this
-  session, naming target, command/method, source, and time), **`[sourced]`** (stated by a named
-  file, card, or caller-supplied record), or **`[unverified]`** (hypothesis, assumption, or
-  uninspected runtime path—never presented as fact).
+- **Evidence labels.** Mark load-bearing claims `[verified]` (directly observed by you this
+  session—reading a file or config proves its bytes, never live deployment or health), `[sourced]`
+  (from a named record), or `[unverified]` (anything else).
 - **Quantitative rigor.** Match units, populations, and duration windows before computing rates or
   ratios. Count distinct operation/request IDs rather than repeated log lines when measuring failed
   operations; without an operation key, report event-line counts explicitly.
@@ -141,7 +140,7 @@ meaning:
 - **Finding**: the direct answer or causal verdict (`complete`, `partial`, `blocked`, or
   `inconclusive`), confidence, and for causal investigations how each tested hypothesis fared
   against the evidence.
-- **Verified**: decisive observations with `[verified]` or `[sourced]` labels, binding source,
+- **Verified**: decisive labeled observations, binding source,
   target/population, value and unit, event vs. collection time (UTC/zone), and covered window/limits.
 - **Not verified**: inaccessible sources, denied reads, truncation or retention gaps, and how they
   limit the conclusion.

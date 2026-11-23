@@ -845,7 +845,19 @@ class GuardScopingTest(unittest.TestCase):
         # Project/user-scope installs report a bare agent_type (probed on CLI 2.1.200; the
         # --plugin-dir dev loop reports the NAMESPACED form). The guard must not be sidestepped by
         # installing the agent at a different scope.
-        assert_guard_decisions(self, "deny", ["git push origin main"], agent_types=("sre-assistant",))
+        assert_guard_decisions(
+            self, "deny", ["git push origin main"],
+            agent_types=("sre-assistant", "principal-engineer", "save-toolkit:principal-engineer"),
+        )
+        assert_guard_decisions(
+            self, "allow", ["git log -n 5 --oneline", "gh pr list"],
+            agent_types=("principal-engineer", "save-toolkit:principal-engineer"),
+        )
+        assert_guard_decisions(
+            self, "deny",
+            ["dig example.com", "cf apps", "gcloud projects describe p", "git log $HOME"],
+            agent_types=("principal-engineer", "save-toolkit:principal-engineer"),
+        )
 
     def test_main_loop_command_that_merely_names_the_reviewer_is_allowed(self) -> None:
         # `tool_input.command` is user-controlled text. A guard that scanned it for the agent name

@@ -22,6 +22,29 @@ audience sees a change: “For a renamed setting, give the old name, the new nam
 must switch. Omit internal renames that require no user action.” A nearby case with a different
 answer often teaches more than another paragraph of rules.
 
+Write for how an LLM actually reads and reasons:
+
+- **Explain the failure mechanism in causal prose, not telegraphic keyword lists.** Models already
+  know domain terms from pretraining. A compressed list of noun phrases or slash-separated buzzwords
+  (`idempotency / outbox / fencing / p99 / backpressure`) primes the model to mention those words
+  superficially rather than execute the reasoning. Connect the situation the agent sees to the
+  mechanism that breaks and the concrete check or artifact required—for example: “If 40 app
+  instances each open a 20-connection pool and retry 3 times, a traffic spike hits the database with
+  800 connections and 4× the write load; bound concurrency and retry budgets across the fleet, not
+  just per process.”
+- **Counter the model's default biases explicitly.** Left unguided, models tend to agree with an
+  over-engineered premise in the user's prompt, summarize in abstract prose instead of inspecting
+  code and writing concrete schemas or types, and trace only the happy path. Give explicit
+  permission and a concrete contrast for when to push back on the premise, what calculation or code
+  sketch proves a claim, and how to walk failure and rollback after live state has already changed.
+- **Keep one sequential cognitive flow and state each rule once.** Repeating the same requirement
+  across a triage section, a working loop, a lens checklist, and an output template splits
+  attention and makes the model echo headings instead of thinking. Order the prompt chronologically—
+  boundaries, how to investigate and frame, how to reason through the work, and how to shape the
+  output—and put each rule in the one place where that decision happens. Keep shared fleet
+  conventions (such as evidence labels) in the repository instructions or a single compact line
+  rather than re-teaching them across every prompt.
+
 Use the description to help the host select the skill. Name the task and the situations where it
 applies. If a neighboring skill attracts the same requests, make the deciding difference clear.
 In a portable Agent Skills package, put `name` and `description` in the frontmatter of `SKILL.md`.

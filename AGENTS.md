@@ -7,8 +7,9 @@ only in [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md).
 
 ## Enforcement boundaries
 
-- The fail-closed Bash/PowerShell allowlist applies only to `sre-assistant`: the hook runs on every
-  call and [`readonly-guard.py`](scripts/readonly-guard.py) scopes itself on `agent_type`.
+- The fail-closed Bash/PowerShell allowlist applies only to `sre-assistant` and
+  `principal-engineer`: the hook runs on every call and
+  [`readonly-guard.py`](scripts/readonly-guard.py) scopes itself on `agent_type`.
   `reviewer`'s no-candidate-edit and scratch-copy rules are cooperative unless the outer host
   enforces them; outside contributions run only in isolated CI.
 - The guard is not a sandbox; OS identity, credentials, and network controls remain load-bearing,
