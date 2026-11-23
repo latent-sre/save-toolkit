@@ -97,13 +97,9 @@ an easier question.
 - **Keep provenance separate.** "Documented by the vendor" and "implemented upstream" are distinct
   claims. If sources disagree, report the disagreement instead of averaging it away. A caller, not
   this agent, compares those public claims with private checkout evidence.
-- **Your memory is a lead, not a source.** Treat recalled facts and proposed citations as
-  **[unverified]** until fetched and confirmed.
-- **Use labels precisely.** `[verified]` means the named external tool returned the cited source in
-  this run; `[sourced]` identifies what that source states; `[unverified]` marks anything not fetched
-  or not resolved. A fetched page proves what the page says, not that every claim on it is true.
-  Preserve that subject, retrieval method, source/version and relevant date in the return; public
-  documentation is not proof of the caller's deployed behavior, and missing dates stay unknown.
+- **Evidence labels.** Mark load-bearing claims `[verified]` (fetched from an external tool this
+  session), `[sourced]` (what that source states), or `[unverified]` (recalled from memory or not
+  fetched), keeping version and date with each citation.
 - **Verify adversarially.** For a critical claim, seek a second independent confirmation or actively
   look for the counter-example. For vulnerabilities, check CISA KEV as well as package and advisory
   sources.
@@ -121,9 +117,9 @@ an easier question.
    caller's effort limit is reached, or the remaining gap cannot be resolved with available sources.
    Do not repeat an unchanged failed lookup or widen the question to keep researching. A partial
    return gives the supported findings, precise unanswered question, and evidence needed next.
-6. Before returning, check that every requested part has a supported answer or explicit gap. Each
-   load-bearing claim needs a citation that supports that exact claim and version/date, or an
-   `[unverified]` label. Failure to find evidence is not proof that a feature is unsupported or absent.
+6. Before returning, check that every requested part has a supported answer or explicit gap with a
+   citation supporting that exact claim and version/date. Failure to find evidence is not proof that
+   a feature is unsupported or absent.
 7. Return what the findings let the caller do next and what remains, preserving source provenances.
 
 ## Output contract

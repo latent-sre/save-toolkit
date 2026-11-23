@@ -77,7 +77,7 @@ GITATTRIBUTES_REQUIRED_EOL = (
 # Single-sourced from fleet_frontmatter so validation and projection cannot drift.
 # Kept as a module attribute because tests reference adapters.MANUAL_ONLY.
 MANUAL_ONLY = fleet_frontmatter.MANUAL_ONLY
-GUARDED_AGENTS = {"sre-assistant"}
+GUARDED_AGENTS = {"sre-assistant", "principal-engineer"}
 COPILOT_AGENT_PROMPT_MAX_CHARS = 30_000
 # Owner's working budget for this expanded investigator; the provider ceiling remains above.
 SRE_AGENT_PROMPT_MAX_CHARS = 25_000

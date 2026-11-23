@@ -60,7 +60,8 @@ The preview's explicit `--copilot` guard mode uses agent-hook scoping, not Claud
 | `reviewer` | Read/search/edit/execute, delegation intended for the local evidence helper, and todo; runs checks only in a scratch copy, and outside contributions only in isolated CI |
 | `sre-assistant` | Read/search, delegation intended for researcher, and selected native/MCP browser viewing interactions under read-only session controls; the command preview adds only terminal execution/output for reviewed reads |
 | `repository-investigator`, `scribe` | File investigation or document edits; shell execution is outside their assignments |
-| `reliability-engineer`, `principal-engineer` | Read/search/edit and delegation intended for the canonical evidence helpers; no execute, because design documents are their only writes and live evidence comes through `sre-assistant` |
+| `reliability-engineer` | Read/search/edit and delegation intended for the canonical evidence helpers; no execute, because design documents are its only writes and live evidence comes through `sre-assistant` |
+| `principal-engineer` | Read/search/edit and delegation intended for `researcher`; its Claude profile holds guarded read-only Bash/PowerShell (`git`/`gh` history and consumer checks), while standard Copilot omits `execute` like `sre-assistant` |
 | `researcher` | Public web access; no local files or shell. Adding exact Context7/GitHits tools needs the target host's registered tool IDs, not wildcard MCP grants. On Copilot cloud agent `web` does not apply, so researcher has no working tool there; route cited research through VS Code or Claude |
 
 The helper assignments above describe intended routing. Copilot does not enforce those target

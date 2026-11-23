@@ -25,12 +25,18 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
   (removing `assets/runbook-example.md` and folding runbook/postmortem/ownership methods into `SKILL.md`), and merge `obs-alerting` and `obs-pipeline` into `obs-analysis` (replacing `error_budget.py` with a burn-rate table and deleting `query-catalog.md`).
 - Consolidate `pcf-deploy` into `pcf-ops` and streamline `production-change-gate`, `gcp-ops`,
   `frontend-craft` (removing bundled starter assets), and `api-craft`.
-- **Software Engineer:** Reorganize into a 5-section numbered spine, reconcile shift-left assumption
-  probing with standing-evidence reuse, clarify internal vs. external caller modernization, consolidate `scribe`/`researcher` delegation and worktree/lockfile/generator hygiene, name `Java/JVM` support-only and host-loaded instruction paths, and align `root-cause` triggers.
-- **Reviewer:** Make the review method self-contained without `Skill`, add a scratch-pad loop and
-  five-question lenses for commits, code, tests, security, and docs, and drop the recipe test.
+- **Software Engineer:** Remove `stack-profile` / `Java/JVM` refusal for general-purpose use, add
+  secret/worktree/config-precedence checks, and unify helper delegation fallback.
+- **Reviewer:** Replace GNU-`tar` and `$G` shell recipes with portable scratch verification, add an
+  authority/provenance table, and rewrite the five lenses in causal prose with version calibration.
 - **SRE Assistant:** Rewrite into a 5-section numbered spine with an upfront authority and
   `[UNTRUSTED]` boundary table, a hypothesis-falsification investigation loop, four diagnostic SRE lenses, streamlined on-demand skill triggers, and a four-part return format.
+- **Repository Investigator:** Rewrite into a self-contained 5-section spine with surface triage,
+  inlined ops-card lookup, effective config-precedence and doc-vs-code lenses, and a compact return format.
+- **Principal Engineer:** Rewrite into a self-contained, general-purpose, LLM-readable 5-section
+  architecture playbook with guarded read-only `Bash`/`PowerShell` (`git`/`gh`) and `researcher` delegation.
+- **Agent Authoring & Fleet Evidence Labels:** Add causal LLM-readability guidance to
+  `agent-authoring` and condense `[verified]`, `[sourced]`, and `[unverified]` rules across all agents.
 - Agent-authoring now works from the user's task and target host. Personal skills, prompt edits, and
   native agent definitions can be authored independently of the toolkit's roster and release process.
 - Remove `scripts/validate_fleet.py`, its tests, and the principal/reliability authority contract

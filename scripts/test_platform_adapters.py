@@ -198,7 +198,7 @@ class PlatformAdapterTests(unittest.TestCase):
     def test_copilot_agents_preserve_delegation_tool_presence_without_local_allowlists(self) -> None:
         expected = {
             "observability-engineer": ["scribe", "researcher"],
-            "principal-engineer": ["repository-investigator", "sre-assistant", "researcher"],
+            "principal-engineer": ["researcher"],
             "reliability-engineer": ["repository-investigator", "sre-assistant", "researcher"],
             "repository-investigator": None,
             "researcher": None,
@@ -466,6 +466,11 @@ class PlatformAdapterTests(unittest.TestCase):
 
     def test_agent_resource_links_resolve_in_both_copilot_layouts(self) -> None:
         root = self._canonical_root()
+        (root / "agents/probe-link.md").write_text(
+            "---\nname: probe-link\ndescription: Verify agent skill-link rebasing.\ntools: Read\n---\n"
+            "Read [lookup](../skills/operational-docs/SKILL.md#ownership-and-dependency-lookup).\n",
+            encoding="utf-8",
+        )
         adapters.write_generated_outputs(root)
         for directory in (adapters.COPILOT_AGENTS, adapters.COPILOT_PLUGIN_AGENTS):
             links_checked = 0
