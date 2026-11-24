@@ -224,11 +224,11 @@ _SIMPLE_READERS = frozenset({
     "grep", "egrep", "fgrep", "rg",
     "ls", "file", "stat", "du", "basename", "dirname", "realpath", "pwd",
     "echo", "diff", "cmp", "jq", "true", "false",
-    # `dig` is on the list for incident triage (is DNS the problem?). It IS an egress channel —
-    # a crafted name can tunnel data — which is why `dig $(...)` dies on structure and why the
-    # outbound network allowlist remains the load-bearing egress control, not this guard.
-    "dig",
 })
+# `dig` is allowed for DNS triage, except flags that read local files or TSIG secrets (`dig -f
+# <file>` sends every line of <file> as a DNS query; `-k`/`-y` read or carry TSIG keys).
+_DIG_FILE_FLAGS = frozenset({"-f", "-k", "-y"})
+_DIG_FILE_SHORT = frozenset({"f", "k", "y"})
 # uniq INPUT OUTPUT writes the second positional without a shell redirect. Keep only stdin-to-
 # stdout filtering with reviewed flag-only forms; use cat INPUT | uniq for a file-backed read.
 _UNIQ_FILTER_FLAGS = frozenset({
@@ -506,7 +506,9 @@ _GIT_CONFIG_READ = frozenset({
 # git's own global options, permitted between `git` and the subcommand. `-c key=val` is NOT here:
 # it injects config into the command's execution, which is a lever we have no need to hand over.
 _GIT_GLOBAL_WITH_VALUE = frozenset({"-C", "--git-dir", "--work-tree"})
-_GIT_GLOBAL_BARE = frozenset({"--no-pager", "-P", "--no-replace-objects", "--literal-pathspecs"})
+_GIT_GLOBAL_BARE = frozenset({
+    "--no-pager", "-P", "--no-replace-objects", "--literal-pathspecs", "--no-optional-locks",
+})
 
 # `gh` read-only subcommand pairs. `gh api` is absent by design: it silently switches to POST when
 # given `-f`/`-F` fields, so "read-only gh api" is a shape too easy to get wrong.
@@ -579,6 +581,11 @@ _GUIDANCE = (
     "`2>&1` are permitted shapes). It may not execute code or apply changes — cite the builder's or "
     "CI's evidence and report what needs changing as a finding. A denied command you believe is a "
     "legitimate read is a loud, one-line allowlist fix by PR — never work around the guard."
+)
+_PRINCIPAL_ENGINEER_GUIDANCE = (
+    "principal-engineer shell access is limited to literal read-only `git` and `gh` commands "
+    "(with `--no-ext-diff --no-textconv` on diff/show/patch reads, and no `$` expansion, pipes to "
+    "external filters, or redirects); use `Read`, `Grep`, and `Glob` for local file search."
 )
 # Interpreters and build/package entry points get a first-class explanation: this is the denial an
 # agent is most tempted to argue with, and the reason is doctrine, not an allowlist gap.
@@ -908,6 +915,13 @@ def _segment_reason(segment: list[str]) -> str | None:
             "`find` with an action flag (`-exec`, `-delete`, `-fprint`, …) runs commands or "
             "writes files — use plain `find` and pipe to a reader"
         )
+    if command == "dig":
+        if not _carries_flag(args, _DIG_FILE_FLAGS, _DIG_FILE_SHORT):
+            return None
+        return (
+            "`dig` with `-f` (batch file), `-k` (key file), or `-y` (TSIG secret) reads local "
+            "files or secrets into DNS queries — query a literal hostname instead"
+        )
     if command in _SIMPLE_READERS:
         return None
     if command in _CODE_RUNNERS:
@@ -1007,10 +1021,72 @@ def explain(command: str) -> str | None:
     return None
 
 
-def _principal_engineer_reason(command: str) -> str | None:
+_GIT_LOG_DIFF_FLAGS = frozenset({
+    "-p", "-u", "-U", "--patch", "--unified", "--patch-with-raw", "--patch-with-stat",
+    "--ext-diff", "--textconv", "--stat", "--numstat", "--shortstat", "--dirstat",
+    "--summary", "-S", "-G", "-L", "--cc", "-c",
+})
+
+
+def _principal_git_patch_reason(args: list[str]) -> str | None:
+    """Require --no-ext-diff and --no-textconv on diff/patch reads for principal-engineer."""
+    index = 0
+    while index < len(args) and args[index].startswith("-"):
+        option = args[index]
+        base = option.split("=", 1)[0]
+        if base in _GIT_GLOBAL_WITH_VALUE:
+            index += 1 if "=" in option else 2
+        elif option in _GIT_GLOBAL_BARE:
+            index += 1
+        else:
+            return None
+    if index >= len(args):
+        return None
+    subcommand, rest = args[index], args[index + 1:]
+    before_dd = rest[: rest.index("--")] if "--" in rest else rest
+    flags = _git_flag_names(before_dd)
+    if flags & {"--ext-diff", "--textconv"}:
+        return (
+            f"`git {subcommand}` in principal-engineer may not pass `--ext-diff` or `--textconv`"
+        )
+    is_stash_show = subcommand == "stash" and _positionals(before_dd)[:1] == ["show"]
+    needs_safe_diff = (
+        subcommand in {"diff", "show", "diff-tree", "whatchanged"}
+        or is_stash_show
+        or (subcommand == "log" and bool(flags & _GIT_LOG_DIFF_FLAGS))
+    )
+    if needs_safe_diff and not {"--no-ext-diff", "--no-textconv"} <= flags:
+        return (
+            f"`git {subcommand}` in principal-engineer requires `--no-ext-diff --no-textconv` "
+            "before `--` so `.gitattributes` / `.git/config` drivers cannot execute scripts"
+        )
+    return None
+
+
+def _principal_engineer_reason(command: str, *, powershell: bool = False) -> str | None:
     """Restrict principal-engineer to literal read-only git and gh commands."""
     if "$" in command:
         return "shell variable expansion (`$`) is not permitted for principal-engineer"
+    if powershell:
+        if "|" in command:
+            return (
+                "pipelines (`|`) are not permitted for principal-engineer in PowerShell; "
+                "run one literal `git` or `gh` command"
+            )
+        ps_token = r'''(?:"[^"\r\n]*"|'[^'\r\n]*'|[A-Za-z0-9_./:=,?*%+\\-]+)'''
+        words = [
+            w[1:-1] if w.startswith(('"', "'")) else w
+            for w in re.findall(ps_token, command.strip())
+        ]
+        if not words:
+            return None
+        binary = words[0].lower().removesuffix(".exe")
+        if binary not in _PRINCIPAL_ENGINEER_COMMANDS:
+            return (
+                f"`{words[0]}` is not permitted for principal-engineer; "
+                "use read-only `git` or `gh` commands (or `Read`/`Grep`/`Glob` for local files)"
+            )
+        return _principal_git_patch_reason(words[1:]) if binary == "git" else None
     for line in command.split("\n"):
         if not line.strip(" \t"):
             continue
@@ -1022,11 +1098,17 @@ def _principal_engineer_reason(command: str) -> str | None:
         except ValueError:
             return "unbalanced quotes — the guard cannot parse the command"
         for segment in _split_segments(tokens):
-            if segment and segment[0] not in _PRINCIPAL_ENGINEER_COMMANDS:
+            if not segment:
+                continue
+            if segment[0] not in _PRINCIPAL_ENGINEER_COMMANDS:
                 return (
                     f"`{segment[0]}` is not permitted for principal-engineer; "
                     "use read-only `git` or `gh` commands (or `Read`/`Grep`/`Glob` for local files)"
                 )
+            if segment[0] == "git":
+                patch_reason = _principal_git_patch_reason(segment[1:])
+                if patch_reason is not None:
+                    return patch_reason
     return None
 
 
@@ -1243,12 +1325,23 @@ def main() -> None:
             command = tool_input.get("command")
             if not isinstance(command, str) or not command.strip():
                 sys.exit(EXIT_INDETERMINATE)
+            credential = credential_reason(command)
+            if credential is not None:
+                _deny(
+                    f"Blocked by the fleet credential rule: {credential}. Ask the human owner to "
+                    "run it and paste a sanitized excerpt; never route a live credential through "
+                    "an agent's context."
+                )
             # Copilot's integrated terminal can be configured independently of host OS. Use
             # the restricted grammar on every host; POSIX-only observation forms are literal.
             reason = explain_powershell(command, shell_independent=True)
             if reason is not None and copilot_read_allowed(command):
                 reason = None
+            if reason is None and agent in _PRINCIPAL_ENGINEER_AGENTS:
+                reason = _principal_engineer_reason(command, powershell=True)
             if reason:
+                if agent in _PRINCIPAL_ENGINEER_AGENTS:
+                    _deny(f"Blocked by the read-only agent allowlist guard: {reason}. {_PRINCIPAL_ENGINEER_GUIDANCE}")
                 _deny("Blocked by the SRE command guard: " + reason)
         _allow()
     if tool_name not in {"Bash", "PowerShell"}:
@@ -1332,11 +1425,13 @@ def main() -> None:
             )
         _allow()
 
-    reason = explain_powershell(command) if tool_name == "PowerShell" else explain(command)
+    is_ps = tool_name == "PowerShell"
+    reason = explain_powershell(command) if is_ps else explain(command)
     if reason is None and agent in _PRINCIPAL_ENGINEER_AGENTS:
-        reason = _principal_engineer_reason(command)
+        reason = _principal_engineer_reason(command, powershell=is_ps)
     if reason is not None:
-        _deny(f"Blocked by the read-only agent allowlist guard: {reason}. {_GUIDANCE}")
+        guidance = _PRINCIPAL_ENGINEER_GUIDANCE if agent in _PRINCIPAL_ENGINEER_AGENTS else _GUIDANCE
+        _deny(f"Blocked by the read-only agent allowlist guard: {reason}. {guidance}")
     _allow()
 
 

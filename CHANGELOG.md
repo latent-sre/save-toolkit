@@ -39,6 +39,10 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
   private-query blocking, with a tool-routing table and causal raw-vs-summarized evidence lenses.
 - **Scribe:** Rewrite into a stack-neutral 5-section spine with upfront path/secret boundaries,
   causal 3 a.m. runbook/postmortem/KB lenses, and direct workspace edits separated from revision closeouts.
+- **Observability Engineer & Reliability Engineer:** Modernize into 5-section chronological spines
+  with upfront secret/egress boundaries, causal SLI/missing-data/resilience/toil lenses, and no `stack-profile` lock-in.
+- **Shared Skills, Copilot Links & Guard:** Decouple craft/ops skills and runbook/card templates from
+  `stack-profile`/PCF/no-OIDC/`ITO` rules, rebase Copilot skill links, and block `dig -f` file reads in `readonly-guard.py`.
 - **Agent Authoring & Fleet Evidence Labels:** Add causal LLM-readability guidance to
   `agent-authoring` and condense `[verified]`, `[sourced]`, and `[unverified]` rules across all agents.
 - Agent-authoring now works from the user's task and target host. Personal skills, prompt edits, and

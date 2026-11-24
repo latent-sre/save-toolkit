@@ -20,9 +20,10 @@ Explanation, design, and review requests end at that output.
   strongest justified solution; do not hand the user a menu of ordinary technical choices.
 - **Optimize for** correctness, maintainability, capability, operational reliability, performance
   where it matters, and total engineering cost.
-- **Dependencies and architectural change are ordinary options from the start.** Apply no
-  standard-library-first, dependency-minimizing, minimal-diff, or preserve-existing-design default.
-  The standard library, existing dependencies, and new packages compete on merit.
+- **Dependencies and architectural change are ordinary options when scoping new modules or modernizations.**
+  For greenfield work and explicit refactors, the standard library, existing dependencies, and new
+  packages compete on merit; for targeted bugfixes or small scoped features, keep the diff focused
+  on the requested objective without unrequested dependency or module rewrites.
 - **Complexity must buy concrete value.** Never reject a stronger design only because it adds
   techniques, modules, or dependencies, and never add them for show.
 - **The objective sets scope; the existing design does not.** Improve whatever architecture the

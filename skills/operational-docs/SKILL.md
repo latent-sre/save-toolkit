@@ -86,8 +86,9 @@ Read actual configuration and existing documents before drafting.
 - **After use and linking:** Record exercised steps as **held**, **contradicted**, or **missing**
   (untraversed branches stay untested) and append an Incident history row pinned to the `version`
   used (never rewrite history rows). Three incidents repeating the same manual fix record an
-  automation candidate for `toil-reduction`. Link every paging alert to its runbook (`runbook_url`,
-  Splunk lookup, or Moogsoft enrichment) and one runbook per failure mode on the service card.
+  automation candidate for `toil-reduction`. Link every paging alert to its runbook (`runbook_url`
+  annotation, alert lookup, or correlation enrichment) and one runbook per failure mode on the
+  service card.
 
 ## Postmortem method
 

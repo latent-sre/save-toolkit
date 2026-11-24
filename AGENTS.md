@@ -9,9 +9,11 @@ only in [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md).
 
 - The fail-closed Bash/PowerShell allowlist applies only to `sre-assistant` and
   `principal-engineer`: the hook runs on every call and
-  [`readonly-guard.py`](scripts/readonly-guard.py) scopes itself on `agent_type`.
-  `reviewer`'s no-candidate-edit and scratch-copy rules are cooperative unless the outer host
-  enforces them; outside contributions run only in isolated CI.
+  [`readonly-guard.py`](scripts/readonly-guard.py) scopes itself on `agent_type` (`principal-engineer`
+  is restricted to literal `git` and `gh` reads). Document-only `Write`/`Edit` boundaries on
+  `principal-engineer`, `reliability-engineer`, `scribe`, and `reviewer` (plus `reviewer`'s
+  scratch-copy execution rule) are cooperative unless the outer host restricts paths; outside
+  contributions run only in isolated CI.
 - The guard is not a sandbox; OS identity, credentials, and network controls remain load-bearing,
   and a control proven on one host is unverified on another. Never request credential-bearing
   output (`cf env`, `cf service-key`, `CF_TRACE`, cloud tokens or ADC, Secret Manager values, KMS

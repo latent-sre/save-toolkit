@@ -34,8 +34,8 @@ directly from supplied evidence without starting unrelated design or investigati
 
 - **Scope and windows:** Bind queries to service/environment/population, backend/tenant/index, and
   absolute UTC windows. Compare deploys across equal windows around the platform's actual
-  deploy/traffic-change timestamp. PCF history lives in Splunk (Apps Manager uses memory-capped Log
-  Cache; record the interval it actually covers).
+  deploy/traffic-change timestamp. (On Cloud Foundry, durable log history lives in the log backend
+  rather than Apps Manager's memory-capped Log Cache; record the interval any buffer actually covers.)
 - **Encoding and redaction:** Validate copied identifiers against their documented shape and
   preserve trace IDs verbatim. Never concatenate raw values: use dialect literal escaping, and for
   regex matchers apply literal-regex escaping before query-string encoding. Redact secrets,
@@ -67,7 +67,7 @@ directly from supplied evidence without starting unrelated design or investigati
 ## 3. Telemetry pipelines — where a missing signal gets lost
 
 If a backend query finds the signal but a panel does not, check `grafana` (datasource, variables,
-time window) before changing the pipeline. Confirmed PCF-platform feeds stay with the platform
+time window) before changing the pipeline. Confirmed platform-managed feeds stay with the platform
 owner. Otherwise isolate which boundary dropped the canary:
 
 1. **App never emits:** exercise one request locally and check SDK diagnostics or console exporter.

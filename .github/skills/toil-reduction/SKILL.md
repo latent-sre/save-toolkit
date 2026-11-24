@@ -13,8 +13,8 @@ argument-hint: "[recurring task or workflow, baseline window, effort and outcome
 
 Reduce recurring operational burden without shifting hidden maintenance or failure risk onto
 another team. Analysis stays under caller authority (`production-change-gate` owns live execution;
-`software-engineer`/application team implements; durable docs go to `scribe`; `stack-profile` owns
-stack/ownership facts).
+`software-engineer` or the owning team implements; durable docs go to `scribe`; repository
+manifests and service docs define stack and ownership facts).
 
 ## Entry mode: evidence vs. interview
 

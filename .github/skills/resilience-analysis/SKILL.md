@@ -11,10 +11,9 @@ argument-hint: "[service or design, user outcome, environment, evidence]"
 
 # Resilience analysis
 
-Load `stack-profile` for ownership and platform constraints (e.g., Postgres/SQL Server on-prem, no
-self-managed Kubernetes, PCF vs GCP migration). This method grants no execution, design approval, or
-production-change authority; proposed experiments and fixes stay proposals until executed by an
-authorized owner.
+Inspect the repository's runtime, data stores, deployment topology, and ownership boundaries before
+evaluating resilience. This method grants no execution, design approval, or production-change
+authority; proposed experiments and fixes stay proposals until executed by an authorized owner.
 
 ## Establish outcome, evidence, and failure paths
 

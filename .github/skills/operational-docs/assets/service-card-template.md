@@ -30,7 +30,7 @@ evidence_status: sourced | unverified
 ## Runtime and boundaries
 
 - Repository and revision: <link + unique short commit ID>
-- Runtime: <PCF foundation/org/space and app names, without credentials>
+- Runtime: <platform, project/cluster/namespace/org/space, and workload names, without credentials>
 - Routes/endpoints: <access-controlled links; no secrets>
 - Deployment source: <manifest/workflow link>
 - Platform boundary: <what this team owns vs escalates>
