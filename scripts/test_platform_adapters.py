@@ -39,13 +39,10 @@ class PlatformAdapterTests(unittest.TestCase):
         return Path(temporary.name).resolve()
 
     def _canonical_root(self) -> Path:
-        """A temporary root holding authored agents/, skills/, commands/ and Copilot hooks — the generator's inputs."""
+        """Copy the authored agents and skills used by the workspace generator."""
         root = self._temporary_root()
         shutil.copytree(ROOT / "agents", root / "agents")
         shutil.copytree(ROOT / "skills", root / "skills")
-        shutil.copytree(ROOT / "commands", root / "commands")
-        (root / adapters.COPILOT_HOOKS_SOURCE).parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(ROOT / adapters.COPILOT_HOOKS_SOURCE, root / adapters.COPILOT_HOOKS_SOURCE)
         return root
 
     @staticmethod
@@ -53,7 +50,6 @@ class PlatformAdapterTests(unittest.TestCase):
         """Create a complete valid manifest/hook fixture before applying one mutation."""
         for relative in (
             Path(".claude-plugin/plugin.json"),
-            Path("plugin.json"),
             Path("hooks/hooks.json"),
         ):
             target = root / relative
@@ -80,8 +76,6 @@ class PlatformAdapterTests(unittest.TestCase):
                             if path.name == "SKILL.md" and path.is_relative_to(".github/skills")}
         self.assertEqual(source_skills, projected_skills)
         self.assertFalse(any(path.is_relative_to("platforms/copilot/skills") for path in outputs))
-        manifest = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))
-        self.assertNotIn("skills", manifest, "Agent Plugins 1.0 discovers canonical skills/")
         self.assertNotIn(Path(".github/skills"), adapters.RETIRED_GENERATED_ROOTS)
         self.assertIn(Path("platforms/copilot/skills"), adapters.RETIRED_GENERATED_ROOTS)
 
@@ -285,7 +279,7 @@ class PlatformAdapterTests(unittest.TestCase):
     def test_copilot_agent_outputs_omit_local_only_frontmatter(self) -> None:
         forbidden = {"agents", "handoffs", "argument-hint", "advancedOptions"}
         root = self._canonical_root()
-        # Source metadata must not leak through either agent layout or the command preview.
+        # Source metadata must not leak through the workspace agent or the command preview.
         for source in (root / "agents").glob("*.md"):
             text = source.read_text(encoding="utf-8")
             source.write_text(text.replace("---\n", (
@@ -295,8 +289,9 @@ class PlatformAdapterTests(unittest.TestCase):
             ), 1), encoding="utf-8")
         outputs = adapters.expected_outputs(root)
         agents = {path: data.decode("utf-8") for path, data in outputs.items()
-                  if path.parent in (adapters.COPILOT_AGENTS, adapters.COPILOT_PLUGIN_AGENTS)}
-        self.assertEqual(2 * len(list((root / "agents").glob("*.md"))), len(agents))
+                  if path.parent == adapters.COPILOT_AGENTS}
+        self.assertEqual({source.stem + ".agent.md" for source in (root / "agents").glob("*.md")},
+                         {path.name for path in agents})
         agents[Path("command-preview.agent.md")] = adapters.render_copilot_agent(
             root / "agents/sre-assistant.md", command_preview=True
         )
@@ -308,7 +303,7 @@ class PlatformAdapterTests(unittest.TestCase):
                 self.assertTrue(fields["description"])
                 self.assertTrue(fields["tools"])
 
-    def test_agent_field_removal_preserves_skill_and_command_argument_hints(self) -> None:
+    def test_agent_field_removal_preserves_workspace_skill_argument_hints(self) -> None:
         outputs = adapters.expected_outputs(ROOT)
         for source in sorted((ROOT / "skills").glob("*/SKILL.md")):
             projected = adapters.COPILOT_SKILLS / source.parent.name / source.name
@@ -319,11 +314,6 @@ class PlatformAdapterTests(unittest.TestCase):
                     self.assertEqual(authored["argument-hint"], fields["argument-hint"])
                 else:
                     self.assertNotIn("argument-hint", fields)
-        command = Path("commands/adr.md")
-        projected = adapters.COPILOT_PLUGIN_COMMANDS / command.name
-        fields = fleet_frontmatter.parse(outputs[projected].decode("utf-8"), projected).fields
-        self.assertEqual(fleet_frontmatter.parse_file(ROOT / command).fields["argument-hint"],
-                         fields["argument-hint"])
 
     def test_copilot_research_boundaries_are_mutually_exclusive(self) -> None:
         self.assertEqual(["read", "search"], self._copilot("repository-investigator", "tools"))
@@ -414,57 +404,16 @@ class PlatformAdapterTests(unittest.TestCase):
             self.assertIn("disable-model-invocation: true", copilot)
             self.assertIn("explicit-only through Copilot's frontmatter switch", copilot)
 
-    def test_platform_manifests_agree(self) -> None:
+    def test_claude_manifest_and_hook_contracts(self) -> None:
         self.assertEqual([], adapters.validate_platform_contracts(ROOT))
 
-    def test_copilot_manifest_must_declare_agent_plugins_1_0(self) -> None:
-        """The Agent Plugins schema is a format discriminator, not inert metadata.
+    def test_generator_owns_only_workspace_agents_and_skills(self) -> None:
+        self.assertEqual({Path(".github/agents"), Path(".github/skills")}, set(adapters.GENERATED_ROOTS))
+        for path in adapters.expected_outputs(ROOT):
+            with self.subTest(path=path):
+                self.assertTrue(path.is_relative_to(".github/agents") or path.is_relative_to(".github/skills"))
 
-        VS Code ranks a root ``plugin.json`` with the 1.0 ``$schema`` first; without it,
-        ``.claude-plugin/plugin.json`` wins and VS Code loads the canonical Claude agents and hooks.
-        The 1.0 schema forbids unknown top-level keys, so the old component selectors must be gone.
-        """
-
-        def mutated(change) -> list[str]:
-            root = self._contract_root()
-            target = root / "plugin.json"
-            manifest = json.loads(target.read_text(encoding="utf-8"))
-            change(manifest)
-            target.write_text(json.dumps(manifest), encoding="utf-8", newline="\n")
-            return adapters.validate_platform_contracts(root)
-
-        for schema in (None, "https://agent-plugins.org/schemas/future/plugin.schema.json"):
-            with self.subTest(schema=schema):
-                def set_schema(manifest, schema=schema):
-                    manifest.pop("$schema")
-                    if schema is not None:
-                        manifest["$schema"] = schema
-                failures = mutated(set_schema)
-                self.assertTrue(any("$schema must be" in failure for failure in failures), failures)
-        for field, value in (("agents", "./.github/agents/"), ("skills", "./.github/skills/"),
-                             ("hooks", "./hooks/copilot-hooks.json")):
-            with self.subTest(field=field):
-                failures = mutated(lambda manifest, f=field, v=value: manifest.__setitem__(f, v))
-                self.assertTrue(
-                    any(f"{field!r} is not an Agent Plugins 1.0 manifest field" in failure for failure in failures),
-                    failures,
-                )
-
-    def test_plugin_layout_carries_the_copilot_agents_and_hooks(self) -> None:
-        outputs = adapters.expected_outputs(ROOT)
-        for source in sorted((ROOT / "agents").glob("*.md")):
-            with self.subTest(agent=source.stem):
-                name = f"{source.stem}.agent.md"
-                workspace = outputs[adapters.COPILOT_AGENTS / name].decode("utf-8")
-                installed = outputs[adapters.COPILOT_PLUGIN_AGENTS / name].decode("utf-8")
-                # The same prompt/tool contract uses each layout's own skill location.
-                self.assertEqual(workspace, installed.replace("](../../skills/", "](../skills/"))
-        self.assertEqual(json.loads((ROOT / adapters.COPILOT_HOOKS_SOURCE).read_text(encoding="utf-8")),
-                         json.loads(outputs[adapters.COPILOT_PLUGIN_HOOKS]))
-        self.assertFalse(any(path.is_relative_to(adapters.COPILOT_PLUGIN_COMPONENTS / "skills")
-                             for path in outputs), "1.0 reads canonical skills/, not a copy")
-
-    def test_agent_resource_links_resolve_in_both_copilot_layouts(self) -> None:
+    def test_agent_resource_links_resolve_in_the_workspace(self) -> None:
         root = self._canonical_root()
         (root / "agents/probe-link.md").write_text(
             "---\nname: probe-link\ndescription: Verify agent skill-link rebasing.\ntools: Read\n---\n"
@@ -472,65 +421,24 @@ class PlatformAdapterTests(unittest.TestCase):
             encoding="utf-8",
         )
         adapters.write_generated_outputs(root)
-        for directory in (adapters.COPILOT_AGENTS, adapters.COPILOT_PLUGIN_AGENTS):
-            links_checked = 0
-            for agent in sorted((root / directory).glob("*.agent.md")):
-                for target in re.findall(r"\]\((\.{1,2}/[^)\s]+)\)", agent.read_text(encoding="utf-8")):
-                    with self.subTest(agent=agent.relative_to(root).as_posix(), target=target):
-                        resource = (agent.parent / target.split("#", 1)[0]).resolve()
-                        self.assertTrue(resource.is_relative_to(root), resource)
-                        self.assertTrue(resource.is_file(), f"missing bundled resource: {resource}")
-                    links_checked += 1
-            self.assertGreater(links_checked, 0, f"no resource links exercised in {directory}")
+        directory = root / adapters.COPILOT_AGENTS
+        probe = directory / "probe-link.agent.md"
+        expected = "../skills/operational-docs/SKILL.md#ownership-and-dependency-lookup"
+        self.assertIn(f"[lookup]({expected})", probe.read_text(encoding="utf-8"))
+        for agent in sorted(directory.glob("*.agent.md")):
+            for target in re.findall(r"\]\((\.{1,2}/[^)\s]+)\)", agent.read_text(encoding="utf-8")):
+                with self.subTest(agent=agent.name, target=target):
+                    resource = (agent.parent / target.split("#", 1)[0]).resolve()
+                    self.assertTrue(resource.is_relative_to(root), resource)
+                    self.assertTrue(resource.is_file(), f"missing workspace resource: {resource}")
 
-    def test_plugin_commands_preserve_the_canonical_inventory_and_adr_body(self) -> None:
-        root = self._canonical_root()
-        # A second command proves generation discovers sources instead of special-casing ADR.
-        (root / "commands/probe.md").write_text(
-            '---\ndescription: "Probe command"\n---\nRead the supplied input.\n', encoding="utf-8"
-        )
-        outputs = adapters.expected_outputs(root)
-        command_root = Path("com.github.copilot/commands")
-        canonical = {path.name for path in (root / "commands").glob("*.md")}
-        projected = {path.name for path in outputs if path.parent == command_root}
-        self.assertEqual(canonical, projected)
-        adr = outputs[command_root / "adr.md"].decode("utf-8")
-        # ADR currently needs no addressing rewrite: its full body and metadata must survive.
-        self.assertEqual((root / "commands/adr.md").read_text(encoding="utf-8"), adr)
-        self.assertIn("disable-model-invocation: true", adr)
-        self.assertNotRegex(frontmatter_block(adr), r"(?m)^(?:agent|tools|allowed-tools):")
+    def test_claude_adr_command_is_manual_and_preserves_caller_tool_scope(self) -> None:
+        fields = fleet_frontmatter.parse_file(ROOT / "commands/adr.md").fields
+        self.assertIs(fields["disable-model-invocation"], True)
+        self.assertTrue(fields["argument-hint"])
+        self.assertFalse({"agent", "tools", "allowed-tools"}.intersection(fields))
 
-    def test_missing_packaged_command_is_detected(self) -> None:
-        root = self._canonical_root()
-        adapters.write_generated_outputs(root)
-        target = root / "com.github.copilot/commands/adr.md"
-        self.assertTrue(target.is_file(), "ADR must be packaged before checking its removal")
-        target.unlink()
-        self.assertEqual(
-            ["com.github.copilot/commands/adr.md: generated output is missing; run adapter generator --write"],
-            adapters.validate_generated_outputs(root),
-        )
-
-    def test_plugin_commands_reject_indirection_before_writing(self) -> None:
-        for relative in ("commands", "commands/adr.md"):
-            with self.subTest(path=relative):
-                root = self._canonical_root()
-                sentinel = root / "com.github.copilot/sentinel.txt"
-                sentinel.parent.mkdir()
-                sentinel.write_text("unchanged", encoding="utf-8")
-                real_check = adapters._is_link_or_reparse
-
-                def mark_as_indirection(path: Path) -> bool:
-                    return path == root / relative or real_check(path)  # noqa: B023 -- called within this iteration
-
-                with (
-                    mock.patch.object(adapters, "_is_link_or_reparse", side_effect=mark_as_indirection),
-                    self.assertRaisesRegex(ValueError, "link/reparse point"),
-                ):
-                    adapters.write_generated_outputs(root)
-                self.assertEqual("unchanged", sentinel.read_text(encoding="utf-8"))
-
-    def test_installed_skill_names_remain_namespaced_and_workspace_names_are_bare(self) -> None:
+    def test_claude_skill_names_remain_namespaced_and_workspace_names_are_bare(self) -> None:
         root = self._canonical_root()
         skill = root / "skills/pcf-ops/SKILL.md"
         skill.write_text(
@@ -560,41 +468,13 @@ class PlatformAdapterTests(unittest.TestCase):
             with self.subTest(reference=relative):
                 self.assertEqual(example, outputs[adapters.COPILOT_SKILLS / relative])
 
-    def test_each_platform_manifest_is_required(self) -> None:
-        manifests = (
-            Path(".claude-plugin/plugin.json"),
-            Path("plugin.json"),
-        )
-        for relative in manifests:
-            with self.subTest(path=relative.as_posix()):
-                root = self._contract_root()
-                self.assertEqual([], adapters.validate_platform_contracts(root))
-                target = root / relative
-                target.unlink()
-                failures = adapters.validate_platform_contracts(root)
-                self.assertTrue(failures, "deleting a required manifest must fail validation")
-
-    def test_shared_manifest_identity_is_mutation_guarded(self) -> None:
+    def test_claude_manifest_is_required(self) -> None:
         root = self._contract_root()
         self.assertEqual([], adapters.validate_platform_contracts(root))
-        target = root / "plugin.json"
-        manifest = json.loads(target.read_text(encoding="utf-8"))
-        manifest["name"] = "different-plugin"
-        target.write_text(json.dumps(manifest), encoding="utf-8", newline="\n")
+        manifest = root / ".claude-plugin/plugin.json"
+        manifest.unlink()
         failures = adapters.validate_platform_contracts(root)
-        self.assertTrue(
-            any("identity field 'name' differs from Claude manifest" in failure for failure in failures),
-            failures,
-        )
-
-    def test_copilot_component_paths_cannot_be_deduplicated_to_claude(self) -> None:
-        root = self._contract_root()
-        self.assertEqual([], adapters.validate_platform_contracts(root))
-        shutil.copy2(root / ".claude-plugin/plugin.json", root / "plugin.json")
-        failures = adapters.validate_platform_contracts(root)
-        for expected in ("$schema must be", "'displayName' is not an Agent Plugins 1.0 manifest field"):
-            with self.subTest(expected=expected):
-                self.assertTrue(any(expected in failure for failure in failures), failures)
+        self.assertTrue(any(repr(str(manifest)) in failure for failure in failures), failures)
 
     def test_byte_drift_is_detected(self) -> None:
         root = self._canonical_root()
@@ -644,15 +524,14 @@ class PlatformAdapterTests(unittest.TestCase):
 
     def test_manifest_failure_collects_for_fleet_but_stops_cli_before_write(self) -> None:
         root, _ = self._adapter_tree()
-        manifest_path = root / "plugin.json"
+        manifest_path = root / ".claude-plugin/plugin.json"
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-        manifest["agents"] = "./wrong/"
+        manifest["name"] = "different-plugin"
         manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
         target = root / ".github/agents/software-engineer.agent.md"
         drift = target.read_bytes() + b"\nmanual edit\n"
         target.write_bytes(drift)
-        failure = ("plugin.json: 'agents' is not an Agent Plugins 1.0 manifest field; components "
-                   "are discovered from skills/ and com.github.copilot/")
+        failure = f"{manifest_path}: name must match adapter PLUGIN_NAME {adapters.PLUGIN_NAME!r}"
         self.assertEqual([failure, ".github/agents/software-engineer.agent.md: generated output drift"],
                          adapters.validate_platform_support(root))
         with mock.patch.object(adapters, "write_generated_outputs", side_effect=AssertionError("must not write")):
@@ -681,10 +560,14 @@ class PlatformAdapterTests(unittest.TestCase):
     def test_retired_generated_root_present_on_disk_is_detected(self) -> None:
         root = self._temporary_root()
         self.assertEqual([], adapters._retired_generated_root_failures(root))
+        self.assertTrue({Path("com.github.copilot"), Path("plugin.json")}.issubset(adapters.RETIRED_GENERATED_ROOTS))
         for retired_root in adapters.RETIRED_GENERATED_ROOTS:
             retired = root / retired_root
-            retired.mkdir(parents=True)
-            (retired / "leftover.md").write_text("stale mirror\n", encoding="utf-8")
+            if retired_root == Path("plugin.json"):
+                retired.write_text("{}", encoding="utf-8")
+            else:
+                retired.mkdir(parents=True)
+                (retired / "leftover.md").write_text("stale mirror\n", encoding="utf-8")
             failures = adapters._retired_generated_root_failures(root)
             with self.subTest(retired_root=retired_root.as_posix()):
                 self.assertTrue(
@@ -928,44 +811,43 @@ class PlatformAdapterTests(unittest.TestCase):
             with self.subTest(command=command), self.assertRaisesRegex(ValueError, "relative Markdown link"):
                 adapters.adapt_text(command)
 
-    def test_installed_dashboard_helper_runs_outside_the_plugin_checkout(self) -> None:
+    def test_workspace_dashboard_helper_runs_from_a_project_subdirectory(self) -> None:
         outputs = adapters.expected_outputs(ROOT)
         skill_relative = adapters.COPILOT_SKILLS / "grafana/SKILL.md"
         bundle_relative = adapters.COPILOT_SKILLS / "grafana"
         root = self._temporary_root()
-        plugin = root / "installed plugin"
         workspace = root / "user project"
-        workspace.mkdir()
-        # An installed skill carries its bundled siblings, including shared parsing
-        # and module loading. Copy the generator's complete output for this skill.
+        working_directory = workspace / "dashboard inputs"
+        working_directory.mkdir(parents=True)
+        # A projected skill must find its bundled helpers independently of the caller's directory.
         for relative, content in outputs.items():
             if not relative.is_relative_to(bundle_relative):
                 continue
-            target = plugin / relative
+            target = workspace / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(content)
-        skill = plugin / skill_relative
+        skill = workspace / skill_relative
         skill_text = skill.read_text(encoding="utf-8")
         self.assertNotIn("python skills/grafana/scripts/dashboard_hygiene.py", skill_text)
         link = re.search(
             r"\[[^\]\n]*dashboard_hygiene\.py[^\]\n]*\]\(([^)\n]+)\)",
             skill_text,
         )
-        self.assertIsNotNone(link, "the installed skill must link its bundled validator")
+        self.assertIsNotNone(link, "the workspace skill must link its bundled validator")
         helper = (skill.parent / link[1]).resolve()
         self.assertTrue(helper.is_relative_to(skill.parent))
         for name in ("dashboard_hygiene", "grafana_read"):
-            for directory in (workspace, workspace / "skills/grafana/scripts"):
+            for directory in (working_directory, workspace / "skills/grafana/scripts"):
                 shadow = directory / (name + ".py")
                 shadow.parent.mkdir(parents=True, exist_ok=True)
                 shadow.write_text("raise SystemExit('workspace shadow executed')\n", encoding="utf-8")
-        model = workspace / "dashboard.json"
+        model = working_directory / "dashboard.json"
         model.write_text(
-            json.dumps({"title": "Installed helper probe", "panels": [], "tags": ["probe"]}),
+            json.dumps({"title": "Workspace helper probe", "panels": [], "tags": ["probe"]}),
             encoding="utf-8",
         )
         result = subprocess.run(
-            [sys.executable, str(helper), model.name], cwd=workspace,
+            [sys.executable, str(helper), model.name], cwd=working_directory,
             capture_output=True, text=True, timeout=20,
         )
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)

@@ -14,7 +14,7 @@ import fleet_frontmatter as frontmatter
 
 PROBE = Path("probe.md")
 ROOT = Path(__file__).resolve().parents[1]
-FLEET_ROOTS = ("agents", "skills", "commands", ".github/agents", ".github/skills", "com.github.copilot")
+FLEET_ROOTS = ("agents", "skills", "commands", ".github/agents", ".github/skills")
 
 
 class FrontmatterParserTests(unittest.TestCase):
@@ -200,13 +200,14 @@ class FrontmatterParserTests(unittest.TestCase):
 
     def test_every_fleet_file_parses_to_what_a_yaml_host_reads(self) -> None:
         """The shared parser and a plain safe load agree on every canonical and projected file."""
-        paths = [path for root in FLEET_ROOTS for path in sorted((ROOT / root).rglob("*.md"))
-                 if path.read_text(encoding="utf-8").startswith("---\n")]
-        self.assertGreater(len(paths), 50, "the fleet roots moved; update FLEET_ROOTS")
-        for path in paths:
-            with self.subTest(path=path.relative_to(ROOT).as_posix()):
-                parsed = frontmatter.parse_file(path, mode="strict")
-                self.assertEqual(yaml.safe_load("\n".join(parsed.raw_lines) + "\n") or {}, parsed.fields)
+        for root in FLEET_ROOTS:
+            paths = [path for path in sorted((ROOT / root).rglob("*.md"))
+                     if path.read_text(encoding="utf-8").startswith("---\n")]
+            self.assertTrue(paths, f"no frontmatter found in {root}")
+            for path in paths:
+                with self.subTest(path=path.relative_to(ROOT).as_posix()):
+                    parsed = frontmatter.parse_file(path, mode="strict")
+                    self.assertEqual(yaml.safe_load("\n".join(parsed.raw_lines) + "\n") or {}, parsed.fields)
 
     def test_frontmatter_key_grammar_is_not_redeclared_by_callers(self) -> None:
         for relative in (

@@ -30,8 +30,8 @@ standard-library-only under `python -I -S`; plugins do not install third-party d
 
 ## 2. Change the source of truth
 
-Edit agents, skills, commands, and hooks only under `agents/`, `skills/`, `commands/`, and `hooks/`;
-`.github/agents/`, `.github/skills/`, and `com.github.copilot/` are generated. After a canonical
+Edit agents, skills, commands, and hooks only under `agents/`, `skills/`, `commands/`, and `hooks/`.
+The generator writes Copilot workspace agents and skills to `.github/agents/` and `.github/skills/`. After a canonical
 change, regenerate once and commit the projections with the source:
 
 ```powershell
@@ -130,14 +130,13 @@ for someone using the fleet; measurements belong in the pull request or a `docs/
 Keep the last two releases and drop older ones.
 
 For a Claude marketplace update, increment `version` in
-[`.claude-plugin/plugin.json`](.claude-plugin/plugin.json), match it in [`plugin.json`](plugin.json),
-and record the full source commit in the release record. Before announcing it, upgrade an installed
+[`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) and record the full source commit in the
+release record. Before announcing it, upgrade an installed
 previous version in a disposable Claude configuration and read back a changed agent, skill, or hook.
 
-To check an unpublished branch in VS Code, use an isolated profile, set `chat.pluginLocations` to
-`{"/absolute/path/to/save-toolkit": true}`, and open a neutral test workspace; opening this
-repository itself also discovers `.github/agents/` and `.github/skills/` and can hide
-duplicate-install mistakes.
+To check Copilot workspace discovery on an unpublished branch, open that checkout in VS Code
+using a profile without a previous Save Toolkit installation. Inspect the discovered agents and
+skills and confirm their source paths point into the checkout's `.github/` directory.
 
 Confirm the diff and commit list hold only the intended work. `main` takes pull requests only;
 Save Toolkit maintainers merge. Production deployment of new bytes is a separate, exact-candidate

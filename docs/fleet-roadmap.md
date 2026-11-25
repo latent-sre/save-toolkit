@@ -236,41 +236,22 @@ All product runtime behavior remains unverified.
 **SRE task:** Run the same useful operational checks from a terminal or an agent, preserve their
 evidence, and extend the tool as new operational needs appear.
 
-### RELEASE-001 — make the toolkit installable as an immutable, rollback-tested release
+### RELEASE-001 — make the Claude Code plugin installable as an immutable, rollback-tested release
 
-**Status:** `deferred` (2026-11-13); the owner deferred immutable-release work during backlog
-review. The owner requires verified native delegation on the default
-Copilot harness before release. A commit-pinned selector and checksummed candidate archive are
-prepared; installed acceptance and an accepted immutable rollback baseline remain outstanding.
-An isolated development-registration preflight is prepared, but Computer Use denied Visual Studio
-Code inspection; inventory and installed-format acceptance remain unverified.
-**Owner:** Maintainers accept the release; a maintainer session owns the plugin contract and
-`software-engineer` owns helper/adapter repairs.
-**Outcome:** An SRE installs a pinned artifact rather than whatever `main` holds, and can roll back
-to a previously accepted one. The acceptance cases pass on those
-exact shipping bytes, which the 2026-09-10 local-install run did not exercise.
-**Next action:** None until the owner reopens release work. Then resolve the missing native
-per-parent target restriction, and implement and verify
-the owner-selected Copilot delegation contract. Current converter/SDK research has not identified a supported mechanism;
-then run the new Format acceptance case first: the plugin now declares Agent Plugins
-1.0 because VS Code ranks `.claude-plugin/plugin.json` above a schema-less selector manifest, and no
-installed run has yet shown which layout loads. Retire the mutable `"source": "./"` selector in `.claude-plugin/marketplace.json`
-for an immutable selector or checksum, then re-run the acceptance cases on those shipping bytes: the
-2026-09-10 pass was against a local `./` install, and a passing run does not carry to bytes it did
-not exercise. The enforcement results that were open on VS Code 1.135.0 are superseded by that run.
-Still unrun: the agent-scoped terminal-hook canary and the SRE visual-read acceptance cases, with
-`hooks/copilot-hooks.json` shipping empty. Maintainers must run the exact candidate in an isolated
-profile on each supported host, including a dedicated Grafana Viewer browser session. The SRE
-browser grant now includes selected native/MCP viewing interactions. Structural tool checks
-do not prove image delivery or helper invocation. The installed VS Code 1.138 source handles some
-hook failures as warnings; the launcher's 42/43/44 protocol is not authentication or proof of
-fail-closed host behavior. Keep those limits explicit until the host cases are observed.
-**Evidence:** [current preparation and selected harness](reviews/2026-11-12-release-001-preparation.md);
-the pre-refactor handoff packet was removed on 2026-11-22 and remains at the
-[pre-removal snapshot](https://github.com/latent-sre/save-toolkit/tree/812aab80c4336f629679b25dc86f839d1969ff52/docs/reviews);
-the 2026-09-10 VS Code 1.137.0 acceptance row in the host-support table of
-[`README.md`](../README.md); HOST-002's closure commit records the owner disposition.
-**SRE task:** Install a named version of the toolkit, and go back to the previous one if it regresses.
+**Status:** `deferred` (2026-11-13). The owner deferred immutable-release work. The Copilot
+plugin installation and rollback cases retired with that distribution. Workspace Copilot
+delegation remains tracked under COPILOT-HARNESS-001.
+**Owner:** Maintainers accept the Claude release. A maintainer session owns the plugin contract
+and `software-engineer` owns helper repairs.
+**Outcome:** An SRE can install a pinned Claude Code plugin and roll back to a previously
+accepted version.
+**Next action:** None until the owner reopens release work. Then bind the Claude marketplace
+selector to an immutable revision or checksum, exercise installation and upgrade on those
+shipping bytes, read back a changed component, and verify rollback to an accepted baseline.
+**Evidence:** The [release preparation record](reviews/2026-11-12-release-001-preparation.md)
+describes the candidate and host checks prepared in November 2026. The earlier local install
+used a mutable selector. Immutable Claude release and rollback acceptance remain outstanding.
+**SRE task:** Install a named Claude plugin version and restore the previous one if it regresses.
 
 ### INCIDENT-QUALITY-001 — verify decision quality after the SRE contract repairs
 
@@ -295,36 +276,30 @@ the operational-contract report used by merged PR #237) were removed on 2026-11-
 **SRE task:** Get a useful next check or closeout without mistaking a helper's completed assignment
 or an untimed aggregate for evidence of incident recovery or cause.
 
-### COPILOT-HARNESS-001 — decide fleet delegation on the default Copilot harness
+<a id="copilot-harness-001--decide-fleet-delegation-on-the-default-copilot-harness"></a>
 
-**Status:** `active` (2026-11-12). The owner selected verified native Copilot delegation before
-release. [verified] The projection now omits Local-only `agents`, `handoffs`, `argument-hint`,
-and `advancedOptions` agent fields; the handoff map is retired and skill/command hints remain.
-[verified] Agent-authoring now covers the default-harness field contract, tool mapping and preload
-checks; the renderer rejects empty mapped tool lists before replacing generated files.
-Native delegation enforcement and installed acceptance remain to implement. Current converter/SDK research
-has not identified an enforceable per-parent delegation-target restriction.
-**Owner:** The human owner decides; a maintainer session owns the generator and lane text.
-**Research scope:** Copilot, Claude Code, and Codex; OpenCode excluded for now. This comparison
-does not change the selected release targets.
-**Outcome:** The fleet states how delegation works on the default Copilot harness, its lanes do not
-depend on a Local-only field there, and acceptance cases exist for the chosen harness.
-**Next action:** Establish a host-enforced target restriction before shipping the delegating
-projection; ignored Local fields and timeout-sensitive hooks do not establish the selected
-contract. Prepare bounded generator corrections for qualified browser tools, discovery
-instructions, and the hook payload contract. Then prove allowed/forbidden child invocation,
-parent continuation, effective tool grants, and instruction delivery in an installed
-default-Copilot session. Follow the acceptance matrix in the
-[migration research](reviews/2026-11-14-copilot-harness-migration-research.md).
-**Evidence:** [verified] Nine agents, 24 skills, and one command inspected; offline hook probe
-found a camelCase-payload migration trap. [sourced] Current converter/SDK inspection still found
-no per-parent target allowlist; VS Code now schedules Local removal by February 2027.
-[Research and pinned sources](reviews/2026-11-14-copilot-harness-migration-research.md),
-[three-Terra harness comparison](reviews/2026-11-14-three-harness-comparison.md),
-[selected scope](reviews/2026-11-12-release-001-preparation.md).
-[unverified] Current installed-harness behavior remains to test.
-**SRE task:** Use the fleet's delegating lanes from a default Copilot session, knowing which handoffs
-work there.
+### COPILOT-HARNESS-001 — verify workspace delegation on the default Copilot harness
+
+**Status:** `active` (2026-11-12). The workspace projection retains the `agent` tool and omits
+Local-only child lists and handoffs. Retirement of the installable Copilot plugin closes its
+installation, plugin-hook, and plugin-command acceptance cases.
+**Owner:** The human owner decides the supported workspace delegation contract. A maintainer
+session owns the generator and lane text.
+**Outcome:** An SRE can tell which helpers a workspace agent can invoke, what access those helpers
+receive, and whether the parent can resume the work.
+**Next action:** Open the checkout in the default Copilot harness and confirm the agents and skills
+resolve from `.github/`. Verify the effective tool inventory, instruction delivery, permitted and
+excluded helper invocations, and parent continuation. Check the qualified browser tool names and
+visual readback with the dedicated Grafana Viewer session. Exercise the agent-scoped terminal
+hook separately on the workspace command preview before any decision to enable it. If the host
+cannot enforce the requested child list, return that limitation to the owner for a decision
+about workspace delegation.
+**Evidence:** The [November harness research](reviews/2026-11-14-copilot-harness-migration-research.md)
+and [three-harness comparison](reviews/2026-11-14-three-harness-comparison.md) document the
+examined host versions and conversion limits. [unverified] Effective child restrictions and
+browser tool availability for the workspace agents on the default harness remain to be established.
+**SRE task:** Use a workspace agent for a delegated lookup and know who can receive the request
+and return the result.
 
 ### PCF-DEPLOY-001 — give pcf-deploy an Apps Manager path for SREs without the cf CLI
 

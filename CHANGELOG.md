@@ -19,6 +19,10 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
 
 ### Changed
 
+- Copilot agents and skills now ship as workspace customizations. The installable Copilot package
+  and its packaged `/adr` command are retired. Claude Code retains its plugin and command.
+- Researcher checks for private context on clean-room requests, distinguishes source inspection
+  from recorded execution, and ends a lookup when authoritative evidence answers the question.
 - Repository Investigator scales searches to the question and identifies what ownership records,
   configuration loaders, and working-tree files establish.
 - Reviewer checks the complete PR diff at pinned revisions and consults targeted history only

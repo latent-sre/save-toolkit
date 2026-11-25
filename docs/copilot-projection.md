@@ -1,7 +1,7 @@
 # Copilot projection
 
-How `scripts/generate_platform_adapters.py` projects this fleet's canonical agents and skills to
-VS Code and GitHub Copilot, and why each lane receives the tools it does. The generator and
+Opening this checkout in VS Code makes the fleet's generated workspace agents and skills
+available to GitHub Copilot. The generator and
 `scripts/test_platform_adapters.py` are the source of truth; this file records the decisions they
 encode. Field-level host facts live in the
 [Copilot frontmatter reference](../skills/agent-authoring/references/copilot-frontmatter.md).
@@ -16,17 +16,13 @@ encode. Field-level host facts live in the
   control: the omitted `execute` narrows a default the user can override and the picker can
   rewrite — read [Capability choices](#capability-choices) before citing it as authority. A fleet
   control is only as strong as the host it is proven on.
-- The root manifest declares Agent Plugins 1.0, so the installed plugin reads canonical `skills/`
-  and takes Copilot agents and hooks from `com.github.copilot/`. Without that schema VS Code ranks
-  `.claude-plugin/plugin.json` first and loads the Claude agents instead.
-- Agent resource links resolve from their generated location: workspace agents use
-  `.github/skills/`, while installed agents use root `skills/`.
+- The generator maps `agents/` to `.github/agents/` and `skills/` to `.github/skills/`.
+  Agent resource links resolve from the generated workspace agent to the matching workspace skill.
 - Agent headers omit Local-only `agents`, `handoffs`, `argument-hint`, and `advancedOptions`.
-  The retired Local handoff map is removed. Skill and command argument hints remain intact.
+  The workspace skills retain their argument hints.
 - Canonical Claude delegation grants are still validated, and their `agent` tool alias is retained.
   It enables delegation without enforcing the canonical child list. COPILOT-HARNESS-001 remains
-  open until the chosen boundary is proven on the installed default harness; field removal does
-  not establish equivalent permissions or release readiness.
+  open until the chosen boundary is verified for agents discovered from the workspace.
 - Empty mapped agent tool lists fail generation before existing output is replaced. VS Code's
   converter interprets empty or missing lists as all session-configured tools. This guard catches
   complete mapping loss; nonempty lists still need checks for missing integrations and host defaults.

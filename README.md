@@ -15,7 +15,7 @@ It fits together in three layers:
 A human executes every production action, with one narrow Grafana exception described under
 [Limits](#limits).
 
-> **Pre-release.** An install updates only when the plugin version changes; commits merged to
+> **Pre-release.** A Claude Code installation updates only when the plugin version changes; commits merged to
 > `main` under the same version leave it on its cached copy.
 
 ## Install
@@ -43,22 +43,12 @@ claude plugin marketplace update latent-sre
 claude plugin update save-toolkit@latent-sre
 ```
 
-### VS Code and GitHub Copilot (beta)
+### VS Code and GitHub Copilot workspace
 
-Confirm `chat.plugins.enabled` is on, run **Chat: Install Plugin from Source**, and enter
-`https://github.com/latent-sre/save-toolkit`. VS Code clones the repository and loads the skills
-plus the generated Copilot agents and hooks in `com.github.copilot/`.
-
-Alternatively, install through GitHub Copilot CLI v1.0.85 or later; VS Code discovers Copilot
-CLI-installed plugins automatically:
-
-```sh
-copilot plugin marketplace add latent-sre/save-toolkit
-copilot plugin install save-toolkit@latent-sre
-```
-
-Opening this repository without installing the plugin discovers `.github/agents/` and
-`.github/skills/` directly.
+Open this repository in VS Code to use the workspace agents in `.github/agents/` and skills in
+`.github/skills/`. They follow the checked-out revision. The installable Copilot plugin has been
+retired. If you previously installed it, disable or uninstall that copy in the client where you
+installed it so that Copilot discovers a single copy of each workspace agent.
 
 ## Set up
 
@@ -92,7 +82,7 @@ Describe the problem. Routing is by description; there are no commands to memori
 - *"write a runbook for the checkout deploy"* → the `scribe` agent with `operational-docs`.
 - *"is PR #42 ready to merge?"* → `production-change-gate`'s merge-readiness checklist.
 
-If automatic selection misses, start the advisor yourself with
+In Claude Code, if automatic selection misses, start the advisor yourself with
 `/save-toolkit:incident-investigation INC-4132`. One entry point is manual only, so type it:
 `/save-toolkit:adr` (ADR scaffold).
 

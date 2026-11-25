@@ -15,4 +15,3 @@
 # Editing a projection directly is erased by the next regeneration.
 .github/agents/
 .github/skills/
-com.github.copilot/

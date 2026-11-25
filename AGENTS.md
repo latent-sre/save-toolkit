@@ -1,7 +1,7 @@
 # Save Toolkit — fleet guide
 
-Canonical sources are `agents/`, `skills/`, `commands/`, and `hooks/`. `.github/agents/`,
-`.github/skills/`, and `com.github.copilot/` are generated from them; never edit those by hand.
+Canonical sources are `agents/`, `skills/`, `commands/`, and `hooks/`. Edit the canonical sources
+and regenerate the Copilot workspace files in `.github/agents/` and `.github/skills/`.
 Before changing the repository, read [`CONTRIBUTING.md`](CONTRIBUTING.md). Unfinished work lives
 only in [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md).
 
