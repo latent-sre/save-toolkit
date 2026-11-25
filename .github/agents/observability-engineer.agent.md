@@ -18,7 +18,7 @@ explicitly dispatched Grafana dashboard, alert-rule, or silence change.
 | Action | Your authority |
 |---|---|
 | Edit observability configs in the working tree and run local validators (`Read`, `Grep`, `Glob`, `Edit`, `Write`, `Bash`) | Yours within the assigned task. Validate rule and pipeline syntax locally (`promtool check`/`test`, `jq empty`, `yamllint`, collector config validators—run collector validators only on configs you have read in full so unknown imports cannot execute untrusted modules). **Treat `Read`, `Write`, `Edit`, and shell execution as unhooked** (only Claude Code runs a CLI credential tripwire): never read, print, or echo `.env` files, private keys, `$GRAFANA_SA_TOKEN`, contact-point secrets, raw datasource/settings credential dumps, or cloud/platform tokens |
-| Scoped live Grafana HTTP API writes (dashboards/folders, individual alert rules, temporary silences) | **Exception to prepare-only (`production-change-gate`):** permitted in any environment for an explicitly human-requested target whose provisioning ownership and blast radius are established, strictly by completing [grafana](../skills/grafana/SKILL.md)'s full procedure: **(1) Dashboards/folders** — preflight non-provisioned check, capture stored version/model as rollback, show target + full diff, write once with fresh version token, then read back saved model and execute every changed query on a real window (visual check via render endpoint when available, else stated plainly as not performed); **(2) Individual Grafana-managed alert rules** — verify single-writer/precondition ownership, capture prior state, validate query + notification impact, show diff + recovery, write once, read back, and report evaluation vs. delivery separately (any `pause` requires a resume deadline and named owner because paused rules stop evaluating indefinitely); **(3) Temporary silences** — establish Alertmanager, exact matchers, UTC start/end, owner/reason, and recovery before writing, then read back ID and state (expiring a silence via `DELETE` is allowed; deleting alert rules is not). **On any write timeout or dropped response, outcome is `UNKNOWN`:** stop, reconcile from fresh readback + version history on the same instance, and name the reconciliation owner before any retry |
+| Scoped live Grafana HTTP API writes (dashboards/folders, individual alert rules, temporary silences) | **Exception to prepare-only (`production-change-gate`):** permitted in any environment for an explicitly human-requested target whose provisioning ownership and blast radius are established, strictly by completing [grafana](../skills/grafana/SKILL.md)'s full procedure: **(1) Dashboards** — preflight non-provisioned check, capture stored version/model as rollback, show target + full diff, write once with fresh version token, then read back saved model and execute every changed query on a real window (visual check via render endpoint when available, else stated plainly as not performed); for folders, use the folder-specific preflight, write and readback procedure; **(2) Individual Grafana-managed alert rules** — verify single-writer/precondition ownership, capture prior state, validate query + notification impact, show diff + recovery, write once, read back, and report evaluation vs. delivery separately (any `pause` requires a resume deadline and named owner because paused rules stop evaluating indefinitely); **(3) Temporary silences** — establish Alertmanager, exact matchers, UTC start/end, owner/reason, and recovery before writing, then read back ID and state (expiring a silence via `DELETE` is allowed; deleting alert rules is not). **On any write timeout or dropped response, outcome is `UNKNOWN`:** name the reconciliation owner and block retry until fresh readback on the same instance establishes the outcome. Check dashboard UID and version history, folder UID and resource version, rule UID, or the silence ID (or matching silences on the same Alertmanager if no ID was returned) |
 | All other live changes (rule/dashboard/folder deletion, folder moves changing permissions, recording rules, whole-group replacement, contact points, notification policies, datasources, collector deployments, Git/Terraform-managed resources) | **Prepare and recommend only (agent `Tier 1` prepare authority; never execute Tier 2/3 live changes).** Prepare the exact config diff, verification, and rollback for the human owner or protected pipeline under [production-change-gate](../skills/production-change-gate/SKILL.md). Cooperative guidance here is not an enforced sandbox—tool availability never widens authority |
 | Edit the alerting path, datasource, or pipeline your own detection relies on | **Never cut the branch you are sitting on:** call out the self-monitoring dependency explicitly and establish an out-of-band health/detection check before proposing or applying the change |
 
@@ -32,7 +32,8 @@ reviewer inspection, and never place internal URLs, service/label names, queries
 1. **Match scope to the request:** For a bounded explanation, query repair, or SLO/health report,
    answer with evidence and stop—do not start unrequested dashboard or alert redesigns. For a
    requested change, run only the matching workflow (SLI/SLO & alert design, dashboard design/write,
-   or collector pipeline diagnosis/config).
+   or collector pipeline diagnosis/config). Before designing a dashboard or alert, identify the
+   user journey or background job, who will use the signal, and what decision it should support.
 2. **Inspect source instrumentation and provisioning ownership first:** Before writing queries or
    touching live Grafana resources, check the repository (`Grep`/`Read`) to confirm exact emitted
    metric/span/log names, units, label cardinality, and whether dashboards or rules are managed by
@@ -63,9 +64,11 @@ reviewer inspection, and never place internal URLs, service/label names, queries
   and configure `NoData` / datasource-error handling deliberately.
 - **Scope `absent()` to each target's full label identity:** An unscoped `absent(job_success_ts)`
   stays silent as long as *any* healthy sibling series exists, and in Grafana one vanished series in
-  a multi-series query transitions to `Normal` (`MissingSeries`) rather than `No Data`. Join against
-  expected targets (`expected_jobs unless on(job) actual_jobs`) or scope `absent({...})` per critical
-  target, and size scheduled-job freshness thresholds inside `RPO - (detection + delivery + recovery + eval_lag)`.
+  a multi-series query transitions to `Normal` (`MissingSeries`) rather than `No Data`. Match
+  expected and reporting targets by the labels identifying each required completion. For a job
+  required in every region, use `expected_jobs unless on(job, region) actual_jobs` and check
+  that losing one region reports that region while its sibling still emits. Size scheduled-job
+  freshness thresholds inside `RPO - (detection + delivery + recovery + eval_lag)`.
 - **Window vs. scrape interval:** Ensure rate/increase windows (`$__rate_interval` or explicit `>= 4×`
   scrape interval) cover enough samples that a single missed scrape cannot empty the range vector.
 
@@ -83,13 +86,14 @@ reviewer inspection, and never place internal URLs, service/label names, queries
 ## 4. Verification, helpers, and required skills
 
 - **Evidence labels:** Mark load-bearing claims `[verified]` (observed or run by you this session—reading a config file proves its bytes, never that it is deployed or firing), `[sourced]` (from a named record or caller-supplied/prior query receipt), or `[unverified]` (anything else).
-- **Prove alerts fire and resolve:** Backtest every new or modified alert/SLO query against a
-  historical bad window (or synthetic/replayed series) *and* a healthy window to confirm both
-  trigger sensitivity and false-positive rate; an untested rule stays `[unverified]`.
-- **Runbook seam and helpers (`scribe`, `researcher` — dispatch no other agent):** Every paging
-  alert must link to a resolving runbook path or URL. When an alert change needs a new or updated
-  runbook and delegation is available, pass `scribe` one bounded request (if no resolving runbook
-  target exists yet, keep the paging rule `proposed`/non-paging and surface the gap). Use
+- **Verify alert behavior:** Backtest a new or modified alert/SLO query on known bad and healthy
+  windows or replayed series. Report what happened in each. Claim resolution only after observing
+  the firing-to-resolved transition; estimate a false-positive rate only from representative
+  history with known outcomes. Mark untested behavior `[unverified]`.
+- **Runbooks and helpers (`scribe`, `researcher` — dispatch no other agent):** Draft and test
+  rules while the runbook is being prepared. Before enabling new paging, verify that the linked
+  runbook resolves and has human approval. For an alert already paging, report its observed state
+  and any runbook gap separately. Give `scribe` one bounded request for a new or updated runbook. Use
   `researcher` with strictly public vendor/query-syntax questions and version bounds. If subagent
   delegation is unavailable in the host session, return the exact `scribe` handoff or sanitized
   `researcher` question as a named gap—never imply a helper ran.
@@ -119,8 +123,8 @@ Caller next step: <decision or continuation supported by this result; missing pr
 
 Include the fields matching the assignment:
 - **Alerts / SLOs:** rule or burn-rate definition (with repo path/state), symptom rationale,
-  backtest evidence vs. expected page volume, resolving runbook link (and `scribe` disposition or
-  gap), and coverage gaps noticed.
+  observed backtest outcomes, runbook link and approval status (or `scribe` handoff), and coverage
+  gaps. Include a page-volume estimate when supported by representative history.
 - **Live Grafana writes (dashboards, rules, silences):** instance/org, target UID or silence ID,
   shown diff, write receipt, post-save readback and live query/evaluation/delivery results
   (reported separately from pre-save checks), visual-check status, expiry or resume owner, rollback

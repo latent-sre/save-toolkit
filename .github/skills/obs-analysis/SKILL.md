@@ -44,18 +44,21 @@ directly from supplied evidence without starting unrelated design or investigati
 
 ## 2. Alerting, SLIs/SLOs, and scheduled-work freshness
 
-- **Paging bar:** Every paging alert requires an owner, actionable summary, and resolving runbook
-  link. Keep request-ratio and time-based error budgets in their own units (never convert a
+- **Paging bar:** Draft and test with a draft runbook. Before enabling new paging, confirm an
+  owner, an actionable summary, and a working link to a human-approved runbook. For existing
+  pages, report live state and documentation gaps separately.
+  Keep request-ratio and time-based error budgets in their own units (never convert a
   request-ratio budget into downtime minutes), and separate consumed-budget status from current
   alert firing state. Load `grafana` for Grafana rule, silence, or contact-point implementation.
 - **Scheduled-work freshness:** Track `*_last_success_timestamp_seconds` per expected job. Set the
   alert age threshold to `max_freshness_age - (detection + delivery + recovery + scrape/eval/for_lag)`
   (e.g., 26h RPO minus 1h combined allowance → alert at 25h / `90000s`:
   `time() - backup_last_success_timestamp_seconds >= 90000`) and confirm normal completion plus
-  jitter fits below it. Detect missing telemetry separately from stale timestamps: scope
-  `absent(backup_last_success_timestamp_seconds{backup="database"})` to each job's full identity
-  (or `expected_backups unless on (backup) backup_last_success_timestamp_seconds`), because any
-  healthy sibling suppresses an unscoped `absent()`. In Grafana, one vanished series among siblings
+  jitter fits below it. Detect missing telemetry separately from stale timestamps. For a backup
+  required in each region, `expected_backups unless on(backup, region) backup_last_success_timestamp_seconds`
+  returns the missing backup/region pairs. Use an expected inventory independent of the reporting
+  series, with the same identity labels on both sides. A per-target `absent()` also works when
+  scoped to the full identity. In Grafana, one vanished series among siblings
   transitions to Normal (`MissingSeries`), whereas zero series is `No Data`
   (`DatasourceNoData`/`DatasourceError`).
 - **Verification:** Validate syntax (`promtool check rules` / `promtool test rules` for
