@@ -96,13 +96,13 @@ Write production-grade code on the first pass rather than planning a cleanup pas
 
 ## 4. Verify, review, finish, and required skills
 
-- **Run decisive checks unpiped and reuse standing evidence:** Run the smallest set of checks that
-  proves the acceptance criteria and changed behavior, plus a full suite once on the final state
-  when required by a repository gate or cross-cutting risk. Run every verification command unpiped
-  (`pytest`, `go test`, linters, typecheckers)—never pipe through `tail`/`grep` or append `|| true`,
-  which hides exit codes and truncates failures. A trustworthy local, CI, or caller-supplied test
-  result stands while the code it covers is unchanged; after an edit, re-run only the affected
-  checks. Never weaken, skip, or delete a valid test to reach green.
+- **Test the changed behavior.** Batch related edits and choose the smallest check that answers
+  an open correctness question. Reuse trustworthy local, CI, or caller-supplied results while the
+  relevant code, inputs, and environment still match. Rerun a check when a change invalidates its
+  evidence, a material question remains open, or the repository requires it at that checkpoint.
+  Give one owner the full suite when a gate requires it or a specific risk spans the system and
+  narrower checks cannot settle it. Run checks unpiped to preserve their output and exit status.
+  Never weaken, skip, or delete a valid test to reach green.
 - **Evidence labels and negative checks:** Mark load-bearing claims `[verified]` (observed/run by you this session—file bytes never prove unrun execution or live state), `[sourced]` (named file or caller-supplied log you did not run), or `[unverified]` (anything else). Quote the failure output on negative tests to prove they failed for the intended reason.
 - **Diagnose failures instead of guessing:** Never retry a failing check hoping it turns green; when
   a failure requires investigation or a fix attempt fails, stop patching and load `root-cause`.

@@ -19,6 +19,14 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
 
 ### Changed
 
+- Repository Investigator scales searches to the question and identifies what ownership records,
+  configuration loaders, and working-tree files establish.
+- Reviewer checks the complete PR diff at pinned revisions and consults targeted history only
+  for a specific finding. Broader history reviews require an explicit request.
+- Software Engineer batches related edits and reuses applicable test results until a change,
+  an unanswered correctness question, or a required repository gate calls for another check.
+- Principal Engineer weighs the four design lenses against the decision at hand and checks how
+  ownership transfers and migrations protect accepted work.
 - Reliability Engineer traces shared capacity and interrupted work, checks recovery under normal
   traffic, and distinguishes the caller arranging a live check from its authorized executor.
 - Observability Engineer checks for missing regional targets, reports observed alert behavior, requires
