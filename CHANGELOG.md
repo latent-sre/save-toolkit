@@ -19,6 +19,8 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
 
 ### Changed
 
+- Reliability Engineer traces shared capacity and interrupted work, checks recovery under normal
+  traffic, and distinguishes the caller arranging a live check from its authorized executor.
 - Observability Engineer checks for missing regional targets, reports observed alert behavior, requires
   an approved runbook before enabling new paging, and reconciles uncertain Grafana writes by resource.
 - SRE Assistant assesses application impact using Grafana and application logs, reporting affected
