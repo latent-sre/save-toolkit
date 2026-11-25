@@ -19,6 +19,8 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
 
 ### Changed
 
+- SRE Assistant assesses application impact using Grafana and application logs, reporting affected
+  user journeys or jobs, timing, and gaps in coverage even while the cause is under investigation.
 - Consolidate `incident-investigation`, `cicd-github`, `stack-profile`, and `grafana` (Markdown), trim
   `toil-reduction` and `resilience-analysis`, and remove `operator-cli`.
 - Trim `akamai-edge` (absorbing the DataStream 2 SPL query), consolidate `operational-docs`
