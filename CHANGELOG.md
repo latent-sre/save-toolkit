@@ -89,7 +89,7 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
   tag, traffic split, or upstream route.
 - **Researcher:** Skip inherited user and project instructions in supported Claude delegation
   and document a clean-session procedure for strict private-context exclusion.
-- **Claude install:** Bump the plugin from 0.52.11 to 0.65.0 and document how to update a
+- **Claude install:** Bump the plugin from 0.52.11 to 0.60.0 and document how to update a
   cached installation.
 - **obs-alerting:** Report fractional request budgets and whole failures permitted. Set scheduled
   alert deadlines from the recovery objective and check telemetry for each expected job.
