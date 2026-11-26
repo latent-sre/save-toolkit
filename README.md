@@ -76,8 +76,8 @@ Describe the problem. Routing is by description; there are no commands to memori
 - *"walk me through INC-4132, checkout is 502-ing since 14:02 UTC"* → `incident-investigation`
   sits beside you: what to check next in Apps Manager, Splunk, Grafana, or PCF App Metrics, what
   each result would mean, when to mitigate, and who to page.
-- *"check cf events and recent logs for orders since 14:00 UTC"* → the `sre-assistant` agent
-  gathers the requested evidence, then returns to its caller.
+- *"check cf events and recent logs for orders since 14:00 UTC"* → in Claude Code with CF read
+  access, `sre-assistant` can run those checks and report what they show about the app.
 - *"this alert is too noisy"* → `observability-engineer` with `obs-analysis`.
 - *"write a runbook for the checkout deploy"* → the `scribe` agent with `operational-docs`.
 - *"is PR #42 ready to merge?"* → `production-change-gate`'s merge-readiness checklist.
@@ -88,22 +88,23 @@ In Claude Code, if automatic selection misses, start the advisor yourself with
 
 ## The fleet
 
-The host supplies the model and executes tools; the plugin supplies the roles, methods, routing,
-and authority boundaries. An agent owns a job with its own tools, and a skill adds a method without
-changing who owns the work. An agent that delegates checks the helper's result itself, so you need
-not relay reports between helpers.
+The host executes tools. Each agent owns a job and checks any work it delegates.
+The linked agent definitions list the tools requested in Claude Code. There, `sre-assistant`
+can use guarded shell reads and `principal-engineer` can run guarded, read-only `git` and `gh`
+commands. The standard Copilot workspace profiles for both omit terminal execution.
+See [Copilot capabilities by agent](docs/copilot-projection.md#capability-choices).
 
-| Agent | What it does | Tools |
-|---|---|---|
-| `sre-assistant` | Read-only lookup or investigation; returns findings and recommendations to its caller | Guarded Bash/PowerShell and the Grafana helper; browser tools that no hook guards |
-| `observability-engineer` | Observability work and scoped Grafana changes | Unguarded Bash; writes config and Grafana dashboards, folders, alert rules, and silences |
-| `scribe` | Runbooks, postmortems, and service and alert knowledge | Document writes; no shell, web, or delegation |
-| `software-engineer` | Builds, fixes, refactors, and tests code and operations tooling | Read/write and unguarded Bash/PowerShell; no web tools |
-| `principal-engineer` | System design before code; returns a design record or proposed ADR for a human to accept | Reads and design-document writes; no execution or external access |
-| `repository-investigator` | Answers questions about the current checkout, citing `file:line` | Read, Grep, and Glob only |
-| `reliability-engineer` | Reliability assessment, resilience design, and toil reduction | Reads and design-document writes; no execution or external access |
-| `researcher` | Cited public research | Web and documentation tools only; no local files or shell |
-| `reviewer` | For maintainers and builders: independent verification and correctness/security review; owns the verdict | Git/PR reads and scratch-copy checks; no web tools |
+| Agent | What it does |
+|---|---|
+| [`sre-assistant`](agents/sre-assistant.md) | Investigates application impact using read-only evidence from logs, metrics, dashboards, and platform state. |
+| [`observability-engineer`](agents/observability-engineer.md) | Designs observability and applies requested Grafana changes within its authority. |
+| [`scribe`](agents/scribe.md) | Writes runbooks, postmortems, and service and alert documentation. |
+| [`software-engineer`](agents/software-engineer.md) | Builds, fixes, refactors, and tests code and operations tooling. |
+| [`principal-engineer`](agents/principal-engineer.md) | Designs systems and drafts decision records for a human owner to accept. |
+| [`repository-investigator`](agents/repository-investigator.md) | Answers questions about the current checkout and cites the relevant files and lines. |
+| [`reliability-engineer`](agents/reliability-engineer.md) | Assesses reliability risks, designs for resilience, and identifies ways to reduce toil. |
+| [`researcher`](agents/researcher.md) | Answers questions from public sources and cites the evidence. |
+| [`reviewer`](agents/reviewer.md) | Independently verifies changes and reports a verdict on correctness and security. |
 
 The skills live in [`skills/`](skills) and cover incident work, observability, the platform, change
 gates, reliability, and engineering craft; each `SKILL.md` carries its own description and

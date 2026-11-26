@@ -19,6 +19,12 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
 
 ### Changed
 
+- The fleet guide links each role to its Claude tool grants and distinguishes guarded shell access
+  from the standard Copilot workspace profiles.
+- Claude Code's manual `/save-toolkit:adr <decision>` scaffolds a proposed decision record from
+  plain text. The probe argument and marker are retired.
+- Contributors can cite an incident, a reviewed transcript, or an existing probe that shows a
+  failed handoff. A new probe is needed only when the evidence leaves the failure unclear.
 - Copilot agents and skills now ship as workspace customizations. The installable Copilot package
   and its packaged `/adr` command are retired. Claude Code retains its plugin and command.
 - Researcher checks for private context on clean-room requests, distinguishes source inspection
