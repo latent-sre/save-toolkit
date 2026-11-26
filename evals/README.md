@@ -5,7 +5,7 @@ Find the relevant checks here, then use the existing runner for that kind of wor
 | Layer | What it establishes | Entry point |
 |---|---|---|
 | Structural checks | Fleet wiring, assets, links, and generated adapters are well formed | `python scripts/gate_a.py` |
-| Offline tests | Code, harness, grader, fixture, and oracle behavior under controlled inputs | `python scripts/local_tests.py` |
+| Offline tests | Behavior of the shipped code covered by the `scripts/` pytest suite | `python scripts/local_tests.py` |
 | Native evals | Agent behavior on explicit scenarios and a particular model/host | `python evals/build_probe.py` |
 | Benchmark campaigns | Results under each adapter's admitted case and execution profile | [Campaign guides](docs/running.md#run-it) |
 
@@ -22,25 +22,21 @@ python evals/catalog.py suites
 python evals/catalog.py show --suite python-craft
 python evals/catalog.py list --component skill:python-craft
 python evals/catalog.py list --profile incident-v1
-python evals/catalog.py tests --suite python-craft --json
+python evals/catalog.py tests --suite readonly-guard --json
 python evals/catalog.py campaigns
 python evals/catalog.py tracks
 python evals/catalog.py coverage
 python evals/catalog.py check
 
-python scripts/local_tests.py --suite python-craft
 python scripts/local_tests.py --suite readonly-guard -n 0
 python scripts/local_tests.py                 # scripts/ CI suite
 python evals/build_probe.py validate          # offline scenario validation
 ```
 
-Named suites cover every current native case and root test file, grouped by capability and execution
-track. `show` lists exact membership and guides. `tests` lists files without importing them;
-it does not claim a collected test count. `coverage` exposes any newly unassigned cases/files and
-shows declared kinds and graders. The [capability map](docs/coverage.md) explains coverage limits
-and useful additional evaluations. Repeat `--suite` to combine groups without repeating work. `-k` and other pytest
-filters remain available and are recorded as filtered runs. Receipts also record effective pytest
-collection settings and inherited collection overrides, so a narrowed run is visible.
+Use `show` to see what a suite contains. For example, `python-craft` contains native scenarios,
+while `readonly-guard` contains pytest files. The local test runner needs a selection with at
+least one pytest file. Repeated `--suite` options combine files once, and receipts record filters
+such as `-k`. Use `coverage` to find unassigned cases or files. [Capability map](docs/coverage.md)
 
 `tracks` distinguishes existing runners/adapters from inactive proposals, planned integrations, and
 independent sandboxes. It does not activate them. `campaigns` links actual selection manifests;
@@ -53,8 +49,8 @@ Conversation profile is separate from runner kind. Use named suites for cross-cu
 
 ## Change the evals
 
-CI runs no `evals/` tests, so local runs are the only evidence for an eval change; quote them in
-the pull request. Live evals run from `evals/build_probe.py` in a manual clean room. Raw traces and
+CI runs the shipped-code tests under `scripts/`. For eval changes, report the relevant offline
+validation or saved-run comparison in the PR. Live evals run from `evals/build_probe.py` in a manual clean room. Raw traces and
 the batch summary stay private under `.eval-runs/`; quote the numbers you rely on into the PR or
 review that uses them.
 
@@ -64,8 +60,7 @@ review that uses them.
 | Eval harness, grader, or runner | `python -m ruff check`, `python -m ruff format --check` and `python -m mypy` for a change to the runner (`evals/build_probe.py`, `evals/probe/`), `evals/compare_runs.py`, `evals/graders.py` or `evals/inspect_pilot.py`; `python evals/judge.py --calibrate` after a rubric edit |
 | Judge, clean room or oracle Python | `python -m ruff check --isolated --select E9,F63,F7,F82 evals/judge.py evals/clean_room.py evals/oracles`; preserve byte-bound formatting and incremental typing unless a broader migration has a measured benefit |
 
-- **Suites:** run `python scripts/local_tests.py` for the `scripts/` CI suite, and run
-  `python evals/catalog.py check` when changing suite membership or the track index.
+- **Suites:** run `python evals/catalog.py check` when changing suite membership or the track index.
 - **Scenarios and runner:** every active scenario declares `max_turns`, and runner edits retain a
   saved-run `rescore`/`diff` comparison explaining every changed verdict (see
   [running](docs/running.md) and [internals](docs/internals.md)). Oracle changes also exercise the
@@ -123,7 +118,9 @@ The opt-in [WP04 observable index](docs/itbench-observation-index.md) preserves 
 introduces a separately identified derived-evidence profile. Preparation is offline.
 The [versioned review contract](incident-conversations/review-v2/README.md) separates historical
 labels from source-bound reassessment. [Evidence isolation diagnostics](evidence-isolation/v1/README.md)
-separate exact retrieval from interpretation; their controls and live run plan remain unaccepted.
+separate exact retrieval from interpretation. The v1 manifest freezes that README, including its
+historical pytest command. The test file has since retired. Use `python evals/build_probe.py validate`
+for current scenario validation. The controls and live run plan remain unaccepted.
 
 ## Reference guides
 

@@ -31,8 +31,7 @@ to use complex cases and complete preparation before asking for gated execution.
 
 ## Task 1: campaign report
 
-**Files:** `evals/campaign_report.py`, `evals/test_campaign_report.py`, focused synthetic fixtures
-when needed, operator documentation and lint/type scope.
+**Implementation:** [Campaign reporter](../../evals/campaign_report.py) and [operator guide](campaign-report.md).
 
 **Interface:** `build_report(bundle: Path, selection: Mapping, label: str) -> dict` and
 `render_markdown(report: Mapping) -> str`; a standalone CLI emits JSON or Markdown from existing
@@ -110,8 +109,5 @@ manifests, controls and operator/run-plan material.
 
 ## Verification and integration
 
-Use test-first slices with real local components and strict external-boundary doubles; independently
-check upstream APIs to avoid accepting imaginary methods. Run focused tests, lint and typing while
-editing. Run the coordinated heavy suite once at each material integration/push boundary. Retain
-saved-result comparisons and explain verdict changes. Keep one owner per write surface; root owns
-cross-package integration, the live roadmap and final acceptance audit.
+Choose checks for the changed adapter or reporter using the [contributor guide](../../CONTRIBUTING.md#3-verify-in-proportion-to-the-change).
+Retain saved-result comparisons and explain any changed verdicts.

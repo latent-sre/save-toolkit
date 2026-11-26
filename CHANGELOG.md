@@ -19,6 +19,8 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
 
 ### Changed
 
+- The PR template points to the contributor checks. The eval guides use current suite selections
+  and flag the frozen Harbor manifest mismatch before operators start a pilot.
 - The fleet guide links each role to its Claude tool grants and distinguishes guarded shell access
   from the standard Copilot workspace profiles.
 - Claude Code's manual `/save-toolkit:adr <decision>` scaffolds a proposed decision record from

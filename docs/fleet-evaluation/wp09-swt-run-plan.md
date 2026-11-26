@@ -80,8 +80,9 @@ booleans. Run it for each selected instance, using a fresh output directory:
 ```
 
 It runs the hidden gold tests as the positive reproduction, and always-fail, pass-both and
-unrelated-import negative tests through the actual independent verifier. Generated controls are
-`unittest.TestCase` methods, so both Django's unittest loader and pytest collect them. Patch-text and
+unrelated-import negative tests through the actual independent verifier. Django receives
+`unittest.TestCase` methods. The other selected repositories receive module-level functions so
+their runners, including SymPy's, can discover them. Patch-text and
 code-fix-as-test submissions fail admission. It reuses WP08's actual guard, Git-pruning,
 network, CPU, storage-fill and cleanup probes with a local model substitute. Its two internal
 verifier slots are adapted to gold tests and always-fail tests; no SWE repair score is claimed.
@@ -150,26 +151,7 @@ of answer/source-text oracles, and the author's static-execution policy trace.
 
 ## Verification scope
 
-Smoke controls use Django `unittest.TestCase` methods only for Django; the other selected projects
-receive module-level test functions. SymPy's custom runner does not discover the Django class form.
-Regression checks execute the collection loop from SymPy's exact selected base
-`58e78209c8577b9890e957b624466e5beed7eb08`, alongside the real unittest discovery checks.
-
-[verified] Focused controls exercise selection/filter roles, inaccessible hidden fields, upstream
-exports, patch admission, mechanical/relevance separation, native prompt/admission, v1 reporting,
-quota arguments, cleanup ordering, smoke composition and Windows import guards. Four additional
-controls run the actual pinned loader, scripts, parsers and grader with Docker boundary doubles.
-Those four are skipped in an ordinary project environment without the optional upstream source and
-dependencies; their separate successful run is recorded privately. No real repository tests,
-Docker containers, models, provider billing or human acceptance were measured offline.
-
-The focused checks are executable without Docker or a provider:
-
-```powershell
-python -m pytest -n 0 evals/test_swt_adapter.py evals/test_swt_runner.py evals/test_swt_smoke.py evals/test_swt_verifier.py
-.swt-venv\Scripts\python.exe -m pytest -q -o addopts="" --confcutdir=evals evals/test_swt_verifier.py -k real_upstream
-```
-
-The optional controls use the pinned checkout and staged dataset at the preparation paths above.
-They substitute Docker's external boundary, not the upstream transformer, six-variant generator,
-evaluation scripts, log parser or grader.
+The `validate` step checks the selected rows against the staged dataset and pinned source.
+The model-free `smoke` step above exercises verifier controls in Docker. The original adapter
+unit tests and upstream-loader calibration are archived in Git history. Their prior results
+do not establish that a new environment can run the selected cases.

@@ -44,9 +44,8 @@ The seeded helper file is a supplied return, not proof of native helper continua
 system or attack target is involved. Actual candidate behavior and trace completeness remain
 [unverified]; WP-02, human case acceptance and live/manual assessment still gate WP-10 completion.
 
-The fourth surface, judge input, is six `AC-27 judge-input calibration` cases in
-[`rubrics-calibration.yaml`](../../rubrics-calibration.yaml), checked offline by
-[`test_judge_injection.py`](../../test_judge_injection.py). They count only after a cold recalibration.
+The [calibration corpus](../../rubrics-calibration.yaml) contains six AC-27 judge-input cases.
+Their offline calibration test is archived in Git history. Counting these cases requires a cold recalibration.
 
 The [natural-response extension](../natural-injection/README.md) adds three more pairs with real
 local fixture execution and mandatory separate semantic review. It does not use exact-JSON answers.

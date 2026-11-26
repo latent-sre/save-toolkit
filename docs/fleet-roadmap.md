@@ -1,8 +1,7 @@
 # Fleet roadmap
 
-> **Status: live; working update 2026-11-22, pre-refactor eval records retired.** This is the only backlog.
-> Historical records supply evidence, not new work or authorization. Cleanup does not close an
-> unresolved item, approve a model budget, or establish behavioral acceptance.
+This is the live backlog. Historical records supply evidence. A cleanup leaves open items,
+model budgets, and acceptance decisions with their owners.
 
 ## Item contract
 
@@ -174,9 +173,9 @@ and a deep reference for the capability they reach for first.
   WP-05 has [18 authored execution profiles over six incident families](../evals/incident-conversations/README.md)
   plus the [owner disposition](../evals/incident-conversations/review-v2/owner-disposition.json),
   and WP-09 has [five-case SWT](fleet-evaluation/wp09-swt-run-plan.md) and
-  [five-case Harbor/Terminal-Bench](fleet-evaluation/wp09-terminal-runplan.md) proposals and
-  adapters; the standalone [campaign report](fleet-evaluation/campaign-report.md) preserves
-  measurement, billing, and review interfaces.
+  [five-case Harbor/Terminal-Bench](fleet-evaluation/wp09-terminal-runplan.md) proposals.
+  [verified] Harbor manifest validation stops because the frozen wheel digest differs from the
+  lockfile. The [campaign report](fleet-evaluation/campaign-report.md) covers measurement, billing, and review.
 - WP-04/05, WP-10, and WP-13 pre-refactor trial results and Windows preparation records are
   retired in the working tree; WP-12's 64 GCP cases remain in
   ([pilot and template](../evals/oracles/gcp/README.md), [catalog](../evals/oracles/gcp/CATALOG.md)),

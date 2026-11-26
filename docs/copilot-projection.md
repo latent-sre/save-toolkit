@@ -1,21 +1,15 @@
 # Copilot projection
 
-Opening this checkout in VS Code makes the fleet's generated workspace agents and skills
-available to GitHub Copilot. The generator and
-`scripts/test_platform_adapters.py` are the source of truth; this file records the decisions they
-encode. Field-level host facts live in the
-[Copilot frontmatter reference](../skills/agent-authoring/references/copilot-frontmatter.md).
+When you open the checkout in VS Code, Copilot discovers the generated agents and skills from
+`.github/`. To check discovery, use a profile without a cached Save Toolkit installation and
+inspect the source path of a discovered agent or skill. See the [generator](../scripts/generate_platform_adapters.py)
+and [Copilot frontmatter reference](../skills/agent-authoring/references/copilot-frontmatter.md).
 
 ## Adapter behavior
 
-- No field-level equivalence is attempted; intent is preserved in each host's own vocabulary. There
-  is no generated preface: a host limitation that changes what a lane may do is stated in that
-  lane's own canonical body.
-- A skill marked `disable-model-invocation` keeps that frontmatter in the Copilot projection.
-- Stating a host authority difference (Copilot's omitted `execute`, for one) is not claiming a
-  control: the omitted `execute` narrows a default the user can override and the picker can
-  rewrite — read [Capability choices](#capability-choices) before citing it as authority. A fleet
-  control is only as strong as the host it is proven on.
+- The generated tool list sets defaults. Users can override them and the tool picker can rewrite
+  them. Check effective permissions on the host before relying on a restriction.
+- A skill marked `disable-model-invocation` keeps that setting in the workspace.
 - The generator maps `agents/` to `.github/agents/` and `skills/` to `.github/skills/`.
   Agent resource links resolve from the generated workspace agent to the matching workspace skill.
 - Agent headers omit Local-only `agents`, `handoffs`, `argument-hint`, and `advancedOptions`.

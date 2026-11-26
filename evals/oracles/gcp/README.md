@@ -225,7 +225,7 @@ authoring bound, not a measured completion claim. Adjustments before native exec
 identity and need the resulting case revision reviewed. No agent prompts, tools policy or runtime
 permissions are broadened by this authoring work.
 
-`evals/test_gcp_pilot.py` exercises the real wrappers and existing runner checks. Useful and
+The historical offline run below exercised the wrappers and runner checks. Useful and
 plausible-wrong answers both stay INCONCLUSIVE until independent semantic assessment; the hidden
 control labels are authored expectations. Unavailable conditions remove the decisive observations
 from candidate prompts and wrapper source entirely. Attempted edits and recognized forbidden

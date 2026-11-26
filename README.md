@@ -1,19 +1,8 @@
 # Save Toolkit
 
-A Claude Code plugin that helps a human SRE do their job on this team's stack: PCF (through Apps
-Manager), Splunk, PCF App Metrics, Grafana, and Akamai, with Cloud Run migration guidance. The GCP
-landing runtime remains undecided in `stack-profile`.
-
-It fits together in three layers:
-
-- **You own the work:** the incident, the change, the runbook.
-- **An advisor thinks with you:** `incident-investigation` asks what to check next, says what each
-  result means, and tells you when to mitigate.
-- **Agents are your helpers:** you or the invoking workflow dispatch them for bounded jobs, such as
-  a read-only lookup, an alert tune, or a runbook.
-
-A human executes every production action, with one narrow Grafana exception described under
-[Limits](#limits).
+Save Toolkit provides agents and skills for Claude Code and GitHub Copilot workspaces. Use
+`incident-investigation` for guidance during an incident, or ask an agent to investigate
+application impact, review a change, tune an alert, or write a runbook.
 
 > **Pre-release.** A Claude Code installation updates only when the plugin version changes; commits merged to
 > `main` under the same version leave it on its cached copy.
@@ -52,10 +41,9 @@ installed it so that Copilot discovers a single copy of each workspace agent.
 
 ## Set up
 
-**Declare your stack.** The [`stack-profile` skill bundle](skills/stack-profile/) declares *this*
-team's stack and pending migration decisions, and every platform-touching skill routes through it.
-If that is not your stack, update it first or the fleet will confidently recommend someone else's
-tools.
+**Set your team's stack.** Update the profile if your platforms, telemetry, or ownership differ.
+The supplied profile covers PCF, Splunk, PCF App Metrics, Grafana, and Akamai. Cloud Run is a
+migration candidate. [Stack profile](skills/stack-profile/SKILL.md)
 
 **Give the Grafana read helper its credentials.** The helper reads them from the environment or,
 when none of its `GRAFANA_*` settings is set there, from `~/.config/save-toolkit/grafana.env`:
@@ -112,9 +100,9 @@ triggers.
 
 ## Limits
 
-- **A human executes production changes.** A handoff alone does not authorize a write. The one
-  exception: an invoked `observability-engineer` may apply requested Grafana dashboard, folder,
-  alert-rule, and temporary-silence changes under its
+- **Production changes** are executed by a human or protected automation. An invoked
+  `observability-engineer` may apply requested Grafana dashboard, folder, alert-rule, and
+  temporary-silence changes under its
   [change-authority rule](agents/observability-engineer.md#change-authority).
 - **The team's own inventories are not in this repository.** Query references use placeholders
   such as `<app_index>` and `<project>`, and service cards, alert cards, and runbooks are read from
@@ -126,6 +114,5 @@ triggers.
 
 ## Contribute
 
-Start with [AGENTS.md](AGENTS.md) (the fleet-wide rules, loaded into every session) and
-[CONTRIBUTING.md](CONTRIBUTING.md) (authoring, verification, and promotion policy). Live and
-deferred work is tracked solely in [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md).
+See the [fleet rules](AGENTS.md), [contributor guide](CONTRIBUTING.md), and
+[fleet roadmap](docs/fleet-roadmap.md).
