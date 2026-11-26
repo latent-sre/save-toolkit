@@ -11,10 +11,9 @@ argument-hint: "[service or design, user outcome, environment, evidence]"
 
 # Resilience analysis
 
-Load `stack-profile` for ownership and platform constraints (e.g., Postgres/SQL Server on-prem, no
-self-managed Kubernetes, PCF vs GCP migration). This method grants no execution, design approval, or
-production-change authority; proposed experiments and fixes stay proposals until executed by an
-authorized owner.
+Inspect the repository's runtime, data stores, deployment topology, and ownership boundaries before
+evaluating resilience. This method grants no execution, design approval, or production-change
+authority; proposed experiments and fixes stay proposals until executed by an authorized owner.
 
 ## Establish outcome, evidence, and failure paths
 
@@ -36,18 +35,18 @@ establishes conditional design risk, never observed production impact or whole-s
 | Scenario | Evidence separating failure from protection |
 |---|---|
 | Slow dependency | Enforced deadlines, retries, and cancellation release slots/connections; unrelated work retains capacity |
-| Overload | Admission/overflow limits, queue bounds, and drain behavior tested above completion capacity; increasing shared slots alone leaves shared saturation intact |
+| Overload | Admission and queue limits protect healthy work above completion capacity; after the surge, compare oldest-item age and catch-up time with the service deadline while normal arrivals continue |
 | Lost failure domain | Surviving capacity handles demand including cold starts and shared DB/quota/network/control-plane dependencies |
-| Partial completion | Commit/ack order, idempotency scope, deduplication retention, and reconciliation prevent duplicate or lost effects |
+| Partial completion | Trace redelivery across crash points. Verify that deduplication keys cover the operation and replay window, and commit with local effects, or establish equivalent replay safety. For remote effects, check how uncertain outcomes are reconciled |
 | Mixed versions | Old/new readers/writers and config overrides preserve compatibility across rollout and rollback |
 | Restore | Current-revision schema/procedure compatibility plus a business-transaction check within RPO/RTO; backup existence alone or an old-version restore leaves recoverability as a verification gap |
 | Control-plane loss | Serving and recovery paths still obtain config, credentials, and DNS |
 | Skewed/missing telemetry | Freshness, sampling, and coverage checks separate missing signal from health |
 | Operator procedure | Intended operator rehearses exact target/access steps; ambiguous steps, reversal, and escalation gaps stay explicit |
 
-*(Note: configured pool max * instances = potential demand, not open connections; replica names do
-not prove independence; batch/pipeline work requires freshness, completeness, duplication, and
-deadline checks.)*
+For pool capacity, sum the limits of independently created pools and measure actual occupancy
+separately. Check failure-domain independence and, for batch work, freshness, completeness,
+duplication, and deadlines.
 
 ## Substantiate findings and readiness
 
@@ -79,9 +78,8 @@ applicable:
   summaries that collapse them.
 - **Timing and capacity basis:** Separate measured from assumed inputs. Never multiply per-attempt
   timeouts into a proven elapsed/occupancy bound — and when an enforced overall deadline is
-  established, keep that effective overall bound instead of reopening per-attempt products. A
-  concurrency bulkhead protects shared capacity only if admission/waiting happens *before* acquiring
-  shared worker slots (or rejects/defers without holding a shared slot). Throughput from slots needs
+  established, keep that effective overall bound instead of reopening per-attempt products. Check
+  whether slow calls or their waiters can occupy the slots healthy work needs. Throughput from slots needs
   actual/explicit mean residence and shared-demand accounting (never substitute a max timeout for
   the mean).
 

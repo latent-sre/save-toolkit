@@ -19,6 +19,32 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
 
 ### Changed
 
+- The PR template points to the contributor checks. The eval guides use current suite selections
+  and flag the frozen Harbor manifest mismatch before operators start a pilot.
+- The fleet guide links each role to its Claude tool grants and distinguishes guarded shell access
+  from the standard Copilot workspace profiles.
+- Claude Code's manual `/save-toolkit:adr <decision>` scaffolds a proposed decision record from
+  plain text. The probe argument and marker are retired.
+- Contributors can cite an incident, a reviewed transcript, or an existing probe that shows a
+  failed handoff. A new probe is needed only when the evidence leaves the failure unclear.
+- Copilot agents and skills now ship as workspace customizations. The installable Copilot package
+  and its packaged `/adr` command are retired. Claude Code retains its plugin and command.
+- Researcher checks for private context on clean-room requests, distinguishes source inspection
+  from recorded execution, and ends a lookup when authoritative evidence answers the question.
+- Repository Investigator scales searches to the question and identifies what ownership records,
+  configuration loaders, and working-tree files establish.
+- Reviewer checks the complete PR diff at pinned revisions and consults targeted history only
+  for a specific finding. Broader history reviews require an explicit request.
+- Software Engineer batches related edits and reuses applicable test results until a change,
+  an unanswered correctness question, or a required repository gate calls for another check.
+- Principal Engineer weighs the four design lenses against the decision at hand and checks how
+  ownership transfers and migrations protect accepted work.
+- Reliability Engineer traces shared capacity and interrupted work, checks recovery under normal
+  traffic, and distinguishes the caller arranging a live check from its authorized executor.
+- Observability Engineer checks for missing regional targets, reports observed alert behavior, requires
+  an approved runbook before enabling new paging, and reconciles uncertain Grafana writes by resource.
+- SRE Assistant assesses application impact using Grafana and application logs, reporting affected
+  user journeys or jobs, timing, and gaps in coverage even while the cause is under investigation.
 - Consolidate `incident-investigation`, `cicd-github`, `stack-profile`, and `grafana` (Markdown), trim
   `toil-reduction` and `resilience-analysis`, and remove `operator-cli`.
 - Trim `akamai-edge` (absorbing the DataStream 2 SPL query), consolidate `operational-docs`
@@ -39,6 +65,10 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
   private-query blocking, with a tool-routing table and causal raw-vs-summarized evidence lenses.
 - **Scribe:** Rewrite into a stack-neutral 5-section spine with upfront path/secret boundaries,
   causal 3 a.m. runbook/postmortem/KB lenses, and direct workspace edits separated from revision closeouts.
+- **Observability Engineer & Reliability Engineer:** Modernize into 5-section chronological spines
+  with upfront secret/egress boundaries, causal SLI/missing-data/resilience/toil lenses, and no `stack-profile` lock-in.
+- **Shared Skills, Copilot Links & Guard:** Decouple craft/ops skills and runbook/card templates from
+  `stack-profile`/PCF/no-OIDC/`ITO` rules, rebase Copilot skill links, and block `dig -f` file reads in `readonly-guard.py`.
 - **Agent Authoring & Fleet Evidence Labels:** Add causal LLM-readability guidance to
   `agent-authoring` and condense `[verified]`, `[sourced]`, and `[unverified]` rules across all agents.
 - Agent-authoring now works from the user's task and target host. Personal skills, prompt edits, and
@@ -61,8 +91,8 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
   tag, traffic split, or upstream route.
 - **Researcher:** Skip inherited user and project instructions in supported Claude delegation
   and document a clean-session procedure for strict private-context exclusion.
-- **Claude install:** Clarify cached version updates, add upgrade instructions, and advance the
-  plugin manifest to 0.52.11.
+- **Claude install:** Bump the plugin from 0.52.11 to 0.60.0 and document how to update a
+  cached installation.
 - **obs-alerting:** Report fractional request budgets and whole failures permitted. Set scheduled
   alert deadlines from the recovery objective and check telemetry for each expected job.
 - Claude shell hooks now request a blocking failure policy. Grafana command reads by the SRE

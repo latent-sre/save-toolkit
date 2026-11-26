@@ -12,13 +12,13 @@ All commands below use the isolated interpreter selected for that host. On POSIX
 
 ## Preparation without Docker or models
 
-[verified] Harbor is pinned to [0.25.0](https://pypi.org/project/harbor/0.25.0/), source
-`fdba28fc411e47e8765420a1a063b4918fce3def`, Apache-2.0, Python 3.12 or later. The exact wheel SHA-256
-is `51923ac567fc57b03279e93468b105f689628bcac2cd3d541d4e44aa5c0ec309`.
-The `harbor` dependency group in [pyproject.toml](../../pyproject.toml) pins that release and
-[uv.lock](../../uv.lock) binds the wheel hash and the resolved SDK dependency set. The group is
-declared conflicting with the project environment, so it installs only with `--only-group` into an
-environment of its own.
+**Blocked at manifest validation.** The frozen selection records Harbor 0.25.0. The project
+locks 0.26.0, and its wheel digest differs from the one in the selection. The adapter rejects
+that mismatch with `unsupported Terminal-Bench manifest identity`. Resume staging and smoke
+checks only after maintainers reconcile the approved SDK identity and the frozen selection.
+[Selection](../../evals/manifests/wp09-terminal-complex5.json) · [Lockfile](../../uv.lock) · [Validator](../../evals/harbor_adapter/contracts.py)
+
+Install the isolated Harbor environment and check the selection before using the SDK.
 
 ```powershell
 $env:UV_PROJECT_ENVIRONMENT = ".eval-runs/harbor-sdk"
@@ -26,8 +26,8 @@ uv sync --locked --only-group harbor
 Remove-Item Env:UV_PROJECT_ENVIRONMENT
 $HarborPython = ".eval-runs/harbor-sdk/Scripts/python.exe"
 & $HarborPython evals/harbor_pilot.py validate
+if ($LASTEXITCODE -ne 0) { throw "Harbor selection validation failed" }
 & $HarborPython evals/harbor_pilot.py sdk-check
-& $HarborPython -m pytest -o addopts='' evals/test_harbor_adapter.py evals/test_harbor_runner.py evals/test_harbor_sdk.py evals/test_harbor_smoke.py evals/test_harbor_transfer.py
 ```
 
 Fetch `https://github.com/harbor-framework/terminal-bench-2.git` into ignored private source storage,

@@ -26,33 +26,35 @@ Dashboard: <link>  ·  Source/repo: <link>
 ## Prerequisites
 - Target: <service/environment and foundation, project, or account from the service card/change packet>
   Confirm with: <console view or read-only context check>; stop on mismatch.
-- Access: <roles, Apps Manager org/space, VPN, tools>
-- Tools: <Apps Manager or Cloud Console, Grafana, Splunk, PCF App Metrics; cf CLI v8 or gcloud only if installed>
+- Access: <required roles, project/namespace/org/space, VPN, and credentials scope>
+- Tools: <dashboards, log/metric backends, web console, and CLI tools if installed>
 - Useful links: <dashboard, saved search, prior postmortem>
 
 ## Triage / first checks
-1. Confirm impact (golden signals): <Apps Manager view, Grafana panel, Splunk search, or PCF App Metrics chart>
+1. Confirm impact (golden signals): <dashboard panel, metric/log query, or console view>
 2. Decision tree:
    - If <condition A> → go to Procedure step <n>.
    - If <condition B> → this isn't the right runbook; see <other runbook> / escalate.
 
 ## Procedure
 > Mark destructive steps ⚠️. A Tier 2 step (reversible live change) or Tier 3 step (destructive or
-> access-path change) needs approval before you run it. In a declared incident, ITO approves the
-> exact command, or a bounded set of them, in the TLC. Use `production-change-gate`'s incident
-> fast-path checklist only for eligible actions. All other actions retain the full process,
-> including a whole-app restart or resize, restage, a new artifact, unknown droplet state, and Tier 3.
+> access-path change) needs human approval before you run it. In a declared incident, the incident
+> commander or authorized change approver approves the exact command (or bounded envelope) in the
+> incident channel. Use `production-change-gate`'s incident fast-path checklist only for eligible
+> reversible mitigations on known-good artifacts. All other actions retain the full gate, including
+> new artifacts, rebuilds/restages, full-service stops, vertical resizes, unknown artifact state,
+> and Tier 3.
 > Suspected compromise or integrity loss exits the shortcut to the human security owner.
 > Outside an incident, use the full process.
 > Record approver, time, and rollback with the change. Impact growing or customer-visible and no
 > incident open → start one through the team's incident process first.
 
 1. <imperative step> — Tier <0–3>; <prerequisites for entering this step directly>
-   Apps Manager (PCF) or Cloud Console (Cloud Run): <org / space → app → view → control and value>, or
+   Web console (when available): <project/namespace/space → workload → view → control and value>, or
    ```bash
-   <cf or gcloud command — the console action's equivalent, for responders who have the CLI>
+   <CLI command — the console action's equivalent, or primary command on CLI-managed targets>
    ```
-   Expected: <what you should see, in console terms first>, sorted into worked / partly worked / failed, each with where to go
+   Expected: <what you should see>, sorted into worked / partly worked / failed, each with where to go
    If not within <N min or N attempts>: → <the step or escalation row to go to> (every step that
    changes state or might not work carries this line; it is the step's own exit)
    Unknown action outcome: <readback and reconciliation owner>; do not retry until the owner
@@ -70,7 +72,7 @@ Safe-abort: <how to stop mid-procedure without making it worse>
 | When (condition / time elapsed) | Escalate to | How to reach |
 |---|---|---|
 | <e.g. not resolved in 15 min, or blast radius growing> | <role/team> | <pager / channel> |
-| <platform-side signal: many apps / failing cells> | platform team | <…> |
+| <platform-side signal: multi-service / node / control-plane failure> | platform team | <…> |
 
 Hand over: trigger, evidence, attempted steps, current state, and the current owner.
 

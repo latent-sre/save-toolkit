@@ -1,5 +1,9 @@
 # Test and evaluation discovery and selection design
 
+This document records the original discovery design and its acceptance criteria. For current
+commands, suite membership, and verification policy, see the [eval guide](../../evals/README.md)
+and the [contributor guide](../../CONTRIBUTING.md#3-verify-in-proportion-to-the-change).
+
 Build a small catalog and explicit named suites over the existing tests and scenarios. Keep pytest,
 the native runner, benchmark adapters, case definitions, and evidence directories in place. A suite
 helps a maintainer choose work; a frozen campaign selection records exactly what is to be measured.
@@ -27,8 +31,8 @@ independent capabilities or successful model trials.
 [verified] At that baseline, the [eval guide](../../evals/README.md) was 1,014 lines. It combined first-run instructions,
 case explanations, provenance, runner internals, and historical campaign context. The native
 [CLI](../../evals/probe/cli.py) selected one exact ID or every scenario. The
-[pytest configuration](../../pytest.ini) selects repository tests, and the root
-[collection hooks](../../conftest.py) implement the default/heavy distinction.
+configuration at that time split default and heavy tests. Today's [pytest configuration](../../pytest.ini)
+collects the shipped-code suite under `scripts/`.
 
 [verified] Recent additions make a directory-only design insufficient. ITBench, SWE-bench, SWT,
 and Harbor have their own adapters and manifests; the
@@ -65,8 +69,7 @@ service, database, background process, model judge, or generic execution framewo
 infer a sufficient regression suite from a Git diff, estimate dollar cost from turn limits, or
 declare that a passing suite accepts a candidate.
 
-Python remains compatible with 3.12 and development/tests use the repository's 3.14 environment.
-Existing requirements files and Windows/POSIX execution conventions remain authoritative.
+Use the repository's Python 3.14+ environment and locked dependencies for current work.
 
 ## Options and recommendation
 
@@ -104,7 +107,7 @@ flowchart TD
 ```
 
 Catalog results and suite membership are not evidence that the tests are sufficient. A suite can
-span fast and heavy files; execution cost remains an independent concern controlled by pytest.
+contain native cases, pytest files, or campaign references. Check the selected members before execution.
 Proposal, held-out, and manual-review status stay explicit where the source declares them. Missing
 status is unknown, never accepted by inference.
 
@@ -127,10 +130,7 @@ illustrative two-case suite, not a claim of complete Python coverage:
   "schema_version": 1,
   "id": "python-refactoring",
   "summary": "Python refactoring judgment and artifact controls",
-  "tests": [
-    "evals/test_python_craft_oracle.py",
-    "evals/test_python_package_refactor.py"
-  ],
+  "tests": [],
   "native_scenarios": [
     "python-refactoring-judgment",
     "build-python-package-refactor"
@@ -172,7 +172,7 @@ python evals/catalog.py suites
 python evals/catalog.py list --component skill:python-craft
 python evals/catalog.py list --profile incident-v1
 python evals/catalog.py show --suite python-craft
-python evals/catalog.py tests --suite python-craft --json
+python evals/catalog.py tests --suite readonly-guard --json
 python evals/catalog.py campaigns
 python evals/catalog.py check
 ```
@@ -224,15 +224,12 @@ positional paths before collection, rather than implement a second parser for py
 A filtered run must not be described as the complete named suite.
 
 ```bash
-python scripts/local_tests.py --suite python-craft
 python scripts/local_tests.py --suite readonly-guard -n 0
-python scripts/local_tests.py --suite python-craft -k package
 ```
 
-[verified] Explicitly named heavy files already run without `--heavy`. Reuse that behavior rather
-than inventing another heavy list. Keep `conftest.py` as the authority for cost selection, and
-preserve the CI partition contract. Named suites are focused checks; they do not replace the final
-default/heavy obligations in [CONTRIBUTING](../../CONTRIBUTING.md#3-verify-in-proportion-to-the-change).
+The current runner requires at least one pytest file for a named offline run. Use the catalog
+to list native-only suites such as `python-craft`. The [contributor guide](../../CONTRIBUTING.md#3-verify-in-proportion-to-the-change)
+defines when to run the final suite.
 
 ## Native campaign selection
 
@@ -356,7 +353,7 @@ links to their specific new sections. Do not rewrite accepted ADRs or scenario b
 historical links. The existing link checker verifies the new documentation.
 
 The landing page's first screen should explain the four layers: structural Gate A, offline pytest,
-live native evals, and separately admitted benchmark campaigns. Put the default, heavy, focused,
+live native evals, and separately admitted benchmark campaigns. Put the default, focused,
 catalog, and saved-report commands there. Keep scenario-specific history out of this introduction.
 
 ## Compatibility and consumers
@@ -365,7 +362,7 @@ catalog, and saved-report commands there. Keep scenario-specific history out of 
 |---|---|
 | Scenario mappings: native runner, tests, compare tool, Codex and Muse adapters | Indexing does not mutate its inputs; authored organizational changes retain supported schema semantics and are hashed after finalization |
 | Case and scenario fingerprints: records, comparison, saved-run rescoring | New results bind the finalized definitions and runner; old results retain their original identities, with no requirement that old and new hashes match |
-| Pytest paths: CI, test imports, `HEAVY`, direct local invocations | No test moves, node renames, new collection roots, or CI partition changes |
+| Pytest paths used by CI and local invocations | Suite selection preserves explicit file paths and existing pytest options |
 | Local runner: existing automation and shared-worktree callers | Existing argument passthrough, lease, exit status, and receipt fields remain |
 | Campaign task shape: existing reporter and native conversation report selection | New exports use top-level trials, unique `instance_id`, and optional case digest already understood by the reporter |
 | Benchmark manifests and admission: existing adapters | Linked as source artifacts; never rewritten as generic native selections |
@@ -428,7 +425,7 @@ The following are proposed acceptance checks, not claims that the features alrea
 | Deterministic explicit suites | Union/order/duplicate tests; unrelated new cases do not change membership; stale paths/IDs fail full check |
 | Safe independent test lookup | No native/adapter imports on test-only queries; malformed, duplicate-key, traversal, symlink, and empty inputs refused |
 | Offline runner compatibility | Existing runner tests plus suite expansion, pytest option parsing, filtered-selection receipts, lease contention, and exact exit propagation |
-| Existing heavy behavior | Named heavy file is included; default/heavy/CI union-and-overlap collection checks remain unchanged |
+| Historical heavy-test partition | Applied to the initial design baseline and retired with that partition |
 | Correct identities after finalization | Export hashes match the finalized definitions; later case changes are detected; historical records remain unchanged; equality with pre-organization hashes is not required |
 | Stable frozen membership | Suite edits after export cannot change selected IDs; changed cases and duplicate IDs fail before any live preflight |
 | Consistent trial denominators | Fresh total N, offset windows, partial recovery, missing/extra slots, and overlap/overwrite behavior agree with reporter output |
@@ -437,11 +434,8 @@ The following are proposed acceptance checks, not claims that the features alrea
 | No grading changes | Required old/new runner rescore-and-diff on saved traces explains every changed verdict; none is expected from selection alone |
 | Operational usefulness | From the landing page, a maintainer finds and resolves each of the five initial workflows without opening harness internals |
 
-Use targeted tests first. Executable changes receive the final coordinated suite required by
-CONTRIBUTING; native runner changes include heavy tests and saved-run comparison. Run applicable
-Ruff/mypy checks and Gate A at the normal integration boundary. New test files remain in the existing
-roots so CI's complementary shards discover them; add lint/type scope for the catalog explicitly.
-Do not add YAML-dependent checks to the standard-library-only Gate A process.
+For current changes to native grading, compare results against saved runs. Use the
+[eval change guide](../../evals/README.md#change-the-evals) to select the other applicable checks.
 
 [verified] Baseline scenario validation passed on refreshed `main`: 399 scenarios and 2,250
 expectations. A bounded baseline run of `scripts/test_heavy_selection.py`,

@@ -31,38 +31,25 @@
   `build_probe.py check-evidence`
   grades each saved run from its evidence alone and reports any verdict that differs from the run's
   own grade, so a record missing what a check read shows on real runs. A result rule therefore
-  changes in one place: `rules.py` holds the eight result rules as named functions, each with its own
-  test, which the loop and the attempt's life apply by name.
+  changes in one place. The grading loop and attempt lifecycle use named functions in `rules.py`.
 - **An attempt's life.** `attempt.py` writes `attempt.json` at each phase an attempt passes through
   (`prepared`, `served`, `seeded`, `invoked`, `observed`, `probed`, `graded`, `published`; `void`,
   `stopped` and `incomplete` where one leaves it), so an attempt that raised shows where it stopped.
 - **A published record contract.** `records.RecordV1` validates each `record.json` strictly, as
   the JSON its readers parse, on the first write and on every later change, and
   [`eval-record-v1.schema.json`](../../docs/fleet-evaluation/eval-record-v1.schema.json) is generated
-  from it by `build_probe.py schema --out ...`; a test fails when the two differ.
-- **Static checks.** [`pyproject.toml`](../../pyproject.toml) runs Ruff's lint rules over the runner,
-  `graders.py`, `inspect_pilot.py` and the `test_*.py` files, Ruff's formatter over all of them but
-  the tests, which keep their compact hand layout, and strict mypy over the same code without the
-  tests; CI does not run them. Run `python -m ruff check`,
-  `python -m ruff format --check` and `python -m mypy` locally. A separate
-  `python -m ruff check --isolated --select E9,F63,F7,F82 evals/judge.py evals/clean_room.py evals/oracles`
-  checks syntax, invalid control flow and undefined names in those byte-bound files. Their existing
-  layouts and incremental typing remain: whole-file formatting or typing migrations would replace
-  calibration and case identities without establishing a behavioral improvement.
+  from it by `build_probe.py schema --out ...`. Compare regenerated output with the tracked
+  schema when changing the record contract.
+- **Static checks.** Follow the [eval change guide](../README.md#change-the-evals) for lint,
+  formatting, and typing. The judge and oracles have narrower checks because their source bytes
+  contribute to calibration and case identities.
 
 - **Inspect orchestration.** [`inspect_fleet.py`](../inspect_fleet.py) wraps the same
   `probe.trials.run_trial` in an Inspect task for routing and contract scenarios; it lives beside the
   runner, not in `probe/`, so the runner identity and every saved run identity are unchanged by it.
 
-- **Golden saved runs.** Golden stub-run snapshots (`evals/fixtures/runner-goldens/` and
-  `evals/golden_runs.py`, archived in Git history) captured stub-driven attempts per result rule
-  and run ending as published by the runner.
-
-A function is patched in the module that defines it, such as `probe.trials.run_trial`: every other
-module calls it through that module, so one patch reaches every caller, and a test enforces it. A
-class or constant is bound by name in each module that imports it, so a patch must reach each of
-them. `build_probe` holds no runner name, so a patch aimed at it fails instead of leaving real code
-running.
+Saved-run comparisons use the evidence and grades for the selected run. The former stub-run
+golden snapshots are available in Git history.
 ## Provenance
 
 Every run records the plugin root's commit, plugin-input dirty state, and a path-bound source digest

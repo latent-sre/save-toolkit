@@ -12,9 +12,9 @@ argument-hint: "[the HTTP API or integration to build or change]"
 # API craft
 
 Match the service's consumer, error, pagination, version, and identity contracts. Client-only
-integrations keep their CLI, worker, or library entrypoint without adding an HTTP server. Load
-`stack-profile` for runtime/datastore choices, and verify latest compatible stable releases against
-official docs for new APIs or upgrades.
+integrations keep their CLI, worker, or library entrypoint without adding an HTTP server. Follow
+the repository's manifests and lockfiles for runtime and datastore choices, and verify latest
+compatible stable releases against official docs for new APIs or upgrades.
 
 ## HTTP API & OpenAPI contracts
 
@@ -29,7 +29,7 @@ official docs for new APIs or upgrades.
 - **Response & boundary hygiene:** Exclude internal fields and exception traces from responses; carry
   correlation/trace IDs (trusting inbound IDs only per ingress policy); bound collections and enforce
   deterministic cursor tie-breakers. Desktop-only tools bind loopback and reject untrusted `Host` headers.
-- **Identity & DB:** Reuse corporate SSO / existing auth, enforce object/tenant authorization on every
+- **Identity & DB:** Reuse the service's existing authentication/SSO mechanism, enforce object/tenant authorization on every
   route/replay, fail closed, and send auth changes to independent review. Apply CSRF and deliberate
   CORS checks for browser clients. Keep DB queries parameterized and transactions short — never hold a
   transaction open across an outbound network call.

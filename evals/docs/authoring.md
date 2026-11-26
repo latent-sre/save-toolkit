@@ -13,8 +13,8 @@ guides are repository-relative file paths. Each campaign is an object with `id`,
 or campaign is required.
 
 Use explicit membership, with no wildcards, nested suites, commands, or node selectors. Assign new
-root test files and native cases to their relevant capability suites in the same change; the catalog
-tests check that the current inventory is assigned. Duplicate members within a suite,
+root test files and native cases to their relevant capability suites in the same change. Use
+`python evals/catalog.py coverage` to find missing assignments. Duplicate members within a suite,
 unknown fields/versions, linked files, missing references, and duplicate
 JSON keys are errors. Overlap between suites is allowed and execution deduplicates the union.
 Do not describe a curated suite as complete coverage. Full CI collection remains independent.
@@ -22,13 +22,12 @@ Do not describe a curated suite as complete coverage. Full CI collection remains
 ```bash
 python evals/catalog.py check
 python evals/catalog.py show --suite python-craft
-python scripts/local_tests.py --suite python-craft
+python scripts/local_tests.py --suite readonly-guard
 ```
 
 `catalog.py check` validates all native references and guide links. Test-only lookup validates the
 suite structure and test paths without loading the eval runtime, so it remains usable when a native
-case or optional SDK is broken. The catalog check is exercised by offline component tests; it does
-not add dependencies to Gate A.
+case or optional SDK is broken. Run the catalog check directly after editing suite membership.
 
 All catalog commands accept `--json`. Responses have `schema_version: 1`, `view`, and `items`.
 The `tests` view lists `{path, selected_by}` objects in path order; `selected_by` lists suite IDs.
@@ -360,11 +359,8 @@ fixture repository at call time, and refuses every write (`merge`, `review`, `co
 a non-GET `api` call) while creating `gh-write.lock`, which `state_file_absent` reads. Each scenario
 embeds the shim and the engine byte for byte in `fixture.fake_bin` (fake-gh calibration tests are archived in Git history).
 
-Each case's `test_reviewer_complex_*.py` proves without a model call that the fixture's own tests
-pass on both branches, that each planted defect shows on the candidate and not on `main`, that each
-decoy is correct, and that each text check accepts and rejects sample replies. Defects are shown by
-running fixture code: by parsing the workflow files for the Actions case, and by executing functions
-extracted from the fixture text for the two slices. The text checks match a locus and a mechanism
+When changing a reviewer fixture, check the planted defect against both branches and check decoys
+against the expected behavior. The text checks match a locus and a mechanism
 within a window and handle only a few forms of negation, so read a first native run's replies
 against them before quoting a rate. Each case has at most three native trials, which is too few to
 quote a rate, and their turn limits are offline choices. Editing a case's checks changes its
@@ -376,8 +372,7 @@ not redirected; a Python call that imports nothing from the pull request passes.
 says "no P0 or P1" in prose.
 
 A skill's routing positive is a **description-change check** — run it when that skill's own
-description changes. `--split` is not wired into the runner's selection; use `--scenario <id>` or
-run everything.
+description changes. Select the affected case with `--scenario <id>`.
 
 The return-and-resume cases separate two boundaries: the `agent-direct-...helper-return` and
 `agent-direct-...partial-slice-to-caller` scenarios grade supplied-state decisions; the
@@ -460,15 +455,10 @@ alone is not native acceptance. Calibration includes changed facts with retained
 source markers, false follow-up completion, missing work/proof, and supervised success, candidate
 failure, early exit, and oracle-crash paths. The contact-closeout probe checks the actual
 card/index edit after a completed scribe dispatch; inspect the trace to establish who wrote it
-and whether the caller supplied the correct checkout binding. These are bounded artifact checks,
-not general document-quality judgments. `python -m pytest evals/test_researcher_scribe_cases.py`
-calibrates their checks offline, including rejection of newly verified execution in the runbook
-fixture, which supplies no incoming verified execution claims. The runbook fixture also declares
-target/source/check records in Prerequisites and readback/owner/retry records for each changing
-step; `test_runbook_safeguards.py` calibrates missing, misplaced, and incorrect records plus
-supervised pass/fail. `test_postmortem_tracking_links.py` rejects invented follow-up links in
-both postmortem forms. These checks remain bounded to the declared fixture records. New scenario definitions and
-offline passes do not establish live model behavior, routing reliability, or host acceptance.
+and whether the caller supplied the correct checkout binding. The runbook fixture supplies no
+verified execution claims. Check its prerequisite records and each changing step's readback,
+owner, and retry instructions. Check follow-up links against the supplied postmortem evidence.
+These fixture checks alone cannot establish live behavior or routing reliability.
 
 Agent-target routing probes remain **calibration-only** evidence of model/host propensity
 (on 2026-08-22 Opus 5 dispatched 0/3 where Sonnet did 3/3). Record the model

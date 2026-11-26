@@ -25,7 +25,7 @@ to describe observed provisioning and paging separately.
 
 ## Signal summary
 
-- Backend and signal type: <Grafana/Moogsoft/ThousandEyes/etc. + metric/log/synthetic>
+- Backend and signal type: <Prometheus/Grafana/Cloud Monitoring/Splunk/etc. + metric/log/trace/synthetic>
 - Authoritative definition: <provisioning owner; source path@exact revision OR API locator/UID + supplied state/readback receipt>
 - Definition version: <supplied exact revision/version and evidence label; absent API version stays `[unverified]`>
 - Observed provisioning and paging: <what the readback or delivery receipt shows, when and where; unknowns as `[unverified]`>

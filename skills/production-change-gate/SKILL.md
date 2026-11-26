@@ -52,9 +52,9 @@ re-enters the gate.
 |---|---|
 | Readiness evidence | New-artifact deploy attaches exact-commit independent review, green checks, `gate: release` PASS, and named approver. Non-deploy actions attach exact command/diff and approval; live-artifact rollback reuses that artifact's records. |
 | Execution boundary | Evidence that the named human/protected executor (not the agent) holds the least-privilege role or protected environment with required reviewers, self-review blocked, admin bypass off, and deployment branch/tag restriction. |
-| Approved | Authorized human approved exact target, command/diff, actor, `Valid until` UTC expiry, and Remedy/Jira change record (per `stack-profile`). |
+| Approved | Authorized human approved exact target, command/diff, actor, `Valid until` UTC expiry, and change-management record where required by repository/team policy. |
 | Binding current | Executor confirms immediately before running that approval is unexpired and target, action, actor, and candidate digest still match. |
-| Blast radius | Affected apps, routes, spaces, traffic share, and worst credible failure recorded. For `cf` writes, load `pcf-ops` (and its deploys, scaling, and rollback reference) for impact and whether it stages a new droplet. |
+| Blast radius | Affected services, routes, environments, traffic share, and worst credible failure recorded. On Cloud Foundry (`cf` writes), load `pcf-ops` (and its deploys, scaling, and rollback reference) to check whether the action stages a new droplet. |
 | Backout / recovery | Exact rollback where feasible, else non-reversible effects plus evidence-backed recovery path (recovery never lowers a Tier 3 action). |
 | Plan shown & monitoring | Full commands/diff shown; peak/freeze checked; named human watches golden signals with abort criteria; stakeholders notified. |
 
@@ -64,16 +64,18 @@ Urgency alone never opens this path; an incident must be declared. In a declared
 replaces the full production checklist **only** for covered reversible Tier 0–2 mitigations or
 rollback to an already-live artifact:
 
-- **Covered:** route remaps, `cf rollback` (while the target revision's droplet is retained — 5 droplets
-  vs. 100 revisions), instance-count scale (`-i`), feature flags, and per-instance or rolling restarts
-  with confirmed serving headroom and existing-droplet reuse without staging.
-- **Excluded (full gate required):** new artifacts, `cf restage`, unknown package/droplet state,
-  whole-app stop/start or memory/disk/log-rate scale, all Tier 3 actions, and suspected compromise
-  or data-integrity loss (preserve forensic state and follow the human security owner).
-- **Controls:** ITO approves the exact command or a bounded envelope (with `Valid until` UTC or
-  incident end) in the TLC; record blast radius, backout, verification window, stop criteria, monitoring
-  owner, and perishable-diagnostic capture (or the human's waiver). Reconcile deferred change-record
-  and readiness paperwork after resolution and hand the timeline to `scribe`.
+- **Covered:** traffic/route shifts to healthy revisions, rollback to an already-built live artifact
+  (on PCF, `cf rollback` while the target droplet is retained), horizontal replica/instance scale,
+  feature flags, and rolling/per-instance restarts with confirmed serving headroom and no rebuild.
+- **Excluded (full gate required):** new artifacts, rebuilds/restages (`cf restage`),
+  unknown artifact/package state, full-service stop/start or vertical resource resize, all Tier 3
+  actions, and suspected compromise or data-integrity loss (preserve forensic state and follow the
+  human security owner).
+- **Controls:** Incident commander / authorized change approver approves the exact command or a
+  bounded envelope (with `Valid until` UTC or incident end) in the active incident channel; record
+  blast radius, backout, verification window, stop criteria, monitoring owner, and
+  perishable-diagnostic capture (or the human's waiver). Reconcile deferred change-record and
+  readiness paperwork after resolution and hand the timeline to `scribe`.
 
 ## 5. Verdict & execution outcome
 

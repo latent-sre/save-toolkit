@@ -850,13 +850,56 @@ class GuardScopingTest(unittest.TestCase):
             agent_types=("sre-assistant", "principal-engineer", "save-toolkit:principal-engineer"),
         )
         assert_guard_decisions(
-            self, "allow", ["git log -n 5 --oneline", "gh pr list"],
+            self, "allow",
+            [
+                "git --no-optional-locks log -n 5 --oneline",
+                "git log --no-ext-diff --no-textconv -n 2 -p -- README.md",
+                "git show --no-ext-diff --no-textconv HEAD",
+                "gh pr list",
+            ],
             agent_types=("principal-engineer", "save-toolkit:principal-engineer"),
         )
         assert_guard_decisions(
             self, "deny",
-            ["dig example.com", "cf apps", "gcloud projects describe p", "git log $HOME"],
+            [
+                "dig example.com",
+                "cf apps",
+                "gcloud projects describe p",
+                "git log $HOME",
+                "git log -n 2 -p -- README.md",
+                "git log -U3 -n 1 -- README.md",
+                "git log --stat -n 1",
+                "git diff HEAD~1",
+                "git show HEAD",
+                "git whatchanged -n 1",
+                "git stash show",
+                "git diff -- --no-ext-diff --no-textconv",
+                "git diff --no-ext-diff --no-textconv --ext-diff --textconv HEAD~1",
+            ],
             agent_types=("principal-engineer", "save-toolkit:principal-engineer"),
+        )
+        for cmd in (
+            "git.exe log -n 5 --oneline",
+            "git diff --no-ext-diff --no-textconv HEAD",
+        ):
+            proc = run_guard(guard_payload(cmd, tool_name="PowerShell", agent_type="principal-engineer"))
+            self.assertEqual("allow", guard_decision(proc), cmd)
+        for cmd in (
+            "git log -n 5 | Select-Object -First 10",
+            "git diff HEAD~1",
+            "git diff -- --no-ext-diff --no-textconv",
+        ):
+            proc = run_guard(guard_payload(cmd, tool_name="PowerShell", agent_type="principal-engineer"))
+            self.assertEqual("deny", guard_decision(proc), cmd)
+        assert_guard_decisions(
+            self, "deny",
+            ["dig -f .env", "dig -4f .env", "dig -k /tmp/tsig.key example.com", "dig -y hmac-sha256:k:s example.com"],
+            agent_types=("sre-assistant", "save-toolkit:sre-assistant"),
+        )
+        assert_guard_decisions(
+            self, "allow",
+            ["dig example.com", "dig +short example.com A"],
+            agent_types=("sre-assistant", "save-toolkit:sre-assistant"),
         )
 
     def test_main_loop_command_that_merely_names_the_reviewer_is_allowed(self) -> None:

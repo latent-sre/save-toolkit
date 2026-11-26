@@ -11,15 +11,15 @@ argument-hint: "[the GUI to build or change]"
 # Frontend craft
 
 Deliver runnable UI code wired to the real backend contract with complete workflows and verification.
-Preserve an existing app's framework, component kit, router, and locked toolchain. Load `stack-profile`
-before introducing a new runtime or infrastructure choice.
+Preserve an existing app's framework, component kit, router, and locked toolchain. Follow the
+repository's build and deployment manifests before introducing any new runtime or infrastructure choice.
 
 ## Load for the changed boundary
 
 | Boundary | Guidance |
 |---|---|
 | Framework, kits, design brief, tokens, and API/state integration | [Stack, design, and API integration](./references/stack.md) |
-| Production serving, PCF `Staticfile`/nginx, runtime config, and CSP | [Serving and runtime config](./references/serving.md) |
+| Production serving, SPA nginx/buildpack delivery, runtime config, and CSP | [Serving and runtime config](./references/serving.md) |
 
 ## Design & workflow standards
 

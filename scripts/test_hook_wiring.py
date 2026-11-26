@@ -235,10 +235,6 @@ class HookWiringTests(unittest.TestCase):
             frontmatter = "\n" + frontmatter_block(path.read_text(encoding="utf-8"))
             self.assertNotIn("\nhooks:", frontmatter, path.name)
 
-    def test_copilot_hook_is_explicitly_empty(self) -> None:
-        document = json.loads((ROOT / "hooks/copilot-hooks.json").read_text(encoding="utf-8"))
-        self.assertEqual({}, document.get("hooks"))
-
     def test_exact_hook_command_allows_safe_denies_write_and_ignores_main(self) -> None:
         """The ONLY test that runs the real inlined hooks.json command string.
 

@@ -13,12 +13,9 @@ python evals/catalog.py show --suite gcp-investigation
 python evals/catalog.py campaigns
 ```
 
-[verified] The inventory contains 409 native scenarios, 149 root-suite Python test
-files, 35 suites, and 23 track records. Every current native scenario and root test file belongs to
-at least one named suite. Suites overlap intentionally; their counts must not be added to estimate
-independent coverage. The live `coverage` output derives counts and lists unassigned IDs/files if
-new material has not yet been grouped. Component tests require the committed inventory to remain
-assigned, without introducing a catch-all suite that silently absorbs new cases.
+Read the assigned and total counts from `coverage` for the checkout you are reviewing.
+Suites overlap, so adding their counts double-counts shared cases. A suite can contain native
+scenarios or a campaign with no pytest files.
 
 ## What each layer proves
 
@@ -123,8 +120,7 @@ same case, another framework, or a larger total count would not by themselves cl
 ## Maintenance
 
 Add new cases/tests to explicit capability suites in the same change. `catalog.py check` validates
-references and track shape; `coverage` exposes missing assignments; the catalog tests check the
-current repository's membership. No runtime glob populates a suite. An intentional inactive proposal
+references and track shape. Use `coverage` to find missing assignments. An inactive proposal
 belongs in `tracks` with its guide and controls, not in the active native case list.
 
 Do not add sandbox tests to root suites merely to raise the assigned-file count. Their separate

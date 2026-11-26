@@ -11,7 +11,7 @@ argument-hint: "[Go code, package, or task]"
 
 # Go craft
 
-Load `stack-profile` for toolchain choices and `api-craft` for HTTP boundaries. Keep language changes within the requested task; preserve caller-visible
+Follow the repository's `go.mod`, CI, and deployment manifests for toolchain choices, and load `api-craft` for HTTP boundaries. Keep language changes within the requested task; preserve caller-visible
 behavior unless its change is intentional.
 
 ## Establish the version boundary

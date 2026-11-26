@@ -13,9 +13,9 @@ does not enforce missing-file 404 or header rules).
   screen, display the environment in the shell and destructive confirms, and never place secrets in
   `config.json` or `VITE_*`.
 
-## PCF delivery (`staticfile_buildpack`)
+## Cloud Foundry staticfile delivery (when the repository deploys on PCF)
 
-Deploy a CI-assembled bundle containing `dist/` and these files (never push `src/` or `node_modules`):
+When deploying a SPA with `staticfile_buildpack`, ship a CI-assembled bundle containing `dist/` and these files (never push `src/` or `node_modules`):
 
 | File | Contract |
 |---|---|

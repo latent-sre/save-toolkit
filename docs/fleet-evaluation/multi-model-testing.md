@@ -178,10 +178,6 @@ from records; the scheduler must retain its dispatch ledger for that gap.
 
 ## Verification and scope
 
-Run `python evals/test_testing_block.py` for no-model CLI/record controls, then Ruff and mypy on
-`evals/testing_block.py`. Tests cover preparation/validation, exclusive paths, missing/duplicate
-attempts, native schema validation, observed-model mismatches, unknown cost, inconsistent native
-cost accounting, recordless attempts, complete group selection, three-trial command offsets,
-legacy plan reading, and semantic-review markers. This is a bounded offline preparation/accounting utility;
-existing runner result formats and executors remain separate. No SDK, dependency, runner rewrite,
-authentication path, or generic evaluation framework is added.
+Use the [offline preparation and validation commands](#prepare-and-validate-offline) to check a
+block's case bindings, model identities, and trial slots. Use the reporter on saved attempts
+for observed outcomes and costs. The original unit-test controls are archived in Git history.

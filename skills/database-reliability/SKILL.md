@@ -9,12 +9,11 @@ argument-hint: "[the database or query symptom]"
 
 # Database reliability
 
-Keep data **correct, durable, and fast**, and make schema change safe in production. Our apps run on
-PCF and use bound service instances of managed databases (Postgres / MS SQL; a few apps embed SQLite, which is
-not an operated engine — the one rule that matters is in `stack-profile`) — you operate at the
-*application + data* layer, not the DB platform internals. `software-engineer` writes persistence
-and migration code, loading `api-craft` when it serves an HTTP contract; this skill owns operating
-it safely, diagnosing it, and proving recovery.
+Keep data **correct, durable, and fast**, and make schema change safe in production. Inspect the
+repository's configured database engine, driver, connection pooling, and deployment topology first
+— operate at the *application + data* layer unless database-platform internals are explicitly in
+scope. `software-engineer` writes persistence and migration code, loading `api-craft` when it serves
+an HTTP contract; this skill owns operating it safely, diagnosing it, and proving recovery.
 
 > **Authority:** inspect only through the lane's granted, output-protected read paths.
 > Live changes use `production-change-gate`, including its current

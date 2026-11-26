@@ -93,12 +93,10 @@ host blocks those executions, not independent offline preparation.
 
 ## Verification and completion
 
-Use regression tests for the refusal grader, six routing cases, testing-block
-identity/accounting, invocation limits and actual Linux namespace behavior. Run
-focused checks first and the coordinated heavy suite once at the integration
-boundary. The [multi-model testing guide](multi-model-testing.md) describes the
-reusable commands. The tabletop packet (in Git history) supplies the human
-exercise. Passing offline tests does not complete any unrun campaign or human task.
+Select checks for the affected grader, routing case, accounting, invocation limit, or Linux
+namespace behavior. Follow the [contributor verification policy](../../CONTRIBUTING.md#3-verify-in-proportion-to-the-change)
+and the [multi-model testing guide](multi-model-testing.md). Record campaign and human tabletop
+results separately from offline checks.
 
 ## WP-10 current-candidate continuation
 
